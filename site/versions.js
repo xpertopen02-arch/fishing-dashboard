@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.7", date: "2026-11-04", title: "같은 Wi-Fi에서 휴대폰으로 보기",
+    changes: [
+      "같은 공유기에 연결된 휴대폰에서 열기 위한 휴대폰으로 열기.bat 추가 (실제 휴대폰 접속은 아직 확인 전)",
+    ],
+  },
+  {
     version: "1.6", date: "2026-11-04", title: "버전 기록과 자료 반영일",
     changes: [
       "화면 오른쪽 위에 버전 탭을 추가해 변경 기록을 볼 수 있게 함",
