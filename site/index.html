@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>낚시 브리핑</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <button class="brand" data-go="plan"><span class="brand-mark" aria-hidden="true"></span>낚시 브리핑</button>
+  <nav class="tabs" aria-label="화면">
+    <button data-go="plan">출조 브리핑</button>
+    <button data-go="log">출조 기록</button>
+    <button data-go="library">자료 탐색</button>
+    <span class="tab-ink" aria-hidden="true"></span>
+  </nav>
+  <div class="top-actions">
+    <button class="search-open" id="searchOpen"><span>자료 검색</span><kbd>/</kbd></button>
+    <button class="icon-btn" id="themeBtn" aria-label="밝기 전환" title="밝기 전환">◐</button>
+    <button class="ver-btn" id="verBtn" title="변경 기록 보기"></button>
+  </div>
+</header>
+
+<main>
+  <section id="view-plan" class="view">
+    <div class="controls">
+      <div class="date-box">
+        <label for="dateInput">낚시 날짜</label>
+        <input type="date" id="dateInput">
+        <div class="quick" id="quickDates"></div>
+      </div>
+      <div class="place-box" id="placeChips"></div>
+    </div>
+
+    <div class="strip" id="dayStrip" aria-label="앞으로 14일 날씨"></div>
+
+    <div class="stage">
+      <div class="map-card">
+        <div id="map"></div>
+        <canvas id="windCanvas" aria-hidden="true"></canvas>
+        <div class="map-note" id="mapNote" hidden></div>
+        <button class="map-all" id="mapAll">전체 낚시터 보기</button>
+        <div class="hour-bar">
+          <button class="play" id="playBtn" aria-label="시간 재생">▶</button>
+          <input type="range" id="hourRange" min="0" max="23" value="6" aria-label="시간">
+          <output id="hourLabel">06:00</output>
+        </div>
+      </div>
+      <aside class="brief" id="brief"></aside>
+    </div>
+
+    <div class="charts" id="charts"></div>
+
+    <div class="dossier" id="dossier"></div>
+  </section>
+
+  <section id="view-log" class="view" hidden></section>
+  <section id="view-library" class="view" hidden></section>
+</main>
+
+<div class="drawer-back" id="drawerBack" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-label="자료 보기"></aside>
+
+<div class="search-layer" id="searchLayer" hidden>
+  <div class="search-panel" role="dialog" aria-label="자료 검색">
+    <div class="search-head">
+      <input id="searchInput" type="search" placeholder="어종, 떡밥, 기법, 낚시터 이름으로 검색" autocomplete="off">
+      <button class="icon-btn" id="searchClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="search-filter" id="searchFilter"></div>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" hidden><img alt=""></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data/meta.js"></script>
+<script src="versions.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

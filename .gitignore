@@ -1,0 +1,7 @@
+# Re-created by update.bat; holds a file over GitHub's 100MB limit
+/data/
+# Purchased guide, kept out of the repository
+source파일/*.pdf
+# Local tool settings
+.claude/
+__pycache__/
