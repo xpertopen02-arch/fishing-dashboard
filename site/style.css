@@ -172,8 +172,8 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px 24px 80px; }
 .climate-note { border-color: var(--accent); }
 .climate-note b { color: var(--ink); }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
-.brief-head { display: flex; align-items: stretch; gap: 12px; }
-.brief-main { flex: 1; min-width: 0; }
+.brief-head { display: flex; align-items: stretch; gap: 20px; }
+.brief-main { flex: 0 1 auto; min-width: 0; }
 .brief-head h2 { font-size: 22px; }
 .brief-wx { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 13px; color: var(--ink-2); white-space: nowrap; animation: rise .35s both; }
 .brief-wx i { font-style: normal; font-size: 92px; line-height: 1; }
