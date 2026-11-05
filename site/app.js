@@ -602,7 +602,7 @@
     const head = `<div class="card brief-head"><div class="brief-main"><h2>${esc(p.name)}</h2><p>${esc(p.address)}</p>
       <p class="pin-fix">위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
       <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}</div>
-      ${w ? `<span class="source-tag">${fmtDate(state.date)} · ${MODE_LABEL[state.weather.mode](state.date)}</span>` : ""}</div>${dayWx ? `<div class="brief-wx" title="${dayWx[1]}"><i aria-hidden="true">${dayWx[0]}</i><span>${dayWx[1]}</span></div>` : ""}</div>`;
+      ${w ? `<span class="source-tag">${fmtDate(state.date)} · ${MODE_LABEL[state.weather.mode](state.date)}</span>` : ""}</div>${dayWx ? `<div class="brief-wx" title="${dayWx[1]}"><b class="brief-wx-date">${state.date.slice(0, 4) === TODAY.slice(0, 4) ? "" : `${state.date.slice(0, 4)}. `}${fmtShort(state.date)}</b><i aria-hidden="true">${dayWx[0]}</i><span>${dayWx[1]}</span></div>` : ""}</div>`;
     if (!hasPin(p)) {
       $("#brief").innerHTML = head + `<div class="card notice">이 낚시터의 주소를 찾지 못해 날씨를 조회할 수 없습니다. 지도에서 낚시터 위치를 클릭하면 저장되고 날씨가 바로 나옵니다.</div>`;
       return;

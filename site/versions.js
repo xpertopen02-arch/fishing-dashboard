@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.13", date: "2026-11-05", title: "날씨 그림 위에 날짜 표시",
+    changes: [
+      "낚시터 카드의 날씨 그림 위에 고른 날짜를 굵고 크게 표시",
+      "날씨 그림 크기를 조금 줄임",
+    ],
+  },
+  {
     version: "1.12", date: "2026-11-05", title: "날씨 그림 위치 조정",
     changes: [
       "낚시터 카드의 날씨 그림을 주소 바로 옆으로 이동",

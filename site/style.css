@@ -176,7 +176,8 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px 24px 80px; }
 .brief-main { flex: 0 1 auto; min-width: 0; }
 .brief-head h2 { font-size: 22px; }
 .brief-wx { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 13px; color: var(--ink-2); white-space: nowrap; animation: rise .35s both; }
-.brief-wx i { font-style: normal; font-size: 92px; line-height: 1; }
+.brief-wx-date { font-size: 22px; font-weight: 800; line-height: 1.2; color: var(--ink); }
+.brief-wx i { font-style: normal; font-size: 72px; line-height: 1; }
 .brief-head p { margin: 4px 0 0; font-size: 13px; color: var(--ink-2); }
 .source-tag { display: inline-block; margin-top: 8px; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); font-size: 12px; color: var(--ink-2); }
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
