@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.17", date: "2026-11-05", title: "앱 설치 버튼 항상 표시",
+    changes: [
+      "설치 창을 닫거나 앱을 지운 뒤에도 앱 설치 버튼이 브라우저에 계속 보이도록 수정",
+      "설치 창을 띄울 수 없을 때는 크롬 메뉴로 설치하는 방법을 안내",
+    ],
+  },
+  {
     version: "1.16", date: "2026-11-05", title: "휴대폰에 설치하는 앱(PWA)",
     changes: [
       "안드로이드 등에서 홈 화면에 앱으로 설치할 수 있게 하고 앱 설치 버튼과 아이콘 추가",

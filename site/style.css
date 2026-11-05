@@ -79,6 +79,7 @@ kbd { font: 12px/1 system-ui; border: 1px solid var(--border); border-radius: 4p
 .ver-btn:hover { color: var(--ink); border-color: var(--accent); }
 .install-btn { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .install-btn:hover { color: var(--surface); }
+.install-steps { margin: 0; padding-left: 22px; line-height: 1.9; }
 .ver-list { position: relative; padding-left: 20px; }
 .ver-list::before { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 2px; background: var(--axis); }
 .ver-item { position: relative; margin-bottom: 22px; animation: rise .35s both; animation-delay: calc(var(--i) * 40ms); }
