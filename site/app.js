@@ -929,21 +929,6 @@
     $("#drawerBack").hidden = false;
     $("[data-close]", dr).focus();
   }
-  function openInstallHelp() {
-    openId = "install";
-    const dr = $("#drawer");
-    dr.innerHTML = `<div class="drawer-head"><div><h2>앱 설치 방법</h2><p>지금은 브라우저의 설치 창을 바로 띄울 수 없습니다.</p></div><button class="icon-btn" data-close aria-label="닫기">✕</button></div>
-      <div class="drawer-body"><ol class="install-steps">
-        <li>안드로이드 크롬 오른쪽 위의 메뉴(⋮)를 누릅니다.</li>
-        <li><b>앱 설치</b> 또는 <b>홈 화면에 추가</b>를 누릅니다.</li>
-        <li>메뉴에 <b>앱 열기</b>가 보이면 이미 설치된 상태입니다. 홈 화면이나 앱 목록의 물고기 아이콘을 확인하세요.</li>
-      </ol></div>`;
-    dr.classList.add("open");
-    dr.setAttribute("aria-hidden", "false");
-    dr.setAttribute("aria-label", "앱 설치 방법");
-    $("#drawerBack").hidden = false;
-    $("[data-close]", dr).focus();
-  }
   function closeDrawer() {
     openId = null;
     const dr = $("#drawer");
@@ -1091,20 +1076,6 @@
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     navigator.serviceWorker.register("sw.js").catch(() => { /* the site still works online without it */ });
   }
-  // Chrome offers its install prompt only sometimes, so the button stays and falls back to directions.
-  let installPrompt = null;
-  $("#installBtn").hidden = matchMedia("(display-mode: standalone)").matches || location.protocol === "file:";
-  addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    installPrompt = e;
-  });
-  $("#installBtn").addEventListener("click", async () => {
-    if (!installPrompt) return openInstallHelp();
-    const prompt = installPrompt;
-    installPrompt = null;
-    prompt.prompt();
-    await prompt.userChoice;
-  });
   go(location.hash.slice(1) || "plan", false);
   loadAll();
   if (document.fonts?.ready) document.fonts.ready.then(moveInk);

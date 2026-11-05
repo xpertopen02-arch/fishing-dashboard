@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.18", date: "2026-11-05", title: "앱 설치 버튼 제거",
+    changes: [
+      "앱 설치를 마쳐 화면의 앱 설치 버튼과 안내를 제거 (설치는 크롬 메뉴에서 계속 가능)",
+    ],
+  },
+  {
     version: "1.17", date: "2026-11-05", title: "앱 설치 버튼 항상 표시",
     changes: [
       "설치 창을 닫거나 앱을 지운 뒤에도 앱 설치 버튼이 브라우저에 계속 보이도록 수정",
