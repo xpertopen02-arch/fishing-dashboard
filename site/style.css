@@ -107,6 +107,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px 24px 80px; }
 .controls { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px 28px; align-items: start; margin-bottom: 14px; }
 .date-box label { display: block; font-size: 13px; color: var(--ink-2); font-weight: 600; margin-bottom: 4px; }
 .date-box input { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-weight: 700; }
+.date-range { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-2); }
 .quick { display: flex; gap: 6px; margin-top: 8px; }
 .quick button, .chip { padding: 4px 10px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; transition: transform .15s, background .2s, border-color .2s; white-space: nowrap; }
 .quick button:hover, .chip:hover { transform: translateY(-1px); border-color: var(--accent); }
@@ -169,7 +170,10 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px 24px 80px; }
 .brief { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); gap: 10px; min-width: 0; }
 .brief > .card.notice { grid-column: 1 / -1; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+.brief-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .brief-head h2 { font-size: 22px; }
+.brief-wx { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--ink-2); animation: rise .35s both; }
+.brief-wx i { font-style: normal; font-size: 26px; line-height: 1; }
 .brief-head p { margin: 4px 0 0; font-size: 13px; color: var(--ink-2); }
 .source-tag { display: inline-block; margin-top: 8px; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); font-size: 12px; color: var(--ink-2); }
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }

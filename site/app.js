@@ -81,14 +81,13 @@
 
   /* ---------- weather ---------- */
   const HOURLY = "temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,weather_code";
-  const weatherMode = (date) => {
-    const d = diffDays(date, TODAY);
-    return d > 15 ? "climate" : d < -85 ? "archive" : "forecast";
-  };
+  // What Open-Meteo actually serves: its archive starts 1940-01-01 (only partly, in Korean time), its forecast ends 15 days out.
+  const WEATHER_MIN = "1940-01-02";
+  const WEATHER_MAX = addDays(TODAY, 15);
+  const weatherMode = (date) => (diffDays(date, TODAY) < -85 ? "archive" : "forecast");
   const MODE_LABEL = {
     forecast: (d) => (d < TODAY ? "최근 실황 모델 값" : "예보"),
     archive: () => "과거 재분석 값",
-    climate: () => "예보 범위 밖: 최근 3년 같은 날짜의 평균",
   };
 
   async function getJSON(url) {
@@ -113,40 +112,12 @@
     const url = `https://${host}/v1/${path}?latitude=${lat}&longitude=${lon}&hourly=${HOURLY}${extra}&daily=sunrise,sunset&wind_speed_unit=ms&timezone=${TZ}&start_date=${date}&end_date=${date}`;
     return asList(await getJSON(url)).map(normal);
   }
-  function meanOf(sets) {
-    const avg = (key) => sets[0][key] && sets[0][key].map((_, i) => {
-      const v = sets.map((s) => s[key][i]).filter((x) => x != null);
-      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-    });
-    return {
-      time: sets[0].time, temp: avg("temp"), precip: avg("precip"), prob: null, wind: avg("wind"), gust: avg("gust"), pressure: avg("pressure"), code: null,
-      dir: sets[0].dir.map((_, i) => {
-        let x = 0, y = 0;
-        sets.forEach((s) => { const a = (s.dir[i] ?? 0) * Math.PI / 180; x += Math.sin(a); y += Math.cos(a); });
-        return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
-      }),
-      sunrise: sets[0].sunrise, sunset: sets[0].sunset,
-    };
-  }
   async function fetchWeather(date) {
     const located = PLACES.filter(hasPin);
     const mode = weatherMode(date);
-    let rows;
-    if (mode === "forecast") {
-      rows = await fetchRange("api.open-meteo.com", "forecast", located, date, ",precipitation_probability");
-    } else if (mode === "archive") {
-      rows = await fetchRange("archive-api.open-meteo.com", "archive", located, date);
-    } else {
-      const [, m, d] = date.split("-");
-      const limit = addDays(TODAY, -6);
-      const days = [];
-      for (let y = parseISO(TODAY).getFullYear(); days.length < 3 && y > 2000; y--) {
-        const c = `${y}-${m}-${m === "02" && d === "29" ? "28" : d}`;
-        if (c <= limit) days.push(c);
-      }
-      const sets = await Promise.all(days.map((c) => fetchRange("archive-api.open-meteo.com", "archive", located, c)));
-      rows = located.map((_, i) => meanOf(sets.map((s) => s[i])));
-    }
+    const rows = mode === "forecast"
+      ? await fetchRange("api.open-meteo.com", "forecast", located, date, ",precipitation_probability")
+      : await fetchRange("archive-api.open-meteo.com", "archive", located, date);
     const out = {};
     located.forEach((p, i) => { out[p.id] = rows[i]; });
     return { date, mode, data: out };
@@ -157,7 +128,7 @@
     return { wave: j.hourly.wave_height, sea: j.hourly.sea_level_height_msl };
   }
   async function fetchStrip(place) {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&wind_speed_unit=ms&timezone=${TZ}&forecast_days=14`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&wind_speed_unit=ms&timezone=${TZ}&forecast_days=16`;
     return (await getJSON(url)).daily;
   }
   const dailyCache = {};
@@ -569,6 +540,13 @@
     const items = [["오늘", TODAY], ["내일", addDays(TODAY, 1)], ["이번 토요일", sat], ["일요일", addDays(sat, 1)]];
     $("#quickDates").innerHTML = items.map(([l, d]) => `<button data-date="${d}" class="${d === state.date ? "on" : ""}">${l}</button>`).join("");
   }
+  function focusStripDay() {
+    const strip = $("#dayStrip");
+    const day = $(`.day[data-date="${state.date}"]`, strip);
+    if (!day) return;
+    const left = day.offsetLeft - strip.offsetLeft - (strip.clientWidth - day.clientWidth) / 2;
+    strip.scrollTo({ left, behavior: REDUCED ? "auto" : "smooth" });
+  }
   function renderStrip(daily) {
     const el = $("#dayStrip");
     if (!daily) { el.innerHTML = ""; return; }
@@ -581,12 +559,15 @@
         <div class="w">바람 ${num(daily.wind_speed_10m_max[i])}</div>
         <div class="w">비 ${num(daily.precipitation_sum[i])}mm</div></button>`;
     }).join("");
+    focusStripDay();
   }
 
   function renderBrief(err) {
     const p = placeById[state.place];
     const w = state.weather?.data[p.id];
-    const head = `<div class="card brief-head"><h2>${esc(p.name)}</h2><p>${esc(p.address)}</p>
+    // the most severe code of the day, which is how the daily cards above are coded too
+    const dayWx = w?.code && fin(w.code).length ? WX(Math.max(...fin(w.code))) : null;
+    const head = `<div class="card brief-head"><div class="brief-title"><h2>${esc(p.name)}</h2>${dayWx ? `<span class="brief-wx" title="${dayWx[1]}"><i aria-hidden="true">${dayWx[0]}</i>${dayWx[1]}</span>` : ""}</div><p>${esc(p.address)}</p>
       <p class="pin-fix">위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
       <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}</div>
       ${w ? `<span class="source-tag">${fmtDate(state.date)} · ${MODE_LABEL[state.weather.mode](state.date)}</span>` : ""}</div>`;
@@ -614,7 +595,7 @@
       ${tile(3, "최대 돌풍", Math.max(...gusts), 1, "m/s", w.sunrise ? `일출 ${w.sunrise} · 일몰 ${w.sunset}` : "")}
     </div>
     ${p.type === "바다" ? `<div class="card notice">해상 값은 모델 참고치입니다. 출항 판단은 기상청 특보와 물때표로 다시 확인하세요.</div>` : ""}
-    ${state.weather.mode === "climate" ? `<div class="card notice">아직 예보가 나오지 않은 날짜입니다. 과거 평균이므로 실제 날씨와 다를 수 있습니다.</div>` : ""}`;
+`;
     $$("[data-to]", $("#brief")).forEach(countUp);
   }
 
@@ -769,6 +750,7 @@
     $("#dateInput").value = date;
     if (date !== TODAY) setHour(7);
     $$(".day").forEach((d) => d.classList.toggle("on", d.dataset.date === date));
+    focusStripDay();
     loadAll();
   }
 
@@ -1009,7 +991,12 @@
     }
     else if (d.stype !== undefined) { searchType = d.stype; openSearch(); }
   });
-  $("#dateInput").addEventListener("change", (e) => selectDate(e.target.value));
+  $("#dateInput").addEventListener("change", (e) => {
+    // the calendar disables other dates, but a typed date can still fall outside the range
+    const d = e.target.value;
+    if (d >= WEATHER_MIN && d <= WEATHER_MAX) selectDate(d);
+    else e.target.value = state.date;
+  });
   $("#hourRange").addEventListener("input", (e) => { stopPlay(); setHour(+e.target.value); });
   $("#playBtn").addEventListener("click", togglePlay);
   $("#mapAll").addEventListener("click", fitAll);
@@ -1042,6 +1029,9 @@
   const savedTheme = store.get("theme", null);
   if (savedTheme) document.documentElement.dataset.theme = savedTheme;
   $("#dateInput").value = state.date;
+  $("#dateInput").min = WEATHER_MIN;
+  $("#dateInput").max = WEATHER_MAX;
+  $("#dateRange").textContent = `날씨 제공: ${WEATHER_MAX.replaceAll("-", ".")}까지`;
   $("#hourRange").value = state.hour;
   $("#hourLabel").textContent = `${pad(state.hour)}:00`;
   initMap();
