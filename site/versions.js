@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.16", date: "2026-11-05", title: "휴대폰에 설치하는 앱(PWA)",
+    changes: [
+      "안드로이드 등에서 홈 화면에 앱으로 설치할 수 있게 하고 앱 설치 버튼과 아이콘 추가",
+      "인터넷 없이도 화면, 글, 검색, 본 적 있는 이미지와 날씨를 볼 수 있게 저장",
+      "저장된 날씨를 보여줄 때 저장 시각을 안내",
+    ],
+  },
+  {
     version: "1.15", date: "2026-11-05", title: "검색 차단 표시 추가",
     changes: [
       "대시보드 페이지를 검색 결과에 넣지 않도록 검색 엔진에 요청하는 표시 추가 (저장소 파일에는 적용되지 않음)",

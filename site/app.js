@@ -92,9 +92,13 @@
     climate: () => "예보 범위 밖: 최근 3년 같은 날짜의 평균",
   };
 
+  // set when the service worker answered from its saved copy because there was no connection
+  let weatherSavedAt = null;
   async function getJSON(url) {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const saved = r.headers.get("x-fish-saved");
+    if (saved) weatherSavedAt = saved;
     return r.json();
   }
   const asList = (j) => (Array.isArray(j) ? j : [j]);
@@ -132,6 +136,7 @@
   async function fetchWeather(date) {
     const located = PLACES.filter(hasPin);
     const mode = weatherMode(date);
+    weatherSavedAt = null;
     let rows;
     let years = null;
     if (mode === "forecast") {
@@ -152,7 +157,7 @@
     }
     const out = {};
     located.forEach((p, i) => { out[p.id] = rows[i]; });
-    return { date, mode, years, data: out };
+    return { date, mode, years, savedAt: weatherSavedAt, data: out };
   }
   async function fetchMarine(place, date) {
     const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=wave_height,sea_level_height_msl&timezone=${TZ}&start_date=${date}&end_date=${date}`;
@@ -626,6 +631,7 @@
       ${tile(2, "강수 합계", rain, 1, "mm", maxProb != null ? `최대 확률 ${maxProb}%` : "확률 자료 없음")}
       ${tile(3, "최대 돌풍", Math.max(...gusts), 1, "m/s", w.sunrise ? `일출 ${w.sunrise} · 일몰 ${w.sunset}` : "")}
     </div>
+    ${state.weather.savedAt ? `<div class="card notice climate-note"><b>인터넷에 연결되어 있지 않습니다.</b> ${new Date(state.weather.savedAt).toLocaleString("ko-KR")}에 저장된 날씨입니다. 최신 예보와 다를 수 있습니다.</div>` : ""}
     ${state.weather.mode === "climate" ? `<div class="card notice climate-note"><b>예보 범위 밖 날짜입니다.</b> ${fmtDate(state.date)}의 예보는 아직 없어, ${state.weather.years.join("·")}년 같은 날짜의 평균을 보여줍니다. 실제 날씨와 다를 수 있으며, 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 제공됩니다.</div>` : ""}
     ${p.type === "바다" ? `<div class="card notice">해상 값은 모델 참고치입니다. 출항 판단은 기상청 특보와 물때표로 다시 확인하세요.</div>` : ""}`;
     $$("[data-to]", $("#brief")).forEach(countUp);
@@ -743,7 +749,8 @@
     try {
       if (!state.weather) {
         const w = await fetchWeather(state.date);
-        cacheW[state.date] = w;
+        // saved values must not outlive the outage
+        if (!w.savedAt) cacheW[state.date] = w;
         if (token !== loadToken) return;
         state.weather = w;
       }
@@ -1066,6 +1073,23 @@
   $("#hourRange").value = state.hour;
   $("#hourLabel").textContent = `${pad(state.hour)}:00`;
   initMap();
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* the site still works online without it */ });
+  }
+  let installPrompt = null;
+  addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    $("#installBtn").hidden = false;
+  });
+  addEventListener("appinstalled", () => { $("#installBtn").hidden = true; });
+  $("#installBtn").addEventListener("click", async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    $("#installBtn").hidden = true;
+  });
   go(location.hash.slice(1) || "plan", false);
   loadAll();
   if (document.fonts?.ready) document.fonts.ready.then(moveInk);

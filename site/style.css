@@ -77,6 +77,8 @@ kbd { font: 12px/1 system-ui; border: 1px solid var(--border); border-radius: 4p
 
 .ver-btn { height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ver-btn:hover { color: var(--ink); border-color: var(--accent); }
+.install-btn { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.install-btn:hover { color: var(--surface); }
 .ver-list { position: relative; padding-left: 20px; }
 .ver-list::before { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 2px; background: var(--axis); }
 .ver-item { position: relative; margin-bottom: 22px; animation: rise .35s both; animation-delay: calc(var(--i) * 40ms); }
@@ -121,7 +123,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px 24px 80px; }
 .chip.nopin { border-style: dashed; }
 
 /* 14-day strip */
-.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(84px, 1fr); gap: 6px; overflow-x: auto; padding: 2px 2px 8px; margin-bottom: 8px; scrollbar-width: thin; }
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(84px, 1fr); gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 8px; margin-bottom: 8px; scrollbar-width: thin; }
 .day { text-align: left; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; transition: transform .18s, box-shadow .18s, border-color .18s; animation: rise .4s both; animation-delay: calc(var(--i) * 28ms); }
 .day:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .day.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
