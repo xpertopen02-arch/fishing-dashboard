@@ -88,7 +88,10 @@ kbd { font: 12px/1 system-ui; border: 1px solid var(--border); border-radius: 4p
 .ver-item h3 { font-size: 14px; font-weight: 600; margin: 2px 0 4px; }
 .ver-item ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--ink-2); }
 .sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin-bottom: 14px; }
-.source-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; animation: rise .4s both; animation-delay: calc(var(--i) * 45ms); }
+.source-hint { margin: 0 0 6px; font-size: 13px; color: var(--ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 28px; }
+.source-card { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; animation: rise .4s both; animation-delay: calc(var(--i) * 45ms); transition: transform .15s, border-color .15s, box-shadow .15s; }
+.source-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.source-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .source-card b { display: block; font-size: 14px; }
 .source-card span { display: block; font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
@@ -328,7 +331,6 @@ details.table-view summary { cursor: pointer; font-size: 13px; color: var(--ink-
   .charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .chart:last-child:nth-child(3n + 2), .chart:last-child:nth-child(3n + 1) { grid-column: auto; }
   .chart:last-child:nth-child(odd) { grid-column: 1 / -1; }
-  .log-grid > * { grid-column: span 12 !important; }
 }
 @media (max-width: 720px) {
   body { font-size: 14px; }
@@ -343,6 +345,7 @@ details.table-view summary { cursor: pointer; font-size: 13px; color: var(--ink-
   .map-card { height: 440px; }
   .map-note { left: 12px; right: 12px; top: 96px; }
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .log-grid > * { grid-column: span 12 !important; }
   .bars { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: minmax(0, 1fr); }
   .charts { grid-template-columns: minmax(0, 1fr); }
   .chart:last-child:nth-child(odd) { grid-column: auto; }

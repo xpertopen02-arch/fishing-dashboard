@@ -27,6 +27,7 @@ SECTIONS = {
 PORTS = {"선촌선착장": "선촌", "가경주항": "가경주", "용무치항": "용무치", "간월도선착장": "간월도"}
 AMBIGUOUS = {"신촌", "지곡", "냉정", "장계", "새미", "장광", "선촌", "간월도", "가경주", "용무치", "한터", "신기", "유정", "화도"}
 EXCEL_SECTION = "4-3. 송어낚시(조과 기록)"
+ONENOTE_SOURCE = "원노트 전자필기장"
 SUFFIX = r"(?:\s?낚시터|지\b|지[는를의에]|항|선착장|\s?하우스)"
 PLACE_ALIAS = {"농촌지하우스": "농촌지"}
 
@@ -264,7 +265,7 @@ def excel_page(t, order, modified):
     body.append(f'<p class="attach">원본: {html.escape(t["file"])} · {html.escape(t["sheet"])} 시트</p>')
 
     rec = dict(
-        id=f"x{t['date'].replace('-', '')}", title=title, fishing="송어", group="조과 기록", section=EXCEL_SECTION, level=1, order=order,
+        id=f"x{t['date'].replace('-', '')}", source=t["file"], title=title, fishing="송어", group="조과 기록", section=EXCEL_SECTION, level=1, order=order,
         parents=[], created=t["date"], modified=modified, chars=0, images=0, place=t["place"],
         trip=dict(date=t["date"], place=t["place"], note=lead_short, other=False, catch=t["total"], hourly=t["hourly"], timed=timed),
     )
@@ -308,7 +309,7 @@ def main():
 
         trip = parse_trip(title)
         rec = dict(
-            id=key, title=title, fishing=fishing, group=group, section=m["section"], level=m["level"], order=m["order"],
+            id=key, source=ONENOTE_SOURCE, title=title, fishing=fishing, group=group, section=m["section"], level=m["level"], order=m["order"],
             parents=parents[-1:], created=m["created"][:10], modified=m["modified"][:10], chars=len(full), images=r.images,
         )
         if trip:
@@ -360,7 +361,7 @@ def main():
     now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
     exported = dt.datetime.fromtimestamp((ROOT / "data" / "manifest.json").stat().st_mtime).strftime("%Y-%m-%d %H:%M")
     sources = [dict(
-        name="원노트 전자필기장", reflected=exported, latest=max(m["modified"][:10] for m in manifest),
+        name=ONENOTE_SOURCE, reflected=exported, latest=max(m["modified"][:10] for m in manifest),
         detail=f"{len(manifest)}페이지",
     )]
     for f in sorted((ROOT / "source파일").glob("*.xlsx")):

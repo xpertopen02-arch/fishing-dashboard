@@ -66,6 +66,7 @@
     satellite: store.get("satellite", false) === true,
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
+    sources: [],
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 
@@ -844,21 +845,25 @@
 
   /* ---------- library ---------- */
   function renderLibrary() {
-    const sections = [...new Set(PAGES.map((p) => p.section))];
+    // nothing selected means every source
+    const pool = state.sources.length ? PAGES.filter((p) => state.sources.includes(p.source)) : PAGES;
+    const sections = [...new Set(pool.map((p) => p.section))];
+    if (!sections.includes(state.shelf)) state.shelf = sections[0];
     const color = { 민물: "var(--s1)", 송어: "var(--s2)", 바다: "var(--s3)" };
     const shelves = sections.map((s, i) => {
-      const pp = PAGES.filter((p) => p.section === s);
+      const pp = pool.filter((p) => p.section === s);
       const label = s.replace(/^[\d.\-\s]+/, "").replace("취미생활(바다낚시)", "바다낚시");
       const latest = pp.map((p) => p.modified).sort().pop();
       return `<button class="shelf ${state.shelf === s ? "on" : ""}" data-shelf="${esc(s)}" style="--n:${pp.length};--i:${i};--c:${color[pp[0].fishing]}"><small>${pp[0].fishing}</small><b>${esc(label)}</b><strong>${pp.length}</strong> <small style="display:inline">페이지</small><small>최근 수정 ${esc(latest)}</small></button>`;
     }).join("");
-    const sources = (window.FISH.sources || []).map((s, i) => `<div class="source-card" style="--i:${i}"><b>${esc(s.name)}</b><span>대시보드 반영: ${esc(s.reflected)}</span><span>원본 최종 수정: ${esc(s.latest)} · ${esc(s.detail)}</span></div>`).join("");
-    const tree = PAGES.filter((p) => p.section === state.shelf).sort((a, b) => a.order - b.order).map((p, i) =>
+    const sources = (window.FISH.sources || []).map((s, i) => `<button class="source-card ${state.sources.includes(s.name) ? "on" : ""}" style="--i:${i}" data-source="${esc(s.name)}" aria-pressed="${state.sources.includes(s.name)}"><b>${esc(s.name)}</b><span>대시보드 반영: ${esc(s.reflected)}</span><span>원본 최종 수정: ${esc(s.latest)} · ${esc(s.detail)}</span></button>`).join("");
+    const tree = pool.filter((p) => p.section === state.shelf).sort((a, b) => a.order - b.order).map((p, i) =>
       `<button class="doc" style="--lv:${p.level};--wt:${p.level === 1 ? 700 : 500};--i:${Math.min(i, 14)}" data-open="${p.id}"><b>${esc(p.title)}</b><span>수정 ${p.modified}${p.images ? ` · 이미지 ${p.images}장` : ""}</span></button>`).join("");
     $("#view-library").innerHTML = `<div class="hero-line"><h1>자료 탐색</h1>
-        <div class="stat"><strong>${PAGES.length}</strong><span>페이지</span></div>
-        <div class="stat"><strong>${PAGES.reduce((a, p) => a + p.images, 0).toLocaleString()}</strong><span>이미지</span></div>
-        <div class="stat"><strong>${(PAGES.reduce((a, p) => a + p.chars, 0) / 10000).toFixed(0)}만</strong><span>글자</span></div></div>
+        <div class="stat"><strong>${pool.length}</strong><span>페이지</span></div>
+        <div class="stat"><strong>${pool.reduce((a, p) => a + p.images, 0).toLocaleString()}</strong><span>이미지</span></div>
+        <div class="stat"><strong>${(pool.reduce((a, p) => a + p.chars, 0) / 10000).toFixed(pool.length < 50 ? 1 : 0)}만</strong><span>글자</span></div></div>
+      <p class="source-hint">자료를 눌러 그 내용만 볼 수 있습니다. 여러 개를 함께 고를 수도 있습니다.${state.sources.length ? ' <button class="chip" data-source-all="1">전체 보기</button>' : ""}</p>
       <div class="sources" aria-label="자료 출처와 반영일">${sources}</div>
       <div class="shelves">${shelves}</div><div class="tree">${tree}</div>`;
   }
@@ -997,6 +1002,11 @@
     else if (d.month) { state.log.month = state.log.month === d.month ? null : d.month; renderLog(); }
     else if (d.logclear) { state.log.place = state.log.month = null; renderLog(); }
     else if (d.shelf) { state.shelf = d.shelf; renderLibrary(); }
+    else if (d.sourceAll) { state.sources = []; renderLibrary(); }
+    else if (d.source) {
+      state.sources = state.sources.includes(d.source) ? state.sources.filter((s) => s !== d.source) : [...state.sources, d.source];
+      renderLibrary();
+    }
     else if (d.stype !== undefined) { searchType = d.stype; openSearch(); }
   });
   $("#dateInput").addEventListener("change", (e) => selectDate(e.target.value));

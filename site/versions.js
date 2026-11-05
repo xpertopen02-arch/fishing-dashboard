@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.9", date: "2026-11-05", title: "자료 탐색에서 출처별로 보기",
+    changes: [
+      "원노트 전자필기장, 19년·20년 조과 정리 카드를 눌러 해당 자료만 볼 수 있게 함",
+      "폭이 좁은 창에서도 계절의 패턴과 어디로 나갔나를 같은 행에 유지",
+    ],
+  },
+  {
     version: "1.8", date: "2026-11-05", title: "지도와 그래프 배치 개선",
     changes: [
       "낚시터를 고르면 지도를 더 크게 확대",
