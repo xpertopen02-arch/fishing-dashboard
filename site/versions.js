@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.15", date: "2026-11-05", title: "검색 차단 표시 추가",
+    changes: [
+      "대시보드 페이지를 검색 결과에 넣지 않도록 검색 엔진에 요청하는 표시 추가 (저장소 파일에는 적용되지 않음)",
+    ],
+  },
+  {
     version: "1.14", date: "2026-11-05", title: "변경 이력 정리",
     changes: [
       "Version 탭과 같은 내용의 CHANGELOG.md를 추가해 GitHub에서도 이력을 볼 수 있게 함",
