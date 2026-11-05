@@ -23,7 +23,7 @@ self.addEventListener("install", (event) => {
     const cache = await caches.open(SHELL);
     // one file failing must not stop the rest from being saved
     await Promise.allSettled([
-      ...SHELL_FILES.map((f) => cache.add(f)),
+      ...SHELL_FILES.map((f) => cache.add(new Request(f, { cache: "no-cache" }))),
       ...LIBRARIES.map(async (url) => cache.put(url, await fetch(url, { mode: "no-cors" }))),
     ]);
     await self.skipWaiting();
@@ -47,7 +47,8 @@ async function trim(cache, max) {
 // Fresh when the network answers soon enough, otherwise the saved copy.
 async function shellFile(request) {
   const cache = await caches.open(SHELL);
-  const fresh = fetch(request).then((response) => {
+  // no-cache: GitHub Pages allows 10 minutes of browser caching, which could pair a new page with an old script
+  const fresh = fetch(request, { cache: "no-cache" }).then((response) => {
     if (response.ok || response.type === "opaque") cache.put(request, response.clone());
     return response;
   });

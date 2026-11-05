@@ -804,7 +804,7 @@
     const maxC = Math.max(1, ...Object.values(counts));
     const level = (n) => (n === 0 ? 0 : Math.max(1, Math.ceil(n / maxC * 4)));
     const months = Array.from({ length: 12 }, (_, i) => pad(i + 1));
-    const heat = `<div class="heat"><span></span>${months.map((m) => `<span class="h">${+m}월</span>`).join("")}` + years.map((y, yi) => `<span class="y">${y}</span>` + months.map((m, mi) => {
+    const heat = `<div class="heat"><span></span>${months.map((m) => `<span class="h">${+m}<i>월</i></span>`).join("")}` + years.map((y, yi) => `<span class="y">${y}</span>` + months.map((m, mi) => {
       const k = `${y}-${m}`, n = counts[k] || 0, lv = level(n);
       return `<button class="cell ${month === k ? "on" : ""}" ${n ? "" : "disabled"} data-month="${k}" title="${y}년 ${+m}월 ${n}회" aria-label="${y}년 ${+m}월 ${n}회" style="--i:${yi * 12 + mi};background:var(--heat-${lv});color:${lv >= 3 ? "var(--surface)" : "var(--ink)"}">${n || ""}</button>`;
     }).join("")).join("") + `</div>`;
@@ -1043,7 +1043,7 @@
   $("#toTop").addEventListener("click", () => window.scrollTo({ top: 0, behavior: REDUCED ? "auto" : "smooth" }));
   addEventListener("scroll", () => $("#toTop").classList.toggle("show", window.scrollY > 400), { passive: true });
   $("#searchOpen").addEventListener("click", openSearch);
-  $("#verBtn").textContent = `Version ${window.FISH_VERSIONS[0].version}`;
+  $("#verBtn").innerHTML = `<span class="ver-long">Version </span><span class="ver-short">v</span>${esc(window.FISH_VERSIONS[0].version)}`;
   $("#verBtn").addEventListener("click", openVersions);
   $("#searchClose").addEventListener("click", () => { $("#searchLayer").hidden = true; });
   $("#searchInput").addEventListener("input", runSearch);

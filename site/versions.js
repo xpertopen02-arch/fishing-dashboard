@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.19", date: "2026-11-05", title: "휴대폰 화면과 업데이트 안정화",
+    changes: [
+      "휴대폰에서 위쪽 메뉴가 세 줄로 늘어나 화면을 가리던 것을 두 줄로 줄임",
+      "휴대폰의 출조 표에서 월 이름이 두 줄로 깨지던 것을 수정",
+      "업데이트 직후 새 화면과 예전 프로그램이 섞일 수 있던 앱 저장 방식을 수정",
+    ],
+  },
+  {
     version: "1.18", date: "2026-11-05", title: "앱 설치 버튼 제거",
     changes: [
       "앱 설치를 마쳐 화면의 앱 설치 버튼과 안내를 제거 (설치는 크롬 메뉴에서 계속 가능)",
