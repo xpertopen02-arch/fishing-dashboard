@@ -1,6 +1,15 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.11", date: "2026-11-05", title: "예보 범위 밖 날짜의 평균 표시 복원",
+    changes: [
+      "달력에서 예보 범위 뒤의 날짜도 다시 고를 수 있게 하고 최근 3년 같은 날짜의 평균을 표시",
+      "평균 값을 보여줄 때 어느 해의 평균인지 지도 아래에 안내",
+      "달력 아래 안내를 예보 마지막 날짜와 평균 표시 기준으로 변경",
+      "낚시터 카드의 날씨 그림을 카드 높이에 맞게 확대",
+    ],
+  },
+  {
     version: "1.10", date: "2026-11-05", title: "날짜 선택과 날씨 표시 개선",
     changes: [
       "달력에서 날씨가 제공되는 날짜(1940년 1월 2일부터 오늘 뒤 15일까지)만 고를 수 있게 함",

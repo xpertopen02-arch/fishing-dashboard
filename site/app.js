@@ -82,12 +82,14 @@
   /* ---------- weather ---------- */
   const HOURLY = "temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,weather_code";
   // What Open-Meteo actually serves: its archive starts 1940-01-01 (only partly, in Korean time), its forecast ends 15 days out.
+  // Later dates fall back to the average of the same date in recent years.
   const WEATHER_MIN = "1940-01-02";
-  const WEATHER_MAX = addDays(TODAY, 15);
-  const weatherMode = (date) => (diffDays(date, TODAY) < -85 ? "archive" : "forecast");
+  const FORECAST_END = addDays(TODAY, 15);
+  const weatherMode = (date) => (date > FORECAST_END ? "climate" : diffDays(date, TODAY) < -85 ? "archive" : "forecast");
   const MODE_LABEL = {
     forecast: (d) => (d < TODAY ? "최근 실황 모델 값" : "예보"),
     archive: () => "과거 재분석 값",
+    climate: () => "예보 범위 밖: 최근 3년 같은 날짜의 평균",
   };
 
   async function getJSON(url) {
@@ -112,15 +114,45 @@
     const url = `https://${host}/v1/${path}?latitude=${lat}&longitude=${lon}&hourly=${HOURLY}${extra}&daily=sunrise,sunset&wind_speed_unit=ms&timezone=${TZ}&start_date=${date}&end_date=${date}`;
     return asList(await getJSON(url)).map(normal);
   }
+  function meanOf(sets) {
+    const avg = (key) => sets[0][key] && sets[0][key].map((_, i) => {
+      const v = sets.map((s) => s[key][i]).filter((x) => x != null);
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    });
+    return {
+      time: sets[0].time, temp: avg("temp"), precip: avg("precip"), prob: null, wind: avg("wind"), gust: avg("gust"), pressure: avg("pressure"), code: null,
+      dir: sets[0].dir.map((_, i) => {
+        let x = 0, y = 0;
+        sets.forEach((s) => { const a = (s.dir[i] ?? 0) * Math.PI / 180; x += Math.sin(a); y += Math.cos(a); });
+        return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
+      }),
+      sunrise: sets[0].sunrise, sunset: sets[0].sunset,
+    };
+  }
   async function fetchWeather(date) {
     const located = PLACES.filter(hasPin);
     const mode = weatherMode(date);
-    const rows = mode === "forecast"
-      ? await fetchRange("api.open-meteo.com", "forecast", located, date, ",precipitation_probability")
-      : await fetchRange("archive-api.open-meteo.com", "archive", located, date);
+    let rows;
+    let years = null;
+    if (mode === "forecast") {
+      rows = await fetchRange("api.open-meteo.com", "forecast", located, date, ",precipitation_probability");
+    } else if (mode === "archive") {
+      rows = await fetchRange("archive-api.open-meteo.com", "archive", located, date);
+    } else {
+      const [, m, d] = date.split("-");
+      const limit = addDays(TODAY, -6);
+      const days = [];
+      for (let y = parseISO(TODAY).getFullYear(); days.length < 3 && y > 2000; y--) {
+        const c = `${y}-${m}-${m === "02" && d === "29" ? "28" : d}`;
+        if (c <= limit) days.push(c);
+      }
+      years = days.map((c) => c.slice(0, 4)).reverse();
+      const sets = await Promise.all(days.map((c) => fetchRange("archive-api.open-meteo.com", "archive", located, c)));
+      rows = located.map((_, i) => meanOf(sets.map((s) => s[i])));
+    }
     const out = {};
     located.forEach((p, i) => { out[p.id] = rows[i]; });
-    return { date, mode, data: out };
+    return { date, mode, years, data: out };
   }
   async function fetchMarine(place, date) {
     const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=wave_height,sea_level_height_msl&timezone=${TZ}&start_date=${date}&end_date=${date}`;
@@ -567,10 +599,10 @@
     const w = state.weather?.data[p.id];
     // the most severe code of the day, which is how the daily cards above are coded too
     const dayWx = w?.code && fin(w.code).length ? WX(Math.max(...fin(w.code))) : null;
-    const head = `<div class="card brief-head"><div class="brief-title"><h2>${esc(p.name)}</h2>${dayWx ? `<span class="brief-wx" title="${dayWx[1]}"><i aria-hidden="true">${dayWx[0]}</i>${dayWx[1]}</span>` : ""}</div><p>${esc(p.address)}</p>
+    const head = `<div class="card brief-head"><div class="brief-main"><h2>${esc(p.name)}</h2><p>${esc(p.address)}</p>
       <p class="pin-fix">위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
       <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}</div>
-      ${w ? `<span class="source-tag">${fmtDate(state.date)} · ${MODE_LABEL[state.weather.mode](state.date)}</span>` : ""}</div>`;
+      ${w ? `<span class="source-tag">${fmtDate(state.date)} · ${MODE_LABEL[state.weather.mode](state.date)}</span>` : ""}</div>${dayWx ? `<div class="brief-wx" title="${dayWx[1]}"><i aria-hidden="true">${dayWx[0]}</i><span>${dayWx[1]}</span></div>` : ""}</div>`;
     if (!hasPin(p)) {
       $("#brief").innerHTML = head + `<div class="card notice">이 낚시터의 주소를 찾지 못해 날씨를 조회할 수 없습니다. 지도에서 낚시터 위치를 클릭하면 저장되고 날씨가 바로 나옵니다.</div>`;
       return;
@@ -594,8 +626,8 @@
       ${tile(2, "강수 합계", rain, 1, "mm", maxProb != null ? `최대 확률 ${maxProb}%` : "확률 자료 없음")}
       ${tile(3, "최대 돌풍", Math.max(...gusts), 1, "m/s", w.sunrise ? `일출 ${w.sunrise} · 일몰 ${w.sunset}` : "")}
     </div>
-    ${p.type === "바다" ? `<div class="card notice">해상 값은 모델 참고치입니다. 출항 판단은 기상청 특보와 물때표로 다시 확인하세요.</div>` : ""}
-`;
+    ${state.weather.mode === "climate" ? `<div class="card notice climate-note"><b>예보 범위 밖 날짜입니다.</b> ${fmtDate(state.date)}의 예보는 아직 없어, ${state.weather.years.join("·")}년 같은 날짜의 평균을 보여줍니다. 실제 날씨와 다를 수 있으며, 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 제공됩니다.</div>` : ""}
+    ${p.type === "바다" ? `<div class="card notice">해상 값은 모델 참고치입니다. 출항 판단은 기상청 특보와 물때표로 다시 확인하세요.</div>` : ""}`;
     $$("[data-to]", $("#brief")).forEach(countUp);
   }
 
@@ -992,9 +1024,9 @@
     else if (d.stype !== undefined) { searchType = d.stype; openSearch(); }
   });
   $("#dateInput").addEventListener("change", (e) => {
-    // the calendar disables other dates, but a typed date can still fall outside the range
+    // the calendar disables earlier dates, but a typed date can still fall outside the range
     const d = e.target.value;
-    if (d >= WEATHER_MIN && d <= WEATHER_MAX) selectDate(d);
+    if (d >= WEATHER_MIN) selectDate(d);
     else e.target.value = state.date;
   });
   $("#hourRange").addEventListener("input", (e) => { stopPlay(); setHour(+e.target.value); });
@@ -1030,8 +1062,7 @@
   if (savedTheme) document.documentElement.dataset.theme = savedTheme;
   $("#dateInput").value = state.date;
   $("#dateInput").min = WEATHER_MIN;
-  $("#dateInput").max = WEATHER_MAX;
-  $("#dateRange").textContent = `날씨 제공: ${WEATHER_MAX.replaceAll("-", ".")}까지`;
+  $("#dateRange").textContent = `예보: ${FORECAST_END.replaceAll("-", ".")}까지, 이후는 최근 3년 평균`;
   $("#hourRange").value = state.hour;
   $("#hourLabel").textContent = `${pad(state.hour)}:00`;
   initMap();
