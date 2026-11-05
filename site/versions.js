@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.14", date: "2026-11-05", title: "변경 이력 정리",
+    changes: [
+      "Version 탭과 같은 내용의 CHANGELOG.md를 추가해 GitHub에서도 이력을 볼 수 있게 함",
+    ],
+  },
+  {
     version: "1.13", date: "2026-11-05", title: "날씨 그림 위에 날짜 표시",
     changes: [
       "낚시터 카드의 날씨 그림 위에 고른 날짜를 굵고 크게 표시",
