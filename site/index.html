@@ -41,7 +41,10 @@
         <div id="map"></div>
         <canvas id="windCanvas" aria-hidden="true"></canvas>
         <div class="map-note" id="mapNote" hidden></div>
-        <button class="map-all" id="mapAll">전체 낚시터 보기</button>
+        <div class="map-tools">
+          <button id="mapSat" aria-pressed="false">위성 보기</button>
+          <button id="mapAll">전체 낚시터 보기</button>
+        </div>
         <div class="hour-bar">
           <button class="play" id="playBtn" aria-label="시간 재생">▶</button>
           <input type="range" id="hourRange" min="0" max="23" value="6" aria-label="시간">
@@ -59,6 +62,8 @@
   <section id="view-log" class="view" hidden></section>
   <section id="view-library" class="view" hidden></section>
 </main>
+
+<button class="to-top" id="toTop" aria-label="맨 위로" title="맨 위로">↑</button>
 
 <div class="drawer-back" id="drawerBack" hidden></div>
 <aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-label="자료 보기"></aside>

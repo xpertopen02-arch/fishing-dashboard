@@ -63,6 +63,7 @@
     similar: null,
     playing: null,
     picking: false,
+    satellite: store.get("satellite", false) === true,
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
   };
@@ -192,8 +193,9 @@
   /* ---------- charts ---------- */
   const charts = [];
   function makeChart(el, cfg) {
-    const H = cfg.height || 150;
-    const m = { l: 34, r: 12, t: 12, b: cfg.arrows ? 40 : 22 };
+    // the same height and margins on every chart keep the plot areas level across a row
+    const H = 170;
+    const m = { l: 34, r: 12, t: 24, b: 22 };
     const n = 24;
     let width = 0;
     const svgHolder = document.createElement("div");
@@ -254,7 +256,7 @@
       if (cfg.arrows) {
         for (let i = 1; i < 24; i += 3) {
           if (cfg.arrows[i] == null) continue;
-          parts.push(`<g transform="translate(${X(i)} ${H - 12}) rotate(${(cfg.arrows[i] + 180) % 360})"><path d="M0 -6L4 5L0 2.5L-4 5Z" fill="var(--ink-2)"/></g>`);
+          parts.push(`<g transform="translate(${X(i)} 11) rotate(${(cfg.arrows[i] + 180) % 360})"><path d="M0 -6L4 5L0 2.5L-4 5Z" fill="var(--ink-2)"/></g>`);
         }
       }
       parts.push(`<g class="cross"><line y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)" stroke-width="1"/></g>`);
@@ -295,11 +297,11 @@
     return { update, destroy: () => ro.disconnect() };
   }
 
-  function chartShell(host, title, i, cls = "", legend = "") {
+  function chartShell(host, title, i, legend = "") {
     const el = document.createElement("div");
-    el.className = `chart ${cls}`;
+    el.className = "chart";
     el.style.setProperty("--i", i);
-    el.innerHTML = `<div class="chart-head"><h3>${title}</h3><div class="chart-now"></div></div>${legend}`;
+    el.innerHTML = `<div class="chart-head"><div class="chart-title"><h3>${title}</h3>${legend}</div><div class="chart-now"></div></div>`;
     host.append(el);
     return el;
   }
@@ -318,19 +320,19 @@
       series: [{ label: "기온", color: accent, values: w.temp }],
       note: (h) => (w.code ? WX(w.code[h])[1] : "평균값"),
     }));
-    charts.push(makeChart(chartShell(host, "바람", i++, "", `<div class="legend"><span><i style="background:${accent}"></i>풍속</span><span><i class="dash"></i>돌풍</span></div>`), {
-      ...sun, title: "바람", unit: "m/s", digits: 1, zero: true, minTop: 5, height: 172,
+    charts.push(makeChart(chartShell(host, "바람", i++, `<div class="legend"><span><i style="background:${accent}"></i>풍속</span><span><i class="dash"></i>돌풍</span></div>`), {
+      ...sun, title: "바람", unit: "m/s", digits: 1, zero: true, minTop: 5,
       series: [{ label: "풍속", color: accent, values: w.wind }, { label: "돌풍", color: "var(--muted)", values: w.gust, dash: true }],
       arrows: w.dir,
       note: (h) => (w.dir[h] == null ? "" : `${compass(w.dir[h])}풍`),
     }));
-    charts.push(makeChart(chartShell(host, "강수량", i++, "third"), {
-      ...sun, title: "강수량", unit: "mm", digits: 1, zero: true, minTop: 2, bars: true, height: 140,
+    charts.push(makeChart(chartShell(host, "강수량", i++), {
+      ...sun, title: "강수량", unit: "mm", digits: 1, zero: true, minTop: 2, bars: true,
       series: [{ label: "강수량", color: accent, values: w.precip }],
       note: (h) => (w.prob ? `확률 ${w.prob[h] ?? "–"}%` : ""),
     }));
-    charts.push(makeChart(chartShell(host, "기압", i++, "third"), {
-      ...sun, title: "기압", unit: "hPa", digits: 0, minSpan: 4, height: 140,
+    charts.push(makeChart(chartShell(host, "기압", i++), {
+      ...sun, title: "기압", unit: "hPa", digits: 0, minSpan: 4,
       series: [{ label: "기압", color: accent, values: w.pressure }],
       tick: (v) => Math.round(v),
     }));
@@ -338,23 +340,23 @@
     if (place.type === "바다") {
       const mr = state.marine;
       if (mr && fin(mr.wave).length) {
-        charts.push(makeChart(chartShell(host, "파고 (모델 참고값)", i++, "third"), {
-          ...sun, title: "파고", unit: "m", digits: 1, zero: true, minTop: 1, height: 140,
+        charts.push(makeChart(chartShell(host, "파고 (모델 참고값)", i++), {
+          ...sun, title: "파고", unit: "m", digits: 1, zero: true, minTop: 1,
           series: [{ label: "파고", color: accent, values: mr.wave }],
           tick: (v) => v.toFixed(1),
         }));
-        if (fin(mr.sea).length) charts.push(makeChart(chartShell(host, "해수면 높이 (조석 포함, 모델 참고값)", i++, ""), {
-          ...sun, title: "해수면 높이", unit: "m", digits: 2, minSpan: 1, height: 140,
+        if (fin(mr.sea).length) charts.push(makeChart(chartShell(host, "해수면 높이 (조석 포함, 모델 참고값)", i++), {
+          ...sun, title: "해수면 높이", unit: "m", digits: 2, minSpan: 1,
           series: [{ label: "해수면", color: accent, values: mr.sea }],
           tick: (v) => v.toFixed(1),
         }));
       } else {
-        const el = chartShell(host, "파고", i++, "third");
+        const el = chartShell(host, "파고", i++);
         $(".chart-now", el).remove();
         el.insertAdjacentHTML("beforeend", `<p class="state-msg">이 날짜와 위치의 해상 모델 값이 없습니다. 보통 앞으로 7일 정도까지만 제공됩니다.</p>`);
       }
     } else {
-      const el = chartShell(host, "시간별 메모", i++, "third");
+      const el = chartShell(host, "시간별 메모", i++);
       $(".chart-now", el).remove();
       el.insertAdjacentHTML("beforeend", `<p class="notice">그래프 위에서 포인터를 움직이면 지도의 풍향과 기온이 같은 시각으로 함께 바뀝니다. 음영은 일출 전과 일몰 후입니다.</p>`);
     }
@@ -380,23 +382,37 @@
   }
 
   /* ---------- map ---------- */
-  let map = null, tiles = null;
+  // close enough to see the water and the roads around one fishing spot
+  const PLACE_ZOOM = 14;
+  let map = null, tiles = [];
   const markers = {};
   const ARROW = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.5L10 11L6 8.6L2 11Z" fill="currentColor"/></svg>';
   const isDark = () => getComputedStyle(document.documentElement).colorScheme.includes("dark");
 
   function setTiles() {
     if (!map) return;
-    if (tiles) return;
+    tiles.forEach((layer) => layer.remove());
     const weather = ' · 날씨 <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>';
-    // OpenStreetMap refuses requests without a Referer, which is what a page opened from file:// sends.
-    tiles = location.protocol === "file:"
-      ? L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 18, attribution: `Tiles &copy; Esri${weather}`,
-      }).addTo(map)
-      : L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const esri = (service, attribution = "") => L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 18, attribution });
+    if (state.satellite) {
+      tiles = [esri("World_Imagery", `Imagery &copy; Esri${weather}`), esri("Reference/World_Boundaries_and_Places")];
+    } else if (location.protocol === "file:") {
+      // OpenStreetMap refuses requests without a Referer, which is what a page opened from file:// sends.
+      tiles = [esri("World_Street_Map", `Tiles &copy; Esri${weather}`)];
+    } else {
+      tiles = [L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 18, attribution: `&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>${weather}`,
-      }).addTo(map);
+      })];
+    }
+    tiles.forEach((layer) => layer.addTo(map));
+    $(".map-card").classList.toggle("satellite", state.satellite);
+    $("#mapSat").textContent = state.satellite ? "일반 지도" : "위성 보기";
+    $("#mapSat").setAttribute("aria-pressed", String(state.satellite));
+  }
+  function toggleSatellite() {
+    state.satellite = !state.satellite;
+    store.set("satellite", state.satellite);
+    setTiles();
   }
   function addMarker(p) {
     const icon = L.divIcon({ className: "", html: `<div class="pin ${p.type}"><i class="arrow">${ARROW}</i><b>–</b><span>${esc(p.id)}</span></div>`, iconSize: [0, 0] });
@@ -421,7 +437,7 @@
     Object.keys(cacheW).forEach((k) => delete cacheW[k]);
     if (hasPin(p)) {
       markers[p.id]?.setLatLng([p.lat, p.lon]);
-      map?.flyTo([p.lat, p.lon], Math.max(map.getZoom(), 10), { duration: REDUCED ? 0 : .9 });
+      map?.flyTo([p.lat, p.lon], Math.max(map.getZoom(), PLACE_ZOOM), { duration: REDUCED ? 0 : .9 });
     } else if (markers[p.id]) {
       markers[p.id].remove();
       delete markers[p.id];
@@ -520,7 +536,7 @@
   function tick() {
     raf = null;
     if (state.view !== "plan" || document.hidden || !field.length) return;
-    const rgb = getComputedStyle(document.documentElement).getPropertyValue("--particle");
+    const rgb = state.satellite ? "255, 255, 255" : getComputedStyle(document.documentElement).getPropertyValue("--particle");
     ctx.globalCompositeOperation = "destination-out";
     ctx.fillStyle = "rgba(0,0,0,.09)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -742,7 +758,7 @@
     state.picking = false;
     store.set("place", id);
     const p = placeById[id];
-    if (map && fly && hasPin(p)) map.flyTo([p.lat, p.lon], Math.max(map.getZoom(), 10), { duration: REDUCED ? 0 : .9 });
+    if (map && fly && hasPin(p)) map.flyTo([p.lat, p.lon], Math.max(map.getZoom(), PLACE_ZOOM), { duration: REDUCED ? 0 : .9 });
     updatePins();
     loadAll();
   }
@@ -773,7 +789,7 @@
 
     const byPlace = PLACES.map((p) => ({ p, n: p.trips.filter((t) => !t.trip.other && (!type || t.fishing === type)).length })).filter((x) => x.n).sort((a, b) => b.n - a.n);
     const maxP = Math.max(1, ...byPlace.map((x) => x.n));
-    const bars = `<div class="bars">${byPlace.map(({ p, n }, i) => `<button class="bar-row ${place === p.id ? "on" : ""}" data-logplace="${esc(p.id)}"><span>${esc(p.id)}</span><span class="bar-track"><span class="bar-fill fill-${type || p.type}" style="width:${n / maxP * 100}%;animation-delay:${i * 40}ms"></span></span><span>${n}</span></button>`).join("")}</div>`;
+    const bars = `<div class="bars" style="--rows:${Math.ceil(byPlace.length / 2)}">${byPlace.map(({ p, n }, i) => `<button class="bar-row ${place === p.id ? "on" : ""}" data-logplace="${esc(p.id)}"><span>${esc(p.id)}</span><span class="bar-track"><span class="bar-fill fill-${type || p.type}" style="width:${n / maxP * 100}%;animation-delay:${i * 40}ms"></span></span><span>${n}</span></button>`).join("")}</div>`;
 
     const monthly = months.map((m) => TYPES.map((tp) => allTrips.filter((t) => t.fishing === tp && t.trip.date.slice(5, 7) === m && (!type || tp === type)).length));
     const maxM = Math.max(1, ...monthly.map((r) => r.reduce((a, b) => a + b, 0)));
@@ -818,11 +834,9 @@
         ${filters.length ? `<button class="chip" data-logclear="1">${esc(filters.join(" · "))} 해제 ✕</button>` : ""}
       </div>
       <div class="log-grid">
-        <div class="log-left" style="grid-column:span 7">
-          <div class="panel"><h2>언제 나갔나</h2><p class="sub">달을 누르면 그 달의 기록만 봅니다.</p>${heat}</div>
-          <div class="panel"><h2>계절의 패턴</h2><p class="sub">전체 연도를 합친 월별 출조 횟수입니다.</p>${season}</div>
-        </div>
-        <div class="panel" style="grid-column:span 5"><h2>어디로 나갔나</h2><p class="sub">장소를 누르면 기록을 추립니다. 다른 사람의 기록은 뺐습니다.</p>${bars}</div>
+        <div class="panel" style="grid-column:span 12"><h2>언제 나갔나</h2><p class="sub">달을 누르면 그 달의 기록만 봅니다.</p>${heat}</div>
+        <div class="panel" style="grid-column:span 6"><h2>계절의 패턴</h2><p class="sub">전체 연도를 합친 월별 출조 횟수입니다.</p>${season}</div>
+        <div class="panel" style="grid-column:span 6"><h2>어디로 나갔나</h2><p class="sub">장소를 누르면 기록을 추립니다. 다른 사람의 기록은 뺐습니다.</p>${bars}</div>
       </div>
       <div class="panel" style="grid-column:span 12"><h2>기록 ${list.length}건</h2><div class="river">${river || '<p class="notice">조건에 맞는 기록이 없습니다.</p>'}</div></div>`;
     $$(".stat [data-to]", $("#view-log")).forEach(countUp);
@@ -989,6 +1003,9 @@
   $("#hourRange").addEventListener("input", (e) => { stopPlay(); setHour(+e.target.value); });
   $("#playBtn").addEventListener("click", togglePlay);
   $("#mapAll").addEventListener("click", fitAll);
+  $("#mapSat").addEventListener("click", toggleSatellite);
+  $("#toTop").addEventListener("click", () => window.scrollTo({ top: 0, behavior: REDUCED ? "auto" : "smooth" }));
+  addEventListener("scroll", () => $("#toTop").classList.toggle("show", window.scrollY > 400), { passive: true });
   $("#searchOpen").addEventListener("click", openSearch);
   $("#verBtn").textContent = `Version ${window.FISH_VERSIONS[0].version}`;
   $("#verBtn").addEventListener("click", openVersions);
@@ -998,7 +1015,6 @@
     const next = isDark() ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     store.set("theme", next);
-    setTiles();
     if (state.view === "plan") renderCharts();
   });
   document.addEventListener("keydown", (e) => {

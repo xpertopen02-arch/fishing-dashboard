@@ -1,6 +1,17 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.8", date: "2026-11-05", title: "지도와 그래프 배치 개선",
+    changes: [
+      "낚시터를 고르면 지도를 더 크게 확대",
+      "지도에 위성 보기 버튼 추가",
+      "낚시터 주소와 날씨 요약을 지도 아래로 옮기고 지도를 화면 폭에 맞춤",
+      "브라우저 폭을 넓혀도 그래프의 크기와 줄이 맞도록 정리",
+      "오른쪽 아래에 맨 위로 가는 플로팅 버튼 추가",
+      "출조 기록에서 계절의 패턴과 어디로 나갔나를 같은 행에 배치",
+    ],
+  },
+  {
     version: "1.7", date: "2026-11-04", title: "같은 Wi-Fi에서 휴대폰으로 보기",
     changes: [
       "같은 공유기에 연결된 휴대폰에서 열기 위한 휴대폰으로 열기.bat 추가 (실제 휴대폰 접속은 아직 확인 전)",
