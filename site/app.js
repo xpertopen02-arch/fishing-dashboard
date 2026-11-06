@@ -946,6 +946,19 @@
     return `T = ${f.a < 0 ? "−" : ""}${Math.abs(f.a).toFixed(5)}d² ${term(f.b, 3, "d")} ${term(f.c, 2, "")}`;
   }
 
+  // Today, tomorrow and the coming weekend; on a Sunday, Saturday means the next one.
+  function fitQuickDates() {
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const after = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+    const dow = new Date().getDay();
+    return [
+      ["오늘", after(0)],
+      ["내일", after(1)],
+      ["이번 주 토요일", after((6 - dow + 7) % 7)],
+      ["일요일", after((7 - dow) % 7)],
+    ].map(([label, d]) => ({ label, iso: iso(d), short: `${d.getMonth() + 1}/${d.getDate()}` }));
+  }
+
   function fitResult(fit, iso) {
     const day = iso ? seasonDay(iso) : null;
     if (day === null) return `<p class="fit-warn">날짜를 11월 1일부터 5월 31일 사이로 넣어 주세요. 그 밖의 기간은 측정값이 없어 계산하지 않습니다.</p>`;
@@ -1025,10 +1038,8 @@
     const fitRows = state.notes.fitTarget === "전체" ? n.temperatures : n.temperatures.filter((r) => r.place === state.notes.fitTarget);
     const fit = tempFit(fitRows);
     const fitColor = state.notes.fitTarget === "전체" ? "var(--ink-2)" : colorOf(state.notes.fitTarget);
-    if (!state.notes.fitDate) {
-      const now = new Date();
-      state.notes.fitDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    }
+    const quickDates = fitQuickDates();
+    if (!state.notes.fitDate) state.notes.fitDate = quickDates[0].iso;
     state.notes.fitNow = fit;
     const trips = places.flatMap((p) => (placeById[p] ? placeById[p].trips.filter((t) => !t.trip.other).map((t) => ({ ...t, place: p })) : []));
     const done = store.get("notesChecklist", []);
@@ -1056,7 +1067,8 @@
                 <p class="sub">d는 11월 1일부터 지난 일수(11월 1일 = 0)입니다. 측정값 ${fit.n}개, 기간 ${seasonLabel(fit.min)}~${seasonLabel(fit.max)}.</p>
               </div>
               <div>
-                <label class="fit-date">날짜 <input type="date" id="fitDate" value="${esc(state.notes.fitDate)}"></label>
+                <div class="fit-date-row"><label class="fit-date">날짜 <input type="date" id="fitDate" value="${esc(state.notes.fitDate)}"></label>
+                <div class="fit-quick">${quickDates.map((q) => `<button class="chip ${q.iso === state.notes.fitDate ? "on" : ""}" data-fit-quick="${q.iso}">${q.label}<small>${q.short}</small></button>`).join("")}</div></div>
                 <div id="fitResult">${fitResult(fit, state.notes.fitDate)}</div>
               </div>
             </div>
@@ -1260,6 +1272,7 @@
     else if (d.logclear) { state.log.place = state.log.month = null; renderLog(); }
     else if (d.shelf) { state.shelf = d.shelf; renderLibrary(); }
     else if (d.sourceAll) { state.sources = []; renderLibrary(); }
+    else if (d.fitQuick) { setFitDate(d.fitQuick); }
     else if (d.fitTarget) { state.notes.fitTarget = d.fitTarget; renderNotes(); }
     else if (d.notesTab) { state.notes.tab = d.notesTab; renderNotes(); window.scrollTo({ top: 0 }); }
     else if (d.guideChapter !== undefined) { state.notes.chapter = +d.guideChapter; renderNotes(); window.scrollTo({ top: 0 }); }
@@ -1271,10 +1284,14 @@
     }
     else if (d.stype !== undefined) { searchType = d.stype; openSearch(); }
   });
+  function setFitDate(iso) {
+    state.notes.fitDate = iso;
+    $("#fitDate").value = iso;
+    $("#fitResult").innerHTML = fitResult(state.notes.fitNow, iso);
+    $$("[data-fit-quick]").forEach((b) => b.classList.toggle("on", b.dataset.fitQuick === iso));
+  }
   $("#view-notes").addEventListener("input", (e) => {
-    if (e.target.id !== "fitDate") return;
-    state.notes.fitDate = e.target.value;
-    $("#fitResult").innerHTML = fitResult(state.notes.fitNow, e.target.value);
+    if (e.target.id === "fitDate") setFitDate(e.target.value);
   });
   $("#view-notes").addEventListener("change", (e) => {
     if (e.target.dataset.check === undefined) return;

@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.25", date: "2026-11-06", title: "예상 수온 날짜 빠른 선택",
+    changes: [
+      "예상 수온 날짜 옆에 오늘, 내일, 이번 주 토요일, 일요일 버튼 추가",
+    ],
+  },
+  {
     version: "1.24", date: "2026-11-06", title: "수온 2차 곡선과 예상 수온 계산",
     changes: [
       "연구 노트 수온 그래프에 표층과 바닥의 2차 곡선을 그리고 수식과 R² 표시",
