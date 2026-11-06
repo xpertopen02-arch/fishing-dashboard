@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.20", date: "2026-11-06", title: "PC 전용 연구 노트 탭",
+    changes: [
+      "수온, 체크리스트, 시간대별 운용, 캐스팅을 모은 연구 노트 탭 추가 (이 PC에서만 표시)",
+      "공개 사이트와 같은 Wi-Fi의 휴대폰에서는 연구 노트 내용을 볼 수 없도록 차단",
+    ],
+  },
+  {
     version: "1.19", date: "2026-11-05", title: "휴대폰 화면과 업데이트 안정화",
     changes: [
       "휴대폰에서 위쪽 메뉴가 세 줄로 늘어나 화면을 가리던 것을 두 줄로 줄임",

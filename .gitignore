@@ -5,3 +5,7 @@ source파일/*.pdf
 # Local tool settings
 .claude/
 __pycache__/
+# Naver cafe posts: members-only, kept off GitHub and the public site
+*.pdf
+source파일/카페/
+site/private/

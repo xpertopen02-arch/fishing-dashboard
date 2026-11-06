@@ -67,6 +67,7 @@
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
     sources: [],
+    notes: { place: "장광", month: new Date().getMonth() + 1 },
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 
@@ -889,6 +890,109 @@
       <div class="shelves">${shelves}</div><div class="tree">${tree}</div>`;
   }
 
+  /* ---------- study notes (only on this PC, see site/private/notes.js) ---------- */
+  function tempChart(rows, trips) {
+    // Places the season from November to May on one axis, whichever year the point came from.
+    const W = 900, H = 300, L0 = 38, R0 = 12, T0 = 14, B0 = 46;
+    const start = [10, 1], months = ["11월", "12월", "1월", "2월", "3월", "4월", "5월"];
+    const pos = (iso) => {
+      const d = parseISO(iso);
+      const i = (d.getMonth() - start[0] + 12) % 12;
+      return i + (d.getDate() - 1) / 31;
+    };
+    const X = (v) => L0 + (W - L0 - R0) * (v / 7);
+    const Y = (v) => T0 + (H - T0 - B0) * (1 - v / 25);
+    const grid = [0, 5, 10, 15, 20, 25].map((v) => `<line x1="${L0}" x2="${W - R0}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v ? "var(--grid)" : "var(--axis)"}"/><text x="${L0 - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="12" fill="var(--muted)">${v}</text>`).join("");
+    const axis = months.map((m, i) => `<text x="${X(i + .5)}" y="${H - 28}" text-anchor="middle" font-size="12" fill="var(--muted)">${m}</text>`).join("");
+    const label = (r) => `${r.date} ${r.time} · 표층 ${num(r.surface)}℃ · 바닥 ${num(r.bottom)}℃${r.note ? ` · ${r.note}` : ""}`;
+    const dots = rows.map((r, i) => {
+      const x = X(pos(r.date)) + (i % 3) * 1.5, tip = esc(label(r));
+      return `<g class="temp-point" data-tip="${tip}" tabindex="0"><circle cx="${x}" cy="${Y(r.surface)}" r="5.5" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/><rect x="${x - 5}" y="${Y(r.bottom) - 5}" width="10" height="10" rx="2" fill="var(--s2)" stroke="var(--surface)" stroke-width="2"/></g>`;
+    }).join("");
+    const marks = trips.filter((t) => pos(t.trip.date) < 7).map((t) => {
+      const x = X(pos(t.trip.date));
+      const tip = esc(`내 출조 ${t.trip.date}${t.trip.catch != null ? ` · 조과 ${t.trip.catch}수` : ""}`);
+      return `<g class="temp-point" data-tip="${tip}" tabindex="0"><path d="M${x} ${H - 18}l6 10h-12z" fill="var(--ink-2)"/></g>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" class="temp-chart" role="img" aria-label="계절별 수온 실측값">${grid}${axis}${dots}${marks}</svg>`;
+  }
+
+  function renderNotes() {
+    const n = window.FISH_NOTES;
+    const place = state.notes.place;
+    const places = [...new Set(n.temperatures.map((r) => r.place))];
+    const rows = n.temperatures.filter((r) => r.place === place).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    const trips = placeById[place] ? placeById[place].trips.filter((t) => !t.trip.other) : [];
+    const done = store.get("notesChecklist", []);
+    const month = n.jangwangMonths.find((m) => m.month === state.notes.month) || n.jangwangMonths[0];
+    const measured = n.temperatures.filter((r) => r.place === "장광" && parseISO(r.date).getMonth() + 1 === month.month);
+    const allT = measured.flatMap((r) => [r.surface, r.bottom]);
+    const jangwangTrips = placeById["장광"].trips.filter((t) => parseISO(t.trip.date).getMonth() + 1 === month.month);
+
+    $("#view-notes").innerHTML = `
+      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">이 PC에서만 표시</span></div></div>
+      <div class="notes-grid">
+        <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">카페 회원이 직접 잰 값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
+          <div class="filter-row">${places.map((p) => `<button class="chip ${p === place ? "on" : ""}" data-notes-place="${esc(p)}">${esc(p)}</button>`).join("")}</div>
+          <div class="month-legend"><span><i class="dot" style="background:var(--s1)"></i> 표층</span><span><i class="legend-square"></i> 바닥</span>${trips.length ? "<span>▲ 내 출조</span>" : ""}</div>
+          ${tempChart(rows, trips)}
+          <p class="temp-readout" id="tempReadout">점에 포인터를 올리거나 눌러 값을 확인하세요.</p>
+          <details class="table-view"><summary>표로 보기</summary><table class="num-table"><tr><th>날짜</th><th>시각</th><th>표층</th><th>바닥</th><th>상황</th></tr>${rows.map((r) => `<tr><td>${r.date}</td><td>${r.time}</td><td>${num(r.surface)}℃</td><td>${num(r.bottom)}℃</td><td class="left">${esc(r.note || "")}</td></tr>`).join("")}</table></details>
+          <ul class="notes-list">${n.temperatureFindings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
+        </div>
+
+        <div class="panel"><h2>안 물릴 때 체크리스트</h2><p class="sub">한 번에 하나씩 위에서부터 바꿔 봅니다.</p>
+          <div class="check-list">${n.checklist.map((c, i) => `<label class="check-item"><input type="checkbox" data-check="${i}" ${done.includes(i) ? "checked" : ""}><span><b>${i + 1}. ${esc(c.title)}</b>${esc(c.body)}<small>${esc(c.source)}</small></span></label>`).join("")}</div>
+          <button class="chip" data-check-reset="1">체크 지우기</button>
+        </div>
+
+        <div class="panel"><h2>상황별 메모</h2><p class="sub">가이드북의 일반론 중 관리터에 쓸 만한 내용입니다.</p>
+          <table class="notes-table">${n.situations.map(([a, b]) => `<tr><th>${esc(a)}</th><td>${esc(b)}</td></tr>`).join("")}</table>
+          <h3 class="notes-sub">그대로 믿으면 안 되는 부분</h3>
+          <ul class="notes-list">${n.cautions.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
+        </div>
+
+        <div class="panel notes-wide"><h2>장광 시간대별 운용</h2><p class="sub">ChatGPT로 정리한 표를 요약한 참고 자료입니다. 작성자도 맞지 않는 부분이 있다고 밝혔습니다.</p>
+          <div class="filter-row">${n.jangwangMonths.map((m) => `<button class="chip ${m.month === month.month ? "on" : ""}" data-notes-month="${m.month}">${m.label}</button>`).join("")}</div>
+          <div class="month-facts">
+            <div class="tile" style="--i:0"><span>표의 예상 수온</span><strong>${esc(month.water)}</strong></div>
+            <div class="tile" style="--i:1"><span>실측 범위</span><strong>${allT.length ? `${Math.min(...allT)}~${Math.max(...allT)}℃` : "자료 없음"}</strong>${allT.length ? `<span>측정 ${measured.length}회</span>` : ""}</div>
+            <div class="tile" style="--i:2"><span>내 장광 출조</span><strong>${jangwangTrips.length}회</strong>${jangwangTrips.length ? "" : "<span>이 달 기록 없음</span>"}</div>
+          </div>
+          <p class="month-note">${esc(month.note)}</p>
+          <div class="table-wrap"><table class="notes-table pattern"><tr><th>시간대</th><th>송어 상태</th><th>운용</th><th>색상</th></tr>${n.jangwangPattern.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table></div>
+          ${jangwangTrips.length ? `<h3 class="notes-sub">이 달의 내 기록</h3><div class="trip-grid">${jangwangTrips.map((t, i) => tripCard(t, i)).join("")}</div>` : ""}
+        </div>
+
+        <div class="panel"><h2>캐스팅</h2><p class="sub">루어 무게에 따라 던지는 방법을 나눕니다.</p>
+          ${n.casting.map((c) => `<div class="cast-item"><b>${esc(c.title)}</b><p>${esc(c.body)}</p></div>`).join("")}
+          <h3 class="notes-sub">정확도 연습</h3>
+          <ul class="notes-list">${n.castingPractice.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
+          <h3 class="notes-sub">참고 영상</h3>
+          <ul class="notes-list">${n.videos.map((v) => `<li><a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc(v.title)}</a></li>`).join("")}</ul>
+        </div>
+
+        <div class="panel"><h2>출처</h2><p class="sub">Spooning 365 카페 글을 요약했습니다. 원문은 <a href="${esc(n.cafeUrl)}" target="_blank" rel="noopener noreferrer">카페</a>와 프로젝트 폴더의 PDF에 있습니다.</p>
+          <table class="notes-table">${n.sources.map((s) => `<tr><th>${esc(s.title)}</th><td>${esc(s.date)}<br>${esc(s.kind)}</td></tr>`).join("")}</table>
+          <p class="notice">마지막 정리: ${esc(n.updated)}. 이 내용은 GitHub와 공개 사이트에 올라가지 않습니다.</p>
+        </div>
+      </div>`;
+  }
+
+  // Only tried locally, so the public site never even asks for the file.
+  function loadNotes(initialView) {
+    if (location.protocol !== "file:" && !["localhost", "127.0.0.1"].includes(location.hostname)) return;
+    const s = document.createElement("script");
+    s.src = "private/notes.js";
+    s.onload = () => {
+      if (!window.FISH_NOTES) return;
+      $('.tabs [data-go="notes"]').hidden = false;
+      moveInk();
+      if (initialView === "notes") go("notes", false);
+    };
+    document.head.append(s);
+  }
+
   /* ---------- reader ---------- */
   let openId = null;
   async function openPage(id) {
@@ -986,15 +1090,17 @@
     if (on) { ink.style.left = `${on.offsetLeft}px`; ink.style.width = `${on.offsetWidth}px`; }
   }
   function go(view, push = true) {
-    if (!["plan", "log", "library"].includes(view)) view = "plan";
+    const views = ["plan", "log", "library", ...(window.FISH_NOTES ? ["notes"] : [])];
+    if (!views.includes(view)) view = "plan";
     state.view = view;
-    ["plan", "log", "library"].forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
+    ["plan", "log", "library", "notes"].forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
     const sec = $(`#view-${view}`);
     sec.style.animation = "none"; void sec.offsetWidth; sec.style.animation = "";
     $$(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.go === view));
     moveInk();
     if (view === "log") renderLog();
     if (view === "library") renderLibrary();
+    if (view === "notes") renderNotes();
     if (view === "plan" && map) { map.invalidateSize(); refreshWindField(); }
     if (push) history.replaceState(null, "", `#${view}`);
     window.scrollTo({ top: 0 });
@@ -1024,12 +1130,26 @@
     else if (d.logclear) { state.log.place = state.log.month = null; renderLog(); }
     else if (d.shelf) { state.shelf = d.shelf; renderLibrary(); }
     else if (d.sourceAll) { state.sources = []; renderLibrary(); }
+    else if (d.notesPlace) { state.notes.place = d.notesPlace; renderNotes(); }
+    else if (d.notesMonth) { state.notes.month = +d.notesMonth; renderNotes(); }
+    else if (d.checkReset) { store.set("notesChecklist", []); renderNotes(); }
     else if (d.source) {
       state.sources = state.sources.includes(d.source) ? state.sources.filter((s) => s !== d.source) : [...state.sources, d.source];
       renderLibrary();
     }
     else if (d.stype !== undefined) { searchType = d.stype; openSearch(); }
   });
+  $("#view-notes").addEventListener("change", (e) => {
+    if (e.target.dataset.check === undefined) return;
+    const i = +e.target.dataset.check;
+    const done = store.get("notesChecklist", []).filter((x) => x !== i);
+    if (e.target.checked) done.push(i);
+    store.set("notesChecklist", done);
+  });
+  ["pointerover", "focusin", "click"].forEach((type) => $("#view-notes").addEventListener(type, (e) => {
+    const point = e.target.closest?.(".temp-point");
+    if (point) $("#tempReadout").textContent = point.dataset.tip;
+  }));
   $("#dateInput").addEventListener("change", (e) => {
     // the calendar disables earlier dates, but a typed date can still fall outside the range
     const d = e.target.value;
@@ -1077,6 +1197,7 @@
     navigator.serviceWorker.register("sw.js").catch(() => { /* the site still works online without it */ });
   }
   go(location.hash.slice(1) || "plan", false);
+  loadNotes(location.hash.slice(1));
   loadAll();
   if (document.fonts?.ready) document.fonts.ready.then(moveInk);
 })();

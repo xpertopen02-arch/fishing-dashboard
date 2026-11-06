@@ -106,6 +106,7 @@ self.addEventListener("fetch", (event) => {
   if (WEATHER_HOSTS.includes(url.hostname)) {
     event.respondWith(weather(request));
   } else if (url.origin === location.origin) {
+    if (url.pathname.includes("/private/")) return;
     if (url.pathname.includes("/img/")) event.respondWith(image(request));
     else event.respondWith(shellFile(request));
   } else if (LIBRARIES.includes(url.href)) {

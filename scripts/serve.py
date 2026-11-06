@@ -4,15 +4,25 @@ By default only this PC can connect. With --lan, other devices on the same netwo
 """
 import functools
 import http.server
+import posixpath
 import socket
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 SITE = Path(__file__).resolve().parent.parent / "site"
 PORT = 8765
 
 
 class NoCache(http.server.SimpleHTTPRequestHandler):
+    def send_head(self):
+        # the private notes stay on this PC, even when serving to a phone with --lan
+        path = posixpath.normpath(unquote(self.path.split("?", 1)[0].split("#", 1)[0])).replace("\\", "/").lower()
+        if "/private" in path and not self.client_address[0].startswith("127."):
+            self.send_error(403)
+            return None
+        return super().send_head()
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
