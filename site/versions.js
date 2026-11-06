@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.26", date: "2026-11-06", title: "예상 수온 버튼 이름 변경",
+    changes: [
+      "예상 수온의 이번 주 토요일 버튼 이름을 이번토요일로 변경",
+    ],
+  },
+  {
     version: "1.25", date: "2026-11-06", title: "예상 수온 날짜 빠른 선택",
     changes: [
       "예상 수온 날짜 옆에 오늘, 내일, 이번 주 토요일, 일요일 버튼 추가",

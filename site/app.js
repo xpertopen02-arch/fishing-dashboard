@@ -954,7 +954,7 @@
     return [
       ["오늘", after(0)],
       ["내일", after(1)],
-      ["이번 주 토요일", after((6 - dow + 7) % 7)],
+      ["이번토요일", after((6 - dow + 7) % 7)],
       ["일요일", after((7 - dow) % 7)],
     ].map(([label, d]) => ({ label, iso: iso(d), short: `${d.getMonth() + 1}/${d.getDate()}` }));
   }
