@@ -624,13 +624,15 @@
     const temps = fin(w.temp), winds = fin(w.wind), gusts = fin(w.gust);
     const rain = fin(w.precip).reduce((a, b) => a + b, 0);
     const maxProb = w.prob ? Math.max(...fin(w.prob)) : null;
-    const tile = (i, label, val, d, unit, extra = "") => `<div class="tile" style="--i:${i}"><span>${label}</span><strong data-to="${val}" data-d="${d}">${Number(val).toFixed(d)}</strong><small>${unit}</small>${extra ? `<span>${extra}</span>` : ""}</div>`;
+    const tile = (i, label, val, d, unit, extra = "", tip = "") => `<div class="tile" style="--i:${i}"${tip ? ` title="${esc(tip)}"` : ""}><span>${label}</span><strong data-to="${val}" data-d="${d}">${Number(val).toFixed(d)}</strong><small>${unit}</small>${extra ? `<span>${extra}</span>` : ""}</div>`;
     const maxWindIdx = w.wind.indexOf(Math.max(...winds));
+    const water = waterEstimate(p, state.date);
     $("#brief").innerHTML = head + `<div class="tiles">
       ${tile(0, "최고 기온", Math.max(...temps), 0, "°C", `최저 ${Math.round(Math.min(...temps))}°C`)}
       ${tile(1, "최대 풍속", Math.max(...winds), 1, "m/s", `${pad(maxWindIdx)}시 · ${compass(w.dir[maxWindIdx] ?? 0)}풍`)}
       ${tile(2, "강수 합계", rain, 1, "mm", maxProb != null ? `최대 확률 ${maxProb}%` : "확률 자료 없음")}
       ${tile(3, "최대 돌풍", Math.max(...gusts), 1, "m/s", w.sunrise ? `일출 ${w.sunrise} · 일몰 ${w.sunset}` : "")}
+      ${water ? tile(4, "예상 수온(표층)", water.surface, 1, "°C", `바닥 ${num(water.bottom)}°C · ${water.own && !water.outside ? "추정" : "참고값"}`, `${water.own ? "이 낚시터의 수온 곡선" : "전체 측정값의 수온 곡선"}으로 계산했습니다.${water.outside ? " 측정 기간 밖이라 곡선을 연장한 값입니다." : ""} 자세한 내용은 연구 노트를 보세요.`) : ""}
     </div>
     ${state.weather.savedAt ? `<div class="card notice climate-note"><b>인터넷에 연결되어 있지 않습니다.</b> ${new Date(state.weather.savedAt).toLocaleString("ko-KR")}에 저장된 날씨입니다. 최신 예보와 다를 수 있습니다.</div>` : ""}
     ${state.weather.mode === "climate" ? `<div class="card notice climate-note"><b>예보 범위 밖 날짜입니다.</b> ${fmtDate(state.date)}의 예보는 아직 없어, ${state.weather.years.join("·")}년 같은 날짜의 평균을 보여줍니다. 실제 날씨와 다를 수 있으며, 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 제공됩니다.</div>` : ""}
@@ -941,6 +943,20 @@
     return surface && bottom ? { surface, bottom, n: rows.length, min: Math.min(...xs), max: Math.max(...xs) } : null;
   }
 
+  // Water temperature for the briefing: the place's own curve when it has one, otherwise the pooled curve.
+  // Measurements live in the private notes, so this stays empty on the public site.
+  function waterEstimate(p, iso) {
+    const all = window.FISH_NOTES?.temperatures;
+    if (!all || !placeTypes(p).includes("송어")) return null;
+    const day = seasonDay(iso);
+    if (day === null) return null;
+    const own = all.filter((r) => r.place === p.id);
+    const hasOwn = new Set(own.map((r) => r.date)).size >= 4;
+    const fit = tempFit(hasOwn ? own : all);
+    if (!fit) return null;
+    return { surface: fit.surface.at(day), bottom: fit.bottom.at(day), own: hasOwn, outside: day < fit.min || day > fit.max };
+  }
+
   function fitFormula(f) {
     const term = (v, digits, tail) => `${v < 0 ? "−" : "+"} ${Math.abs(v).toFixed(digits)}${tail}`;
     return `T = ${f.a < 0 ? "−" : ""}${Math.abs(f.a).toFixed(5)}d² ${term(f.b, 3, "d")} ${term(f.c, 2, "")}`;
@@ -1022,7 +1038,7 @@
       document.body.append(box);
     }
     const pdf = window.FISH_BOOK_GUIDE.pdf;
-    box.innerHTML = `<img src="${esc(src)}" alt="원본 ${esc(page)}쪽 그림"><p><a href="${esc(pdf)}#page=${esc(page)}" target="_blank" rel="noopener noreferrer">원본 ${esc(page)}쪽 열기</a> · 누르거나 Esc로 닫기</p>`;
+    box.innerHTML = `<img src="${esc(src)}" alt="원본 ${esc(page)}쪽 그림"><p><a href="${esc(pdf)}#page=${esc(page)}" target="_blank" rel="noopener noreferrer">원본 ${esc(page)}쪽 열기</a> · 그림을 한 번 더 누르면 닫힙니다</p>`;
     box.showModal();
   }
 
@@ -1142,6 +1158,7 @@
       if (!window.FISH_NOTES) return;
       $('.tabs [data-go="notes"]').hidden = false;
       moveInk();
+      renderBrief();
       if (initialView === "notes") go("notes", false);
       ["video_guide", "book_guide"].forEach((name) => {
         const g = document.createElement("script");
