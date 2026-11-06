@@ -67,7 +67,7 @@
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
     sources: [],
-    notes: { month: new Date().getMonth() + 1, tab: "study", chapter: 0 },
+    notes: { month: new Date().getMonth() + 1, tab: "study", chapter: 0, fitTarget: null, fitDate: null },
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 
@@ -891,7 +891,70 @@
   }
 
   /* ---------- study notes (only on this PC, see site/private/notes.js) ---------- */
-  function tempChart(rows, trips, colorOf) {
+  // Season days count from Nov 1 and ignore the year, so measurements from different years share one axis.
+  const SEASON_DAYS = [30, 31, 31, 28, 31, 30, 31];
+  function seasonDay(iso) {
+    const d = parseISO(iso), i = (d.getMonth() - 10 + 12) % 12;
+    if (i >= SEASON_DAYS.length) return null;
+    return SEASON_DAYS.slice(0, i).reduce((s, n) => s + n, 0) + Math.min(d.getDate(), SEASON_DAYS[i]) - 1;
+  }
+  function seasonLabel(day) {
+    let left = day;
+    for (let i = 0; i < SEASON_DAYS.length; i++) {
+      if (left < SEASON_DAYS[i]) return `${(i + 10) % 12 + 1}월 ${left + 1}일`;
+      left -= SEASON_DAYS[i];
+    }
+    return "";
+  }
+
+  // Least squares for y = a x^2 + b x + c, solved on the normal equations.
+  function quadFit(xs, ys) {
+    const pow = (k) => xs.reduce((s, x) => s + x ** k, 0);
+    const m = [
+      [pow(4), pow(3), pow(2), xs.reduce((s, x, i) => s + x * x * ys[i], 0)],
+      [pow(3), pow(2), pow(1), xs.reduce((s, x, i) => s + x * ys[i], 0)],
+      [pow(2), pow(1), xs.length, ys.reduce((s, y) => s + y, 0)],
+    ];
+    for (let i = 0; i < 3; i++) {
+      let p = i;
+      for (let r = i + 1; r < 3; r++) if (Math.abs(m[r][i]) > Math.abs(m[p][i])) p = r;
+      [m[i], m[p]] = [m[p], m[i]];
+      if (Math.abs(m[i][i]) < 1e-9) return null;
+      for (let r = 0; r < 3; r++) {
+        if (r === i) continue;
+        const f = m[r][i] / m[i][i];
+        for (let c = i; c < 4; c++) m[r][c] -= f * m[i][c];
+      }
+    }
+    const [A, B, C] = [m[0][3] / m[0][0], m[1][3] / m[1][1], m[2][3] / m[2][2]];
+    const at = (x) => A * x * x + B * x + C;
+    const mean = ys.reduce((s, y) => s + y, 0) / ys.length;
+    const tot = ys.reduce((s, y) => s + (y - mean) ** 2, 0);
+    const res = ys.reduce((s, y, i) => s + (y - at(xs[i])) ** 2, 0);
+    return { a: A, b: B, c: C, r2: tot ? 1 - res / tot : 0, at };
+  }
+
+  function tempFit(rows) {
+    const xs = rows.map((r) => seasonDay(r.date));
+    const surface = quadFit(xs, rows.map((r) => r.surface));
+    const bottom = quadFit(xs, rows.map((r) => r.bottom));
+    return surface && bottom ? { surface, bottom, n: rows.length, min: Math.min(...xs), max: Math.max(...xs) } : null;
+  }
+
+  function fitFormula(f) {
+    const term = (v, digits, tail) => `${v < 0 ? "−" : "+"} ${Math.abs(v).toFixed(digits)}${tail}`;
+    return `T = ${f.a < 0 ? "−" : ""}${Math.abs(f.a).toFixed(5)}d² ${term(f.b, 3, "d")} ${term(f.c, 2, "")}`;
+  }
+
+  function fitResult(fit, iso) {
+    const day = iso ? seasonDay(iso) : null;
+    if (day === null) return `<p class="fit-warn">날짜를 11월 1일부터 5월 31일 사이로 넣어 주세요. 그 밖의 기간은 측정값이 없어 계산하지 않습니다.</p>`;
+    const outside = day < fit.min || day > fit.max;
+    return `<div class="fit-values"><span>표층 <b>${num(fit.surface.at(day))}℃</b></span><span>바닥 <b>${num(fit.bottom.at(day))}℃</b></span></div>
+      ${outside ? `<p class="fit-warn">측정 기간(${seasonLabel(fit.min)}~${seasonLabel(fit.max)}) 밖이라 곡선을 연장한 값입니다. 믿을 만하지 않습니다.</p>` : ""}`;
+  }
+
+  function tempChart(rows, trips, colorOf, fit, fitColor) {
     // Places the season from November to May on one axis, whichever year the point came from.
     const W = 900, H = 300, L0 = 38, R0 = 12, T0 = 14, B0 = 46;
     const start = [10, 1], months = ["11월", "12월", "1월", "2월", "3월", "4월", "5월"];
@@ -914,7 +977,20 @@
       const tip = esc(`내 출조 · ${t.place} · ${t.trip.date}${t.trip.catch != null ? ` · 조과 ${t.trip.catch}수` : ""}`);
       return `<g class="temp-point" data-tip="${tip}" tabindex="0"><path d="M${x} ${H - 18}l6 10h-12z" fill="${colorOf(t.place)}"/></g>`;
     }).join("");
-    return `<svg viewBox="0 0 ${W} ${H}" class="temp-chart" role="img" aria-label="계절별 수온 실측값">${grid}${axis}${dots}${marks}</svg>`;
+    let curves = "";
+    if (fit) {
+      const line = (f, dash) => {
+        const pts = [];
+        for (let d = fit.min; d <= fit.max; d += 2) {
+          let left = d, i = 0;
+          while (left >= SEASON_DAYS[i]) left -= SEASON_DAYS[i++];
+          pts.push(`${X(i + left / SEASON_DAYS[i]).toFixed(1)} ${Y(Math.max(0, Math.min(25, f.at(d)))).toFixed(1)}`);
+        }
+        return `<path d="M${pts.join("L")}" fill="none" stroke="${fitColor}" stroke-width="2" ${dash ? 'stroke-dasharray="6 5"' : ""} opacity=".75"/>`;
+      };
+      curves = line(fit.surface, false) + line(fit.bottom, true);
+    }
+    return `<svg viewBox="0 0 ${W} ${H}" class="temp-chart" role="img" aria-label="계절별 수온 실측값">${grid}${axis}${curves}${dots}${marks}</svg>`;
   }
 
   function notesTabs() {
@@ -942,6 +1018,18 @@
     const placeColors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
     const colorOf = (p) => placeColors[places.indexOf(p) % placeColors.length];
     const rows = [...n.temperatures].sort((a, b) => places.indexOf(a.place) - places.indexOf(b.place) || (a.date + a.time).localeCompare(b.date + b.time));
+    // A curve needs enough separate days; a place with only a few measurements gets none of its own.
+    const fitPlaces = places.filter((p) => new Set(n.temperatures.filter((r) => r.place === p).map((r) => r.date)).size >= 4);
+    const fitTargets = [...fitPlaces, "전체"];
+    if (!fitTargets.includes(state.notes.fitTarget)) state.notes.fitTarget = fitTargets[0];
+    const fitRows = state.notes.fitTarget === "전체" ? n.temperatures : n.temperatures.filter((r) => r.place === state.notes.fitTarget);
+    const fit = tempFit(fitRows);
+    const fitColor = state.notes.fitTarget === "전체" ? "var(--ink-2)" : colorOf(state.notes.fitTarget);
+    if (!state.notes.fitDate) {
+      const now = new Date();
+      state.notes.fitDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
+    state.notes.fitNow = fit;
     const trips = places.flatMap((p) => (placeById[p] ? placeById[p].trips.filter((t) => !t.trip.other).map((t) => ({ ...t, place: p })) : []));
     const done = store.get("notesChecklist", []);
     const month = n.jangwangMonths.find((m) => m.month === state.notes.month) || n.jangwangMonths[0];
@@ -955,9 +1043,25 @@
       <div class="notes-grid">
         <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">카페 회원이 직접 잰 값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
           <div class="month-legend">${places.map((p) => `<span><i class="dot" style="background:${colorOf(p)}"></i> ${esc(p)}</span>`).join("")}</div>
-          <div class="month-legend"><span>● 표층</span><span>■ 바닥</span>${trips.length ? "<span>▲ 내 출조</span>" : ""}</div>
-          ${tempChart(rows, trips, colorOf)}
+          <div class="month-legend"><span>● 표층</span><span>■ 바닥</span>${trips.length ? "<span>▲ 내 출조</span>" : ""}${fit ? "<span>━ 표층 곡선</span><span>╍ 바닥 곡선</span>" : ""}</div>
+          ${tempChart(rows, trips, colorOf, fit, fitColor)}
           <p class="temp-readout" id="tempReadout">점에 포인터를 올리거나 눌러 값을 확인하세요.</p>
+          ${fit ? `<div class="fit-box">
+            <h3 class="notes-sub">2차 곡선과 예상 수온</h3>
+            <div class="filter-row">${fitTargets.map((t) => `<button class="chip ${t === state.notes.fitTarget ? "on" : ""}" data-fit-target="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+            <div class="fit-grid">
+              <div>
+                <p class="fit-formula"><b>표층</b> ${fitFormula(fit.surface)}<span>R² = ${fit.surface.r2.toFixed(3)}</span></p>
+                <p class="fit-formula"><b>바닥</b> ${fitFormula(fit.bottom)}<span>R² = ${fit.bottom.r2.toFixed(3)}</span></p>
+                <p class="sub">d는 11월 1일부터 지난 일수(11월 1일 = 0)입니다. 측정값 ${fit.n}개, 기간 ${seasonLabel(fit.min)}~${seasonLabel(fit.max)}.</p>
+              </div>
+              <div>
+                <label class="fit-date">날짜 <input type="date" id="fitDate" value="${esc(state.notes.fitDate)}"></label>
+                <div id="fitResult">${fitResult(fit, state.notes.fitDate)}</div>
+              </div>
+            </div>
+            <p class="sub">연도와 측정 시각을 구분하지 않고 맞춘 곡선입니다. R²는 이미 잰 값에 얼마나 맞는지를 나타낼 뿐, 예측 정확도를 보장하지 않습니다.</p>
+          </div>` : ""}
           <details class="table-view"><summary>표로 보기</summary><table class="num-table"><tr><th>장소</th><th>날짜</th><th>시각</th><th>표층</th><th>바닥</th><th>상황</th></tr>${rows.map((r) => `<tr><td class="left">${esc(r.place)}</td><td>${r.date}</td><td>${r.time}</td><td>${num(r.surface)}℃</td><td>${num(r.bottom)}℃</td><td class="left">${esc(r.note || "")}</td></tr>`).join("")}</table></details>
           <ul class="notes-list">${n.temperatureFindings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
         </div>
@@ -1156,6 +1260,7 @@
     else if (d.logclear) { state.log.place = state.log.month = null; renderLog(); }
     else if (d.shelf) { state.shelf = d.shelf; renderLibrary(); }
     else if (d.sourceAll) { state.sources = []; renderLibrary(); }
+    else if (d.fitTarget) { state.notes.fitTarget = d.fitTarget; renderNotes(); }
     else if (d.notesTab) { state.notes.tab = d.notesTab; renderNotes(); window.scrollTo({ top: 0 }); }
     else if (d.guideChapter !== undefined) { state.notes.chapter = +d.guideChapter; renderNotes(); window.scrollTo({ top: 0 }); }
     else if (d.notesMonth) { state.notes.month = +d.notesMonth; renderNotes(); }
@@ -1165,6 +1270,11 @@
       renderLibrary();
     }
     else if (d.stype !== undefined) { searchType = d.stype; openSearch(); }
+  });
+  $("#view-notes").addEventListener("input", (e) => {
+    if (e.target.id !== "fitDate") return;
+    state.notes.fitDate = e.target.value;
+    $("#fitResult").innerHTML = fitResult(state.notes.fitNow, e.target.value);
   });
   $("#view-notes").addEventListener("change", (e) => {
     if (e.target.dataset.check === undefined) return;
