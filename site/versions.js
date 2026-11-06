@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.27", date: "2026-11-06", title: "연구 노트에 북가이드 탭 추가",
+    changes: [
+      "연구 노트에 장별 요약과 원본 PDF 쪽으로 바로 가는 링크가 있는 북가이드 탭 추가 (이 PC에서만 표시)",
+    ],
+  },
+  {
     version: "1.26", date: "2026-11-06", title: "예상 수온 버튼 이름 변경",
     changes: [
       "예상 수온의 이번 주 토요일 버튼 이름을 이번토요일로 변경",

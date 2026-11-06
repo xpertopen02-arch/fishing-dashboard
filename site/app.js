@@ -67,7 +67,7 @@
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
     sources: [],
-    notes: { month: new Date().getMonth() + 1, tab: "study", chapter: 0, fitTarget: null, fitDate: null },
+    notes: { month: new Date().getMonth() + 1, tab: "study", chapters: {}, fitTarget: null, fitDate: null },
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 
@@ -1007,25 +1007,27 @@
   }
 
   function notesTabs() {
-    if (!window.FISH_VIDEO_GUIDE) return "";
-    const tabs = [["study", "카페 자료"], ["video", "영상 가이드"]];
+    const tabs = [["study", "카페 자료"], ...(window.FISH_VIDEO_GUIDE ? [["video", "영상 가이드"]] : []), ...(window.FISH_BOOK_GUIDE ? [["book", "북가이드"]] : [])];
+    if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
 
-  function renderVideoGuide() {
-    const g = window.FISH_VIDEO_GUIDE;
-    const c = g.chapters[state.notes.chapter] || g.chapters[0];
+  function renderChapterGuide(g) {
+    const c = g.chapters[state.notes.chapters[state.notes.tab] || 0] || g.chapters[0];
+    const chip = (x) => `<button class="chip ${x === c ? "on" : ""}" data-guide-chapter="${g.chapters.indexOf(x)}">${esc(x.short || x.title.split(".")[0])}</button>`;
+    const groups = [...new Set(g.chapters.map((x) => x.group))];
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">이 PC에서만 표시</span></div></div>
       ${notesTabs()}
       <div class="panel"><h2>${esc(g.title)}</h2><p class="sub">${esc(g.sub)}</p>
-        <div class="filter-row">${g.chapters.map((x, i) => `<button class="chip ${x === c ? "on" : ""}" data-guide-chapter="${i}">${esc(x.title.split(".")[0])}</button>`).join("")}</div>
+        ${groups.map((name) => `<div class="filter-row guide-chapters">${name ? `<span class="guide-group">${esc(name)}</span>` : ""}${g.chapters.filter((x) => x.group === name).map(chip).join("")}</div>`).join("")}
         <article class="guide-body"><h2>${esc(c.title)}</h2>${c.html}</article>
       </div>`;
   }
 
   function renderNotes() {
-    if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderVideoGuide(); return; }
+    if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
+    if (window.FISH_BOOK_GUIDE && state.notes.tab === "book") { renderChapterGuide(window.FISH_BOOK_GUIDE); return; }
     const n = window.FISH_NOTES;
     const places = [...new Set(n.temperatures.map((r) => r.place))];
     const placeColors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
@@ -1127,10 +1129,12 @@
       $('.tabs [data-go="notes"]').hidden = false;
       moveInk();
       if (initialView === "notes") go("notes", false);
-      const g = document.createElement("script");
-      g.src = "private/video_guide.js";
-      g.onload = () => { if (!$("#view-notes").hidden) renderNotes(); };
-      document.head.append(g);
+      ["video_guide", "book_guide"].forEach((name) => {
+        const g = document.createElement("script");
+        g.src = `private/${name}.js`;
+        g.onload = () => { if (!$("#view-notes").hidden) renderNotes(); };
+        document.head.append(g);
+      });
     };
     document.head.append(s);
   }
@@ -1275,7 +1279,7 @@
     else if (d.fitQuick) { setFitDate(d.fitQuick); }
     else if (d.fitTarget) { state.notes.fitTarget = d.fitTarget; renderNotes(); }
     else if (d.notesTab) { state.notes.tab = d.notesTab; renderNotes(); window.scrollTo({ top: 0 }); }
-    else if (d.guideChapter !== undefined) { state.notes.chapter = +d.guideChapter; renderNotes(); window.scrollTo({ top: 0 }); }
+    else if (d.guideChapter !== undefined) { state.notes.chapters[state.notes.tab] = +d.guideChapter; renderNotes(); window.scrollTo({ top: 0 }); }
     else if (d.notesMonth) { state.notes.month = +d.notesMonth; renderNotes(); }
     else if (d.checkReset) { store.set("notesChecklist", []); renderNotes(); }
     else if (d.source) {
