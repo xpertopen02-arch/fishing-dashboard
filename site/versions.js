@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.29", date: "2026-11-06", title: "북가이드 내용별 그림 링크",
+    changes: [
+      "북가이드 본문 항목 옆에 그림 버튼을 달고, 누르면 같은 화면에서 그림이 뜨도록 추가 (이 PC에서만 표시)",
+    ],
+  },
+  {
     version: "1.28", date: "2026-11-06", title: "북가이드에 그림과 사진 추가",
     changes: [
       "북가이드 각 장 아래에 원본의 그림과 사진을 모아 표시 (이 PC에서만 표시)",

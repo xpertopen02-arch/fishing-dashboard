@@ -1012,6 +1012,20 @@
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
 
+  function showFigure(src, page) {
+    let box = $("#figDialog");
+    if (!box) {
+      box = document.createElement("dialog");
+      box.id = "figDialog";
+      box.className = "fig-dialog";
+      box.addEventListener("click", (e) => { if (!e.target.closest("a")) box.close(); });
+      document.body.append(box);
+    }
+    const pdf = window.FISH_BOOK_GUIDE.pdf;
+    box.innerHTML = `<img src="${esc(src)}" alt="원본 ${esc(page)}쪽 그림"><p><a href="${esc(pdf)}#page=${esc(page)}" target="_blank" rel="noopener noreferrer">원본 ${esc(page)}쪽 열기</a> · 누르거나 Esc로 닫기</p>`;
+    box.showModal();
+  }
+
   function renderChapterGuide(g) {
     const c = g.chapters[state.notes.chapters[state.notes.tab] || 0] || g.chapters[0];
     const chip = (x) => `<button class="chip ${x === c ? "on" : ""}" data-guide-chapter="${g.chapters.indexOf(x)}">${esc(x.short || x.title.split(".")[0])}</button>`;
@@ -1276,6 +1290,7 @@
     else if (d.logclear) { state.log.place = state.log.month = null; renderLog(); }
     else if (d.shelf) { state.shelf = d.shelf; renderLibrary(); }
     else if (d.sourceAll) { state.sources = []; renderLibrary(); }
+    else if (d.figSrc) { showFigure(d.figSrc, d.figPage); }
     else if (d.fitQuick) { setFitDate(d.fitQuick); }
     else if (d.fitTarget) { state.notes.fitTarget = d.fitTarget; renderNotes(); }
     else if (d.notesTab) { state.notes.tab = d.notesTab; renderNotes(); window.scrollTo({ top: 0 }); }
