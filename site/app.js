@@ -67,7 +67,7 @@
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
     sources: [],
-    notes: { place: "장광", month: new Date().getMonth() + 1 },
+    notes: { month: new Date().getMonth() + 1 },
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 
@@ -891,7 +891,7 @@
   }
 
   /* ---------- study notes (only on this PC, see site/private/notes.js) ---------- */
-  function tempChart(rows, trips) {
+  function tempChart(rows, trips, colorOf) {
     // Places the season from November to May on one axis, whichever year the point came from.
     const W = 900, H = 300, L0 = 38, R0 = 12, T0 = 14, B0 = 46;
     const start = [10, 1], months = ["11월", "12월", "1월", "2월", "3월", "4월", "5월"];
@@ -904,25 +904,26 @@
     const Y = (v) => T0 + (H - T0 - B0) * (1 - v / 25);
     const grid = [0, 5, 10, 15, 20, 25].map((v) => `<line x1="${L0}" x2="${W - R0}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v ? "var(--grid)" : "var(--axis)"}"/><text x="${L0 - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="12" fill="var(--muted)">${v}</text>`).join("");
     const axis = months.map((m, i) => `<text x="${X(i + .5)}" y="${H - 28}" text-anchor="middle" font-size="12" fill="var(--muted)">${m}</text>`).join("");
-    const label = (r) => `${r.date} ${r.time} · 표층 ${num(r.surface)}℃ · 바닥 ${num(r.bottom)}℃${r.note ? ` · ${r.note}` : ""}`;
+    const label = (r) => `${r.place} · ${r.date} ${r.time} · 표층 ${num(r.surface)}℃ · 바닥 ${num(r.bottom)}℃${r.note ? ` · ${r.note}` : ""}`;
     const dots = rows.map((r, i) => {
       const x = X(pos(r.date)) + (i % 3) * 1.5, tip = esc(label(r));
-      return `<g class="temp-point" data-tip="${tip}" tabindex="0"><circle cx="${x}" cy="${Y(r.surface)}" r="5.5" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/><rect x="${x - 5}" y="${Y(r.bottom) - 5}" width="10" height="10" rx="2" fill="var(--s2)" stroke="var(--surface)" stroke-width="2"/></g>`;
+      return `<g class="temp-point" data-tip="${tip}" tabindex="0"><circle cx="${x}" cy="${Y(r.surface)}" r="5.5" fill="${colorOf(r.place)}" stroke="var(--surface)" stroke-width="2"/><rect x="${x - 5}" y="${Y(r.bottom) - 5}" width="10" height="10" rx="2" fill="${colorOf(r.place)}" stroke="var(--surface)" stroke-width="2"/></g>`;
     }).join("");
     const marks = trips.filter((t) => pos(t.trip.date) < 7).map((t) => {
       const x = X(pos(t.trip.date));
-      const tip = esc(`내 출조 ${t.trip.date}${t.trip.catch != null ? ` · 조과 ${t.trip.catch}수` : ""}`);
-      return `<g class="temp-point" data-tip="${tip}" tabindex="0"><path d="M${x} ${H - 18}l6 10h-12z" fill="var(--ink-2)"/></g>`;
+      const tip = esc(`내 출조 · ${t.place} · ${t.trip.date}${t.trip.catch != null ? ` · 조과 ${t.trip.catch}수` : ""}`);
+      return `<g class="temp-point" data-tip="${tip}" tabindex="0"><path d="M${x} ${H - 18}l6 10h-12z" fill="${colorOf(t.place)}"/></g>`;
     }).join("");
     return `<svg viewBox="0 0 ${W} ${H}" class="temp-chart" role="img" aria-label="계절별 수온 실측값">${grid}${axis}${dots}${marks}</svg>`;
   }
 
   function renderNotes() {
     const n = window.FISH_NOTES;
-    const place = state.notes.place;
     const places = [...new Set(n.temperatures.map((r) => r.place))];
-    const rows = n.temperatures.filter((r) => r.place === place).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-    const trips = placeById[place] ? placeById[place].trips.filter((t) => !t.trip.other) : [];
+    const placeColors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
+    const colorOf = (p) => placeColors[places.indexOf(p) % placeColors.length];
+    const rows = [...n.temperatures].sort((a, b) => places.indexOf(a.place) - places.indexOf(b.place) || (a.date + a.time).localeCompare(b.date + b.time));
+    const trips = places.flatMap((p) => (placeById[p] ? placeById[p].trips.filter((t) => !t.trip.other).map((t) => ({ ...t, place: p })) : []));
     const done = store.get("notesChecklist", []);
     const month = n.jangwangMonths.find((m) => m.month === state.notes.month) || n.jangwangMonths[0];
     const measured = n.temperatures.filter((r) => r.place === "장광" && parseISO(r.date).getMonth() + 1 === month.month);
@@ -933,11 +934,11 @@
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">이 PC에서만 표시</span></div></div>
       <div class="notes-grid">
         <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">카페 회원이 직접 잰 값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
-          <div class="filter-row">${places.map((p) => `<button class="chip ${p === place ? "on" : ""}" data-notes-place="${esc(p)}">${esc(p)}</button>`).join("")}</div>
-          <div class="month-legend"><span><i class="dot" style="background:var(--s1)"></i> 표층</span><span><i class="legend-square"></i> 바닥</span>${trips.length ? "<span>▲ 내 출조</span>" : ""}</div>
-          ${tempChart(rows, trips)}
+          <div class="month-legend">${places.map((p) => `<span><i class="dot" style="background:${colorOf(p)}"></i> ${esc(p)}</span>`).join("")}</div>
+          <div class="month-legend"><span>● 표층</span><span>■ 바닥</span>${trips.length ? "<span>▲ 내 출조</span>" : ""}</div>
+          ${tempChart(rows, trips, colorOf)}
           <p class="temp-readout" id="tempReadout">점에 포인터를 올리거나 눌러 값을 확인하세요.</p>
-          <details class="table-view"><summary>표로 보기</summary><table class="num-table"><tr><th>날짜</th><th>시각</th><th>표층</th><th>바닥</th><th>상황</th></tr>${rows.map((r) => `<tr><td>${r.date}</td><td>${r.time}</td><td>${num(r.surface)}℃</td><td>${num(r.bottom)}℃</td><td class="left">${esc(r.note || "")}</td></tr>`).join("")}</table></details>
+          <details class="table-view"><summary>표로 보기</summary><table class="num-table"><tr><th>장소</th><th>날짜</th><th>시각</th><th>표층</th><th>바닥</th><th>상황</th></tr>${rows.map((r) => `<tr><td class="left">${esc(r.place)}</td><td>${r.date}</td><td>${r.time}</td><td>${num(r.surface)}℃</td><td>${num(r.bottom)}℃</td><td class="left">${esc(r.note || "")}</td></tr>`).join("")}</table></details>
           <ul class="notes-list">${n.temperatureFindings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
         </div>
 
@@ -977,11 +978,6 @@
             ? `<div class="table-wrap"><table class="notes-table pattern"><tr>${b.head.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>${b.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table></div>`
             : `<ul class="notes-list">${b.list.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`}`).join("")}
         </div>`).join("")}
-
-        <div class="panel"><h2>출처</h2><p class="sub">Spooning 365 카페 글을 요약했습니다. 원문은 <a href="${esc(n.cafeUrl)}" target="_blank" rel="noopener noreferrer">카페</a>와 프로젝트 폴더의 PDF에 있습니다.</p>
-          <table class="notes-table">${n.sources.map((s) => `<tr><th>${esc(s.title)}</th><td>${esc(s.date)}<br>${esc(s.kind)}</td></tr>`).join("")}</table>
-          <p class="notice">마지막 정리: ${esc(n.updated)}. 이 내용은 GitHub와 공개 사이트에 올라가지 않습니다.</p>
-        </div>
       </div>`;
   }
 
@@ -1136,7 +1132,6 @@
     else if (d.logclear) { state.log.place = state.log.month = null; renderLog(); }
     else if (d.shelf) { state.shelf = d.shelf; renderLibrary(); }
     else if (d.sourceAll) { state.sources = []; renderLibrary(); }
-    else if (d.notesPlace) { state.notes.place = d.notesPlace; renderNotes(); }
     else if (d.notesMonth) { state.notes.month = +d.notesMonth; renderNotes(); }
     else if (d.checkReset) { store.set("notesChecklist", []); renderNotes(); }
     else if (d.source) {

@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.22", date: "2026-11-06", title: "연구 노트 수온 그래프 한눈에 보기",
+    changes: [
+      "수온 실측 그래프와 표에 모든 측정 장소를 함께 표시 (장소별 색으로 구분)",
+      "연구 노트의 출처 칸 제거",
+    ],
+  },
+  {
     version: "1.21", date: "2026-11-06", title: "연구 노트에 자료 분석 칸 추가",
     changes: [
       "연구 노트에 자료별 분석을 표와 목록으로 보여 주는 칸 추가 (내용은 이 PC에서만 표시)",
