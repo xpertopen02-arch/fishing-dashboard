@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.31", date: "2026-11-06", title: "북가이드 그림 열기 수정",
+    changes: [
+      "북가이드 각 장 아래 그림을 눌러도 창이 열리지 않던 것을 수정",
+    ],
+  },
+  {
     version: "1.30", date: "2026-11-06", title: "출조 브리핑에 예상 수온 추가",
     changes: [
       "지도 아래 낚시터 칸에 선택한 날짜의 예상 수온을 표시 (송어 낚시터, 이 PC에서만 표시)",

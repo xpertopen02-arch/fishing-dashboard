@@ -1286,6 +1286,9 @@
   document.addEventListener("click", (e) => {
     const t = e.target.closest("button,img,[data-close]");
     const bg = e.target;
+    // a gallery image sits inside its button, so look for the button from whatever was clicked
+    const fig = bg.closest("[data-fig-src]");
+    if (fig) { showFigure(fig.dataset.figSrc, fig.dataset.figPage); return; }
     if (bg.id === "drawerBack") return closeDrawer();
     if (bg.id === "searchLayer") { $("#searchLayer").hidden = true; return; }
     if (bg.closest("#lightbox")) { $("#lightbox").hidden = true; return; }
@@ -1307,7 +1310,6 @@
     else if (d.logclear) { state.log.place = state.log.month = null; renderLog(); }
     else if (d.shelf) { state.shelf = d.shelf; renderLibrary(); }
     else if (d.sourceAll) { state.sources = []; renderLibrary(); }
-    else if (d.figSrc) { showFigure(d.figSrc, d.figPage); }
     else if (d.fitQuick) { setFitDate(d.fitQuick); }
     else if (d.fitTarget) { state.notes.fitTarget = d.fitTarget; renderNotes(); }
     else if (d.notesTab) { state.notes.tab = d.notesTab; renderNotes(); window.scrollTo({ top: 0 }); }
