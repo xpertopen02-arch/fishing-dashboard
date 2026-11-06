@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.21", date: "2026-11-06", title: "연구 노트에 자료 분석 칸 추가",
+    changes: [
+      "연구 노트에 자료별 분석을 표와 목록으로 보여 주는 칸 추가 (내용은 이 PC에서만 표시)",
+    ],
+  },
+  {
     version: "1.20", date: "2026-11-06", title: "PC 전용 연구 노트 탭",
     changes: [
       "수온, 체크리스트, 시간대별 운용, 캐스팅을 모은 연구 노트 탭 추가 (이 PC에서만 표시)",

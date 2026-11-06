@@ -972,6 +972,12 @@
           <ul class="notes-list">${n.videos.map((v) => `<li><a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc(v.title)}</a></li>`).join("")}</ul>
         </div>
 
+        ${(n.guides || []).map((g) => `<div class="panel notes-wide"><h2>${esc(g.title)}</h2><p class="sub">${esc(g.sub)}</p>
+          ${g.blocks.map((b) => `<h3 class="notes-sub">${esc(b.heading)}</h3>${b.rows
+            ? `<div class="table-wrap"><table class="notes-table pattern"><tr>${b.head.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>${b.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table></div>`
+            : `<ul class="notes-list">${b.list.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`}`).join("")}
+        </div>`).join("")}
+
         <div class="panel"><h2>출처</h2><p class="sub">Spooning 365 카페 글을 요약했습니다. 원문은 <a href="${esc(n.cafeUrl)}" target="_blank" rel="noopener noreferrer">카페</a>와 프로젝트 폴더의 PDF에 있습니다.</p>
           <table class="notes-table">${n.sources.map((s) => `<tr><th>${esc(s.title)}</th><td>${esc(s.date)}<br>${esc(s.kind)}</td></tr>`).join("")}</table>
           <p class="notice">마지막 정리: ${esc(n.updated)}. 이 내용은 GitHub와 공개 사이트에 올라가지 않습니다.</p>
