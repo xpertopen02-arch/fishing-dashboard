@@ -67,7 +67,7 @@
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
     sources: [],
-    notes: { month: new Date().getMonth() + 1 },
+    notes: { month: new Date().getMonth() + 1, tab: "study", chapter: 0 },
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 
@@ -917,7 +917,26 @@
     return `<svg viewBox="0 0 ${W} ${H}" class="temp-chart" role="img" aria-label="계절별 수온 실측값">${grid}${axis}${dots}${marks}</svg>`;
   }
 
+  function notesTabs() {
+    if (!window.FISH_VIDEO_GUIDE) return "";
+    const tabs = [["study", "카페 자료"], ["video", "영상 가이드"]];
+    return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
+  }
+
+  function renderVideoGuide() {
+    const g = window.FISH_VIDEO_GUIDE;
+    const c = g.chapters[state.notes.chapter] || g.chapters[0];
+    $("#view-notes").innerHTML = `
+      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">이 PC에서만 표시</span></div></div>
+      ${notesTabs()}
+      <div class="panel"><h2>${esc(g.title)}</h2><p class="sub">${esc(g.sub)}</p>
+        <div class="filter-row">${g.chapters.map((x, i) => `<button class="chip ${x === c ? "on" : ""}" data-guide-chapter="${i}">${esc(x.title.split(".")[0])}</button>`).join("")}</div>
+        <article class="guide-body"><h2>${esc(c.title)}</h2>${c.html}</article>
+      </div>`;
+  }
+
   function renderNotes() {
+    if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderVideoGuide(); return; }
     const n = window.FISH_NOTES;
     const places = [...new Set(n.temperatures.map((r) => r.place))];
     const placeColors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
@@ -932,6 +951,7 @@
 
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">이 PC에서만 표시</span></div></div>
+      ${notesTabs()}
       <div class="notes-grid">
         <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">카페 회원이 직접 잰 값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
           <div class="month-legend">${places.map((p) => `<span><i class="dot" style="background:${colorOf(p)}"></i> ${esc(p)}</span>`).join("")}</div>
@@ -991,6 +1011,10 @@
       $('.tabs [data-go="notes"]').hidden = false;
       moveInk();
       if (initialView === "notes") go("notes", false);
+      const g = document.createElement("script");
+      g.src = "private/video_guide.js";
+      g.onload = () => { if (!$("#view-notes").hidden) renderNotes(); };
+      document.head.append(g);
     };
     document.head.append(s);
   }
@@ -1132,6 +1156,8 @@
     else if (d.logclear) { state.log.place = state.log.month = null; renderLog(); }
     else if (d.shelf) { state.shelf = d.shelf; renderLibrary(); }
     else if (d.sourceAll) { state.sources = []; renderLibrary(); }
+    else if (d.notesTab) { state.notes.tab = d.notesTab; renderNotes(); window.scrollTo({ top: 0 }); }
+    else if (d.guideChapter !== undefined) { state.notes.chapter = +d.guideChapter; renderNotes(); window.scrollTo({ top: 0 }); }
     else if (d.notesMonth) { state.notes.month = +d.notesMonth; renderNotes(); }
     else if (d.checkReset) { store.set("notesChecklist", []); renderNotes(); }
     else if (d.source) {

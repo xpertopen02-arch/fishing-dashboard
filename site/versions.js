@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.23", date: "2026-11-06", title: "연구 노트에 영상 가이드 탭 추가",
+    changes: [
+      "연구 노트를 자료별 탭으로 나누고, 영상 18편을 정리한 가이드를 장별로 읽는 탭 추가 (이 PC에서만 표시)",
+    ],
+  },
+  {
     version: "1.22", date: "2026-11-06", title: "연구 노트 수온 그래프 한눈에 보기",
     changes: [
       "수온 실측 그래프와 표에 모든 측정 장소를 함께 표시 (장소별 색으로 구분)",
