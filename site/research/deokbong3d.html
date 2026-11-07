@@ -123,6 +123,15 @@
     .cond .ctext { padding:2px 5px; }
     .cond .cicon { padding:2px 4px; }
   }
+  /* 디지털 시계: 지금 보고 있는 시각을 크게 보여 줍니다. */
+  .clock { position:absolute; right:10px; top:8px; z-index:3; pointer-events:none; padding:2px 10px; border-radius:8px;
+    background:color-mix(in srgb, var(--panel) 72%, transparent); border:1px solid color-mix(in srgb, var(--line) 85%, transparent);
+    -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px);
+    font:700 42px/1.1 "Consolas", "DejaVu Sans Mono", "Courier New", monospace; font-variant-numeric:tabular-nums; letter-spacing:2px; color:var(--ink); }
+  .clock .c { display:inline-block; width:.45em; text-align:center; }
+  .clock.play .c { animation:clockBlink 1s steps(1) infinite; }
+  @keyframes clockBlink { 50% { opacity:.25; } }
+  @media (max-width: 760px) { .clock { font-size:32px; padding:1px 8px; } }
 </style>
 </head>
 <body>
@@ -138,6 +147,7 @@
     <div class="readout" id="readout">끌기 회전 · 오른쪽 끌기 이동 · Ctrl+스크롤, +/− 확대 · 더블클릭 다가가기</div>
     <div class="views"><button data-view="focus">부교·가두리</button><button data-view="cage">가두리</button><button data-view="west">서쪽 못</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="all">전체</button></div>
     <div class="legend" id="legend"></div>
+    <div class="clock" id="clock" aria-live="off" title="지금 보고 있는 시각"></div>
     <div class="cond" id="cond" aria-live="polite"></div>
   </div>
   <aside class="side">
@@ -1195,6 +1205,7 @@ attribute vec2 aSwim;`)
   function panel() {
     const st = state(), list = ranks(st), best = list[0].score || 1;
     $("hourLabel").textContent = fmtH(st.h);
+    $("clock").innerHTML = fmtH(st.h).replace(":", '<span class="c">:</span>');
     $("recTitle").textContent = `${nice(st.s)} ${fmtH(st.h)} 추천 자리`;
     setWind(st); condBox(st, list[0]);
     const info = dist(st);
@@ -1279,6 +1290,13 @@ attribute vec2 aSwim;`)
   $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
   Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
   let playing = null;
+  function placeClock() {
+    const c = $("clock"), v = document.querySelector(".views"), stage = document.querySelector(".stage");
+    c.style.top = "8px";
+    const cr = c.getBoundingClientRect(), last = [...v.children].reduce((m, b) => Math.max(m, b.getBoundingClientRect().right), 0);
+    if (last > cr.left - 6) c.style.top = `${v.getBoundingClientRect().bottom - stage.getBoundingClientRect().top + 6}px`;
+  }
+  addEventListener("resize", placeClock);
   // 재생 속도: 10분이 지나가는 데 걸리는 시간(ms). 기본은 0.5초(한 시간 3초)입니다.
   const SPEEDS = [1500, 1000, 700, 500, 350, 200, 120];
   // 속도 막대: 칸이 높아질수록 초록에서 빨강으로 바뀝니다. 켜진 칸까지만 색을 칠합니다.
@@ -1325,7 +1343,8 @@ attribute vec2 aSwim;`)
   const spinDraw = speedControl($("spinCtl"), $("spinSpd"), SPIN_SPEEDS, "회전 속도", (v) => `${+(v / .8).toFixed(2)}배`, (v) => { controls.autoRotateSpeed = v; });
   const fishDraw = speedControl($("fishCtl"), $("fishSpd"), FISH_SPEEDS, "송어 속도", (v) => `${v}배`, (v) => { fishMul = v * FISH_BASE; });
   $("play").addEventListener("click", () => {
-    if (playing) { clearInterval(playing); playing = null; $("play").textContent = "재생"; return; }
+    if (playing) { clearInterval(playing); playing = null; $("play").textContent = "재생"; $("clock").classList.remove("play"); return; }
+    $("clock").classList.add("play");
     $("play").textContent = "정지";
     playing = setInterval(tick, SPEEDS[spdI]);
   });
@@ -1423,7 +1442,7 @@ attribute vec2 aSwim;`)
   $("wheelsOn").onclick = () => setAllWheels(true);
   $("wheelsOff").onclick = () => setAllWheels(false);
   refreshWheels();
-  applyVe(); panel();
+  applyVe(); panel(); placeClock();
   const clock = new THREE.Clock();
   (function loop() { requestAnimationFrame(loop);
     if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }

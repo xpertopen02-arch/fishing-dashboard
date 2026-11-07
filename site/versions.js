@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.87", date: "2026-11-07", title: "디지털 시계",
+    changes: [
+      "지도 위쪽 오른쪽에 지금 보고 있는 시각을 디지털 시계처럼 크게 표시 (재생 중에는 콜론이 깜박임)",
+      "휴대폰처럼 좁은 화면에서는 시점 버튼과 겹치지 않게 버튼 바로 아래로 내림",
+    ],
+  },
+  {
     version: "1.86", date: "2026-11-07", title: "송어 모양과 헤엄",
     changes: [
       "송어가 헤엄칠 때 머리는 거의 그대로 두고 꼬리 쪽으로 갈수록 크게 휘는 물결로 몸통과 꼬리가 움직이게 함 (활성이 높으면 더 빠르고 크게)",
