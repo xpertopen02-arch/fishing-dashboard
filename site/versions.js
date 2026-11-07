@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.52", date: "2026-11-07", title: "수차 켜고 끄기, 설정 저장 버튼",
+    changes: [
+      "덕봉 3D에서 수차 1~7번을 따로 켜고 끄고, 모두 켜기와 모두 끄기 버튼 추가",
+      "설정 현재상태로 버튼 추가",
+    ],
+  },
+  {
     version: "1.51", date: "2026-11-07", title: "수차 7대 위치 반영",
     changes: [
       "찍어 주신 수차 7대를 덕봉 3D에 표시하고 수온, 산소, 송어 분포 계산에 반영",
