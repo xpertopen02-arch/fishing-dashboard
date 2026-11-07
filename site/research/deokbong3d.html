@@ -619,7 +619,7 @@
   // 이름
   const texts = new THREE.Group(); scene.add(texts);
   // 지도 글자: 배경 없이 네온 테두리만 둡니다. 색은 무리별로 고를 수 있습니다.
-  const NEON_DEFAULT = { fac: "#39e6ff", note: "#e6f0d6", rec: "#ffd84a" };
+  const NEON_DEFAULT = { fac: "#39e6ff", note: "#ffe45c", rec: "#ffd84a" };   // 공략법 글자는 노란색
   const NEON = { ...NEON_DEFAULT };
   try { Object.assign(NEON, JSON.parse(localStorage.getItem("deokbongNeon") || "{}")); } catch (e) { /* 저장을 못 읽으면 기본색 */ }
   const neonSprites = [];
@@ -1059,11 +1059,13 @@ attribute vec2 aSwim;`)
       used.add(s); return true;
     }));
   }
+  const NARROW = matchMedia("(max-width: 760px)");
+  NARROW.addEventListener("change", () => panel());   // 화면 폭이 바뀌면 글자 크기를 다시 맞춥니다.
   function drawRecs(list) {
     recGroup.traverse((o) => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry && !o.isSprite) o.geometry.dispose(); });
     recGroup.clear();
     if ($("note").checked) nearSpots(list).forEach((spots, i) => spots.forEach((p) => {
-      recGroup.add(label(`${i + 1}위 ${p[2]}`, wx(p[0]), 3.5, wz(p[1]), p[3] ? "#ff4d4d" : "note", .017, 400));
+      recGroup.add(label(`${i + 1}위 ${p[2]}`, wx(p[0]), 3.5, wz(p[1]), p[3] ? "#ff4d4d" : "note", NARROW.matches ? .025 : .017, 400));   // 휴대폰에서는 조금 크게
       neonSprites.pop();   // 다시 그릴 때마다 새로 만드는 글자라 목록에 남기지 않습니다.
     }));
     const top = list[0].score || 1;

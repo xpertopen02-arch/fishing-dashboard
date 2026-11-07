@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.95", date: "2026-11-08", title: "공략법 글자",
+    changes: [
+      "지도 위 공략법 글자를 휴대폰에서 약 1.5배 크게 표시",
+      "공략법 글자의 기본 색을 노란색으로 바꿈 (글자색 설정에서 따로 고른 색은 유지)",
+    ],
+  },
+  {
     version: "1.94", date: "2026-11-08", title: "방류 15~20분 지속",
     changes: [
       "방류가 15~20분 동안 이어지도록 바꿈: 방류 시각부터 20분에 걸쳐 방류어가 고르게 들어오고, 송어 분포와 추천 점수도 들어온 만큼만 반영",
