@@ -71,7 +71,7 @@
       <button id="home" aria-label="처음 시점" title="처음 시점">⌂</button>
     </div>
     <div class="readout" id="readout">끌기 회전 · 오른쪽 끌기 이동 · Ctrl+스크롤, +/− 확대 · 더블클릭 다가가기</div>
-    <div class="views"><button data-view="focus">부교·가두리</button><button data-view="cage">가두리 가까이</button><button data-view="west">서쪽 못</button><button data-view="under">물속</button><button data-view="all">전체</button></div>
+    <div class="views"><button data-view="focus">부교·가두리</button><button data-view="cage">가두리 가까이</button><button data-view="west">서쪽 못</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="all">전체</button></div>
     <div class="legend" id="legend"></div>
   </div>
   <aside class="side">
@@ -124,6 +124,13 @@
     </div>
 
     <p class="note" id="cutLegend"></p>
+
+    <div id="wheelBox" hidden>
+      <h2>수차 위치 찍기</h2>
+      <p class="note">'위에서' 보기로 옮긴 뒤 찍기를 켜고 수차 자리를 누르세요. 다 찍으면 아래 좌표를 복사해 대화에 붙여 주세요.</p>
+      <div class="row"><button id="wheelPick">찍기 시작</button><button id="wheelCopy">좌표 복사</button><button id="wheelUndo">마지막 지우기</button></div>
+      <textarea id="wheelText" rows="4" readonly aria-label="수차 좌표" style="width:100%;margin-top:6px;font:inherit;font-size:12.5px"></textarea>
+    </div>
 
     <h2>글자 색</h2>
     <div class="row neonrow">
@@ -303,10 +310,10 @@
     const hi = Math.max(.05, clamp(1 - (HIGH / a - .25) / .75, 0, 1)), lo = clamp((LOW / a - .25) / .75, 0, 1);
     return { hi, lo: Math.min(lo, 1 - hi) };
   }
-  // 방류어: 당일 6시간은 활성이 높고, 이후 보통으로 내려갑니다.
-  const freshLevel = (rel) => (rel.hours >= 0 && rel.hours <= 6 ? "high" : "mid");
+  // 방류어: 입질이 활발한 약 1시간은 활성이 높고, 이후 보통으로 내려갑니다.
+  const freshLevel = (rel) => (rel.hours >= 0 && rel.hours <= 1 ? "high" : "mid");
   // 방류어 흐름에 자극받는 기존 송어의 비율: 방류 지점에 가까울수록, 방류 직후일수록 큽니다.
-  const stirChance = (st, rel, metres) => (st.stock === 0 && rel.hours >= 0 && rel.hours <= 3 ? .35 * Math.exp(-rel.hours / 2.5) * Math.exp(-metres / (rel.sigma + 10)) : 0);
+  const stirChance = (st, rel, metres) => (st.stock === 0 && rel.hours >= 0 && rel.hours <= 1 ? .35 * Math.exp(-rel.hours / .7) * Math.exp(-metres / (rel.sigma + 10)) : 0);
   const distCache = new Map();
   function dist(st) {
     const key = [st.s, st.h, st.f, st.stock, st.crowd, st.k, st.cruise, st.note, st.rain, st.release, st.relH, st.total, st.stockN].join();
@@ -805,7 +812,7 @@
     $("fishKey").innerHTML = $("fishColor").value === "depth" ? '<b style="color:#d9b400">■</b> 1m 안 <b style="color:#35b86a">■</b> 1~2m <b style="color:#3f8fe0">■</b> 2~3m <b style="color:#b45fd6">■</b> 3m 아래 <b style="color:#8a7f73">■</b> 가두리 안' : $("fishColor").value === "react" ? '<b style="color:#e5392c">■</b> 반응 좋음 <b style="color:#d9a400">■</b> 보통 <b style="color:#6f9fd8">■</b> 낮음 <b style="color:#8a7f73">■</b> 가두리 안' : '<b style="color:#5fb6e6">■</b> 도는 송어 <b style="color:#b9b4a6">■</b> 머무는 송어 <b style="color:#8a7f73">■</b> 가두리 안';
     const relName = st.release === "center" ? "중앙 가두리" : "부교 가두리";
     const near = nearSpots(list);
-    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. ${info.rel.hours <= 6 ? "방류어는 움직이는 루어에 빠르게 반응하고, " : ""}${info.rel.hours <= 3 ? "주변 기존 송어 일부도 자극받아 반응이 올라갑니다." : ""}${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
+    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. ${info.rel.hours <= 1 ? "방류어는 움직이는 루어에 빠르게 반응하고, 주변 기존 송어 일부도 자극받아 반응이 올라갑니다." : "활발한 입질은 약 1시간으로 봅니다."}${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
     $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. 원은 약 30m 사거리입니다. 자리 선은 붉을수록 점수가 높습니다.</p>`;
     const alerts = [], sim = D.sims[st.f][st.s][st.h], ks = Object.keys(sim);
     const tops = ks.map((k) => sim[k][0]), maxT = Math.max(...ks.map((k) => Math.max(sim[k][0], sim[k][2]))), iced = ks.filter((k) => sim[k][4]), minO = Math.min(...ks.map((k) => sim[k][3]));
@@ -885,6 +892,7 @@
     focus(now) { const t = at(321, 500, -3), k = aspectScale(); go(t.clone().add(new THREE.Vector3(-20 * k, 52 * k, 62 * k)), t, now); },
     west() { const t = at(240, 510, -2), k = aspectScale(); go(t.clone().add(new THREE.Vector3(0, 82 * k, 88 * k)), t); },
     cage() { const t = at(256, 514, -3), k = aspectScale(); go(t.clone().add(new THREE.Vector3(-8 * k, 12 * k, 20 * k)), t); },
+    top() { $("spin").checked = false; controls.autoRotate = false; const k = aspectScale(); go(new THREE.Vector3(0, 300 * k, .1), new THREE.Vector3(0, 0, 0)); },
     under() { const ve = +$("ve").value; go(at(235, 525, -ve * .8), at(345, 490, -ve * 1.6)); },
     all() { const k = Math.max(1, 1.08 / (view.clientWidth / view.clientHeight)); go(new THREE.Vector3(HOME[0] * k, HOME[1] * k, HOME[2] * k), new THREE.Vector3()); },
   };
@@ -902,6 +910,36 @@
     go(hit.point.clone().add(off), hit.point.clone());
   });
 
+  // 수차 찍기: 베타에서만 보입니다. 좌표는 이 브라우저에만 저장됩니다.
+  let wheelPicking = false, wheels = [];
+  const wheelGroup = new THREE.Group(); scene.add(wheelGroup);
+  try { wheels = JSON.parse(localStorage.getItem("deokbongWheels") || "[]"); } catch (e) { wheels = []; }
+  function drawWheels() {
+    wheelGroup.traverse((o) => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry && !o.isSprite) o.geometry.dispose(); });
+    wheelGroup.clear();
+    wheels.forEach((p, i) => {
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, 5, 12), new THREE.MeshBasicMaterial({ color: 0xff3df2 }));
+      pin.position.set(wx(p[0]), 2.5, wz(p[1]));
+      wheelGroup.add(pin, label(`수차 ${i + 1}`, wx(p[0]), 7, wz(p[1]), "#ff3df2", .024));
+      neonSprites.pop();
+    });
+    $("wheelText").value = wheels.map((p, i) => `수차 ${i + 1}: ${p[0]}, ${p[1]}`).join("\n");
+    try { localStorage.setItem("deokbongWheels", JSON.stringify(wheels)); } catch (e) { /* 저장 못 해도 화면에는 표시 */ }
+  }
+  try { $("wheelBox").hidden = localStorage.getItem("fishBeta") !== "1"; } catch (e) { /* 공개판처럼 숨김 */ }
+  if (!$("wheelBox").hidden) drawWheels();
+  $("wheelPick").onclick = () => {
+    wheelPicking = !wheelPicking;
+    $("wheelPick").textContent = wheelPicking ? "찍기 끝내기" : "찍기 시작";
+    if (wheelPicking) { $("spin").checked = false; controls.autoRotate = false; }
+  };
+  $("wheelUndo").onclick = () => { wheels.pop(); drawWheels(); };
+  $("wheelCopy").onclick = async () => {
+    const t = $("wheelText"); t.select();
+    try { await navigator.clipboard.writeText(t.value); $("wheelCopy").textContent = "복사됨"; } catch (e) { document.execCommand("copy"); $("wheelCopy").textContent = "복사됨"; }
+    setTimeout(() => { $("wheelCopy").textContent = "좌표 복사"; }, 1500);
+  };
+
   // 지점 읽기
   const mouse = new THREE.Vector2(); let down = null;
   renderer.domElement.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
@@ -913,6 +951,7 @@
     const hit = ray.intersectObject(water)[0];
     if (!hit) return;
     const px = hit.point.x / M + CX, py = hit.point.z / M + CY;
+    if (wheelPicking) { wheels.push([Math.round(px), Math.round(py)]); drawWheels(); return; }
     let c = null, b = 1e9; cells.forEach((k) => { const d = Math.hypot(k.x - px, k.y - py); if (d < b) { b = d; c = k; } });
     if (!c) return;
     const st = state(), e2 = cellEval(c, st);
@@ -924,7 +963,7 @@
   // 마지막 옵션과 시점을 다시 열 때 그대로 보여 줍니다.
   const DEFAULT_VIEW = {
     cam: [-49.08, 57.74, -92.7], tgt: [-52, -14.37, 14.32],
-    inflow: "ground", stock: "0", stockN: "75", release: "center", relH: "10", clarity: "turbid", fishColor: "react",
+    inflow: "stream", stock: "0", stockN: "75", release: "center", relH: "10", clarity: "turbid", fishColor: "react",
     note: true, worm: true, crowd: true, spin: true, total: "600", cruise: "40", mode: "depth", ve: "4", waterOp: "0.3",
     lCut: true, lWater: true, lFish: true, lRec: true, lFac: true, lText: true,
   };

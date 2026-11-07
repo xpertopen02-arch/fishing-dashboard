@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.50", date: "2026-11-07", title: "새물과 방류 후 입질 관찰 반영",
+    changes: [
+      "덕봉 3D 기본 새물을 눈 녹은 물로 변경, 방류 후 활발한 입질을 약 1시간으로 변경",
+      "위에서 보기 추가, 베타에 수차 위치 찍기 추가",
+    ],
+  },
+  {
     version: "1.49", date: "2026-11-07", title: "버전 기록을 베타에서만 표시",
     changes: [
       "공개판에서는 버전 번호만 보이고 기록은 베타에서 열리도록 변경",
