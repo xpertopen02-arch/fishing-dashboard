@@ -95,7 +95,7 @@
     <label class="f">방류량 <span id="stockLabel"></span><input id="stockN" type="range" min="50" max="100" step="5" value="75" aria-label="방류 마릿수"></label>
     <label class="f">방류 위치 <select id="release"><option value="center">중앙 가두리</option><option value="bridge">부교 가두리</option></select></label>
     <label class="f">방류 시각 (당일) <select id="relH"><option value="6">6시</option><option value="7">7시</option><option value="8">8시</option><option value="9">9시</option><option value="10" selected>10시</option><option value="11">11시</option><option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option><option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option></select></label>
-    <label class="f">캐스팅 <select id="castMode"><option value="circle">사방 (원)</option><option value="front">정면 (직교, 폭 3m)</option><option value="cage">중앙 가두리 쪽 (폭 3m)</option></select></label>
+    <label class="f">캐스팅 <select id="castMode"><option value="circle">사방 (원)</option><option value="front">정면 (폭 3m)</option><option value="cage">중앙 가두리 쪽 (폭 3m)</option></select></label>
     <label class="f">캐스팅 거리 <span id="castLabel"></span><input id="castR" type="range" min="5" max="60" step="5" value="30" aria-label="캐스팅 거리"></label>
     <div class="f wheelbox">수차 <div class="row"><label><input type="checkbox" id="wheel1" class="wheel-sw" checked> 1</label><label><input type="checkbox" id="wheel2" class="wheel-sw" checked> 2</label><label><input type="checkbox" id="wheel3" class="wheel-sw" checked> 3</label><label><input type="checkbox" id="wheel4" class="wheel-sw" checked> 4</label><label><input type="checkbox" id="wheel5" class="wheel-sw" checked> 5</label><label><input type="checkbox" id="wheel6" class="wheel-sw" checked> 6</label><label><input type="checkbox" id="wheel7" class="wheel-sw" checked> 7</label></div><div class="row" style="margin-top:4px"><button id="wheelsOn">모두 켜기</button><button id="wheelsOff">모두 끄기</button></div></div>
     <label class="f">물색 <select id="clarity"><option value="clear">맑음</option><option value="turbid">탁함</option></select></label>
@@ -187,8 +187,10 @@
     const dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], len = Math.hypot(dx, dy) || 1;
     let nx = -dy / len, ny = dx / len;
     if ((250 - s.x) * nx + (510 - s.y) * ny < 0) { nx = -nx; ny = -ny; }
-    s.nx = nx; s.ny = ny;
+    s.nx = nx; s.ny = ny; s.fx = nx; s.fy = ny;
   });
+  // 자리별 정면 캐스팅 방향: 지도에서 정해 주신 값
+  stands.forEach((s) => { const d = D.castDirs[s.key]; if (d) { s.fx = d[0]; s.fy = d[1]; } });
   const whites = stands.filter((s) => s.group === "white");
   const cageList = Object.values(D.cages), cells = [];
   for (let j = 0; j < G.ny; j++) for (let i = 0; i < G.nx; i++) {
@@ -201,9 +203,9 @@
   }
   // 캐스팅 범위: 사방 원, 또는 지점에서 정면으로 폭 3m 띠 (길이는 같은 값)
   const castInfo = () => ({ mode: $("castMode").value, R: +$("castR").value });
-  // 띠의 방향: 정면은 데크나 부교에 직교, 가두리는 중앙 가두리 쪽
+  // 띠의 방향: 정면은 자리별로 정한 방향, 가두리는 중앙 가두리 쪽
   function castVec(s, cast) {
-    if (cast.mode !== "cage") return [s.nx, s.ny];
+    if (cast.mode !== "cage") return [s.fx, s.fy];
     const dx = D.cages.west[0] - s.x, dy = D.cages.west[1] - s.y, len = Math.hypot(dx, dy) || 1;
     return [dx / len, dy / len];
   }
@@ -427,7 +429,7 @@
       let sum = 0, t = 0, o = 0, dep = 0, cl = 0, bt = 0, hi = 0; const zw = {};
       reach[k].forEach((c) => { const e = r.evals[c.wi], w = r.w[c.wi]; sum += w; t += w * e.T; o += w * e.O; dep += w * r.lay[c.wi]; cl += w * c.clean; bt += r.bite[c.wi]; hi += r.hiW[c.wi]; zw[c.z] = (zw[c.z] || 0) + w; });
       const n = reach[k].length || 1, zone = Object.keys(zw).sort((a, b) => zw[b] - zw[a])[0];
-      return [{ key: s.key, name: s.name, short: s.short, x: s.x, y: s.y, nx: s.nx, ny: s.ny, a: s.a, b: s.b, share: sum, hiShare: hi, clean: cl / (sum || 1), score: bt / n * (st.note ? notePrior(s.key, st) : 1), t: t / (sum || 1), o: o / (sum || 1), dep: dep / (sum || 1), zone: zone || "D" }];
+      return [{ key: s.key, name: s.name, short: s.short, x: s.x, y: s.y, nx: s.nx, ny: s.ny, fx: s.fx, fy: s.fy, a: s.a, b: s.b, share: sum, hiShare: hi, clean: cl / (sum || 1), score: bt / n * (st.note ? notePrior(s.key, st) : 1), t: t / (sum || 1), o: o / (sum || 1), dep: dep / (sum || 1), zone: zone || "D" }];
     }).sort((a, b) => b.score - a.score);
   }
 
@@ -887,7 +889,7 @@
     const relName = st.release === "center" ? "중앙 가두리" : "부교 가두리";
     const near = nearSpots(list);
     const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. ${info.rel.hours <= 1 ? "방류어는 움직이는 루어에 빠르게 반응하고, 주변 기존 송어 일부도 자극받아 반응이 올라갑니다." : "활발한 입질은 약 1시간으로 봅니다."}${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
-    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `띠는 중앙 가두리 쪽으로 폭 3m, 길이 ${castInfo().R}m입니다.` : castInfo().mode === "front" ? `띠는 데크나 부교에 직교한 정면으로 폭 3m, 길이 ${castInfo().R}m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
+    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `띠는 중앙 가두리 쪽으로 폭 3m, 길이 ${castInfo().R}m입니다.` : castInfo().mode === "front" ? `띠는 자리별로 정한 정면 방향으로 폭 3m, 길이 ${castInfo().R}m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
     const sim = Object.fromEntries(Object.keys(D.zoneNames).map((k) => [k, zoneV(st, st.h, k)]));
     const alerts = [], ks = Object.keys(sim);
     const offCount = D.wheels.filter((_, i) => !wheelOn(i)).length, westNow = iceWestAt(st);

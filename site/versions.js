@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.58", date: "2026-11-07", title: "자리별 정면 캐스팅 방향 반영",
+    changes: [
+      "지도에서 정한 자리별 정면 캐스팅 방향을 계산과 3D 표시에 반영",
+    ],
+  },
+  {
     version: "1.57", date: "2026-11-07", title: "캐스팅 방향 구분",
     changes: [
       "캐스팅 방향을 사방, 정면(데크나 부교에 직교), 중앙 가두리 쪽으로 구분",
