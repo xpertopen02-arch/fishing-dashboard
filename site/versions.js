@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.98", date: "2026-11-08", title: "남서쪽 물골 없앰",
+    changes: [
+      "새물유입구 쪽 물골만 남기고 남서쪽 물가에서 올라오던 물골 두 개를 없앰. 그 자리는 주변 바닥과 같은 깊이가 되고 수온, 산소, 얼음 계산을 다시 함",
+    ],
+  },
+  {
     version: "1.97", date: "2026-11-08", title: "물가 비탈과 회전 버튼",
     changes: [
       "남쪽과 서쪽을 향한 물가의 비탈 폭을 약 8m에서 16m로 넓혀 더 천천히 깊어지게 하고 수온, 산소, 얼음 계산을 다시 함 (평균 수심 3.15m → 2.98m)",
