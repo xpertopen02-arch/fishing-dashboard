@@ -44,7 +44,11 @@
   .views button { font-size:11px; padding:3px 7px; line-height:1.2; }
   .legend { position:absolute; left:10px; bottom:10px; z-index:3; color:#fff; font-size:12px; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
   .cond { position:absolute; left:192px; bottom:10px; right:10px; z-index:3; pointer-events:none; color:#fff; font-size:11px; line-height:1.35; text-shadow:0 0 2px #000, 0 0 5px #000; }
+  .cond { display:flex; align-items:flex-start; gap:8px; }
+  .cond .ctext { min-width:0; }
+  .cond .cicon { flex:none; filter:drop-shadow(0 0 2px rgba(0,0,0,.7)); }
   .cond span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cond .windy { color:#ff6b6b; font-weight:700; }
   .cond b { font-weight:700; }
   .cond .arrow { display:inline-block; line-height:1; }
   .legend i { display:block; width:170px; height:9px; border-radius:3px; margin:3px 0; }
@@ -72,6 +76,10 @@
     html, body { overflow:hidden; }
     .wrap { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(240px,46vh) minmax(0,1fr); grid-template-rows:minmax(240px,46dvh) minmax(0,1fr); height:100vh; height:100dvh; }
     .stage { min-height:0; }
+    .readout { display:none; }
+    .legend i { width:110px; }
+    .cond { left:130px; font-size:10.5px; gap:5px; }
+    .cond .cicon svg { width:24px; height:26px; }
     .side { border-left:0; border-top:1px solid var(--line); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
   }
 </style>
@@ -613,7 +621,7 @@
   fish.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fish.frustumCulled = false; scene.add(fish);
   const fishCur = [], fishTo = [];
   const dummy = new THREE.Object3D();
-  // 방류 모습: 방류 시각부터 약 30분 동안 송어가 물 위로 튀어 넘어와 방류 지점에 떨어집니다.
+  // 방류 모습: 방류 시각부터 약 30분 동안 가두리 안의 송어가 그물 위로 뛰어 사방으로 나옵니다.
   const JUMP_N = 40, JUMP_MIN = .5;
   const jumpFish = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), JUMP_N);
   jumpFish.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(JUMP_N * 3).fill(1.1), 3);
@@ -627,22 +635,20 @@
     jump = st.stock === 0 && rel.hours >= 0 && rel.hours < JUMP_MIN ? { strength: 1 - rel.hours / JUMP_MIN } : null;
     jumpFish.visible = splash.visible = !!jump;
     if (!jump) return;
-    const L = RELEASE[st.release], from = [xLine(L[1]), L[1]];   // 부교 쪽에서 방류 지점 쪽으로 넘깁니다.
-    let dx = L[0] - from[0], dy = L[1] - from[1]; const m = Math.hypot(dx, dy) * M || 1;
-    dx /= m / M; dy /= m / M;   // 1m 길이 방향(그림 좌표)
-    const reach = Math.min(m, 4);
-    jump.land = [wx(L[0]), wz(L[1])]; jump.start = [wx(L[0] - dx / M * reach), wz(L[1] - dy / M * reach)]; jump.dir = [dx, dy];
+    const c = st.release === "bridge" ? D.cages.east : D.cages.west;   // 부교 방류는 부교 가두리, 중앙 방류는 중앙 가두리에서 나옵니다.
+    jump.center = [wx(c[0]), wz(c[1])];
   }
   function drawJump(t) {
     if (!jump) return;
-    const n = Math.max(6, Math.round(JUMP_N * jump.strength)), [lx, lz] = jump.land, [sx, sz] = jump.start, px = -(lz - sz), pz = lx - sx, pl = Math.hypot(px, pz) || 1;
+    const n = Math.max(6, Math.round(JUMP_N * jump.strength)), [cx, cz] = jump.center;
     for (let k = 0; k < JUMP_N; k++) {
-      const S = jumpSeed[k], u = (t * S.spd + S.ph) % 1, on = k < n;
-      const ex = lx + Math.cos(S.ang) * S.land, ez = lz + Math.sin(S.ang) * S.land, bx = sx + px / pl * S.lat, bz = sz + pz / pl * S.lat;
+      const S = jumpSeed[k], u = (t * S.spd + S.ph) % 1, on = k < n, ca = Math.cos(S.ang), sa = Math.sin(S.ang);
+      const r0 = Math.abs(S.lat) * 1.6, r1 = CAGE_HALF + .8 + S.land;   // 가두리 안쪽에서 출발해 그물 밖에 떨어집니다.
+      const bx = cx + ca * r0, bz = cz + sa * r0, ex = cx + ca * r1, ez = cz + sa * r1;
       const s = Math.min(1, u / .7);   // 0.7까지 날고, 남은 시간은 물보라만 남습니다.
-      const x = bx + (ex - bx) * s, z = bz + (ez - bz) * s, y = 1.1 * (1 - s) + S.peak * 4 * s * (1 - s);
-      const vy = -1.1 + S.peak * 4 * (1 - 2 * s), hz = Math.hypot(ex - bx, ez - bz) || 1;
-      dummy.position.set(x, y, z); dummy.rotation.set(0, -Math.atan2(ez - bz, ex - bx), Math.atan2(vy, hz), "YZX");
+      const x = bx + (ex - bx) * s, z = bz + (ez - bz) * s, y = .1 + S.peak * 4 * s * (1 - s);
+      const vy = S.peak * 4 * (1 - 2 * s), hz = r1 - r0;
+      dummy.position.set(x, y, z); dummy.rotation.set(0, -Math.atan2(sa, ca), Math.atan2(vy, hz), "YZX");
       dummy.scale.setScalar(on && u < .7 ? 1 : 0); dummy.updateMatrix(); jumpFish.setMatrixAt(k, dummy.matrix);
       const g = u >= .7 ? (u - .7) / .3 : -1;
       jumpRing.position.set(ex, .08, ez); jumpRing.scale.setScalar(on && g >= 0 ? .6 + g * 2.2 : 0); jumpRing.updateMatrix(); splash.setMatrixAt(k, jumpRing.matrix);
@@ -857,7 +863,7 @@
       if (!fishCur[k]) { const o = start || g; fishCur[k] = { x: o.x, z: o.z, dep: g.dep, head: g.ph }; }
       fish.setColorAt(k, tint);
     };
-    const relPt = RELEASE[st.release], freshStart = info.rel.share && info.rel.hours >= 0 && info.rel.hours <= 1 ? { x: wx(relPt[0]), z: wz(relPt[1]) } : null;
+    const relPt = st.release === "bridge" ? D.cages.east : D.cages.west, freshStart = info.rel.share && info.rel.hours >= 0 && info.rel.hours <= 1 ? { x: wx(relPt[0]), z: wz(relPt[1]) } : null;
     nCruise = 0;
     for (let k = 0; k < FISH; k++) {
       const S = fishSeed[k], j = k - CAGE_N;
@@ -997,9 +1003,9 @@
     if (!b || !t) return a;
     const u = (1 - t) * a[1] * Math.sin(a[0] * Math.PI / 180) + t * b[1] * Math.sin(b[0] * Math.PI / 180);
     const v = (1 - t) * a[1] * Math.cos(a[0] * Math.PI / 180) + t * b[1] * Math.cos(b[0] * Math.PI / 180);
-    return [((Math.atan2(u, v) * 180 / Math.PI) + 360) % 360, a[1] + (b[1] - a[1]) * t, (a[2] ?? 1) + ((b[2] ?? 1) - (a[2] ?? 1)) * t];
+    return [((Math.atan2(u, v) * 180 / Math.PI) + 360) % 360, a[1] + (b[1] - a[1]) * t, (a[2] ?? 1) + ((b[2] ?? 1) - (a[2] ?? 1)) * t, a[3] + (b[3] - a[3]) * t];
   }
-  fetch(`https://api.open-meteo.com/v1/forecast?latitude=37.0526&longitude=127.192&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=Asia%2FSeoul&forecast_days=16`)
+  fetch(`https://api.open-meteo.com/v1/forecast?latitude=37.0526&longitude=127.192&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=ms&timezone=Asia%2FSeoul&forecast_days=16`)
     .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
     .then((j) => {
       const H = j.hourly, out = {};
@@ -1007,18 +1013,31 @@
         if (H.temperature_2m[i] == null) return;
         const md = t.slice(5, 10), hr = +t.slice(11, 13), d = out[md] || (out[md] = { date: t.slice(0, 10), h: {}, lo: 99, hi: -99 });
         d.lo = Math.min(d.lo, H.temperature_2m[i]); d.hi = Math.max(d.hi, H.temperature_2m[i]);
-        d.h[hr] = { t: H.temperature_2m[i], code: H.weather_code[i], ws: H.wind_speed_10m[i], wd: H.wind_direction_10m[i] };
+        d.h[hr] = { t: H.temperature_2m[i], code: H.weather_code[i], ws: H.wind_speed_10m[i], wd: H.wind_direction_10m[i], wg: H.wind_gusts_10m ? H.wind_gusts_10m[i] : null };
       });
       FC = out; panel();
     })
     .catch(() => { /* 예보를 못 받으면 평년으로 보여 줍니다. */ });
+  // 날씨 그림 (해, 구름, 비, 눈, 안개, 뇌우)
+  const SUN = '<circle cx="15" cy="13" r="5.5" fill="#ffd24a"/><g stroke="#ffd24a" stroke-width="2" stroke-linecap="round"><path d="M15 3v2.5M15 20.5V23M5 13h2.5M22.5 13H25M7.9 5.9l1.8 1.8M20.3 18.3l1.8 1.8M7.9 20.1l1.8-1.8M20.3 7.7l1.8-1.8"/></g>';
+  const CLOUD = (c = "#e8eef2", y = 0) => `<path transform="translate(0 ${y})" d="M9 26h15a5 5 0 0 0 0-10 7 7 0 0 0-13.4-1.6A5.5 5.5 0 0 0 9 26z" fill="${c}"/>`;
+  const MOON = '<path d="M19 4a9 9 0 1 0 8 12A7 7 0 0 1 19 4z" fill="#f3e6a8"/>';
+  function skyIcon(sky, h) {
+    const night = h < 7 || h > 17.8, lit = night ? MOON : SUN;
+    const body = sky === "맑음" ? lit : sky === "구름 조금" ? lit + CLOUD("#eef2f5", 4) : sky === "구름 많음" || sky === "흐림" ? CLOUD(sky === "흐림" ? "#b9c3ca" : "#dfe6eb")
+      : sky === "비" ? CLOUD("#b9c3ca", -3) + '<g stroke="#6cc3ff" stroke-width="2" stroke-linecap="round"><path d="M12 27l-1.5 3.5M18 27l-1.5 3.5M24 27l-1.5 3.5"/></g>'
+      : sky === "눈" ? CLOUD("#cfd8de", -3) + '<g fill="#fff"><circle cx="11" cy="29" r="1.6"/><circle cx="17" cy="31" r="1.6"/><circle cx="23" cy="29" r="1.6"/></g>'
+      : sky === "안개" ? '<g stroke="#d3dbe0" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h22M8 18h19M5 24h20"/></g>'
+      : CLOUD("#9aa6ae", -3) + '<path d="M18 24l-4 6h4l-2 5 6-8h-4l2-3z" fill="#ffd24a"/>';
+    return `<svg viewBox="0 0 32 34" width="30" height="32" aria-hidden="true">${body}</svg>`;
+  }
   const SKY = (c) => (c <= 1 ? "맑음" : c === 2 ? "구름 조금" : c === 3 ? "흐림" : c <= 48 ? "안개" : c <= 67 || (c >= 80 && c <= 82) ? "비" : c <= 77 || c === 85 || c === 86 ? "눈" : "뇌우");
   function windAt(st) {
     const f = fcDay(st), [h0, h1, t] = hSpan(st.h);
-    if (f && f.h[h0].ws != null) { const g = (x) => (x && x.ws != null ? [x.wd, x.ws, 1] : null); return mixWind(g(f.h[h0]), g(f.h[h1]), t); }
+    if (f && f.h[h0].ws != null) { const g = (x) => (x && x.ws != null ? [x.wd, x.ws, 1, x.wg ?? x.ws * 1.6] : null); return mixWind(g(f.h[h0]), g(f.h[h1]), t); }
     const w = (D.wind || {})[st.s];
     if (w && w[h0]) return mixWind(w[h0], w[h1], t);
-    return [SCEN_WIND[st.s] ?? 300, D.weather[st.s].wind, .8];
+    return [SCEN_WIND[st.s] ?? 300, D.weather[st.s].wind, .8, D.weather[st.s].wind * 1.8];   // 예시의 돌풍은 평균 풍속의 약 1.8배로 가정
   }
   const WN = 320, windPos = new Float32Array(WN * 6), windGeo = new THREE.BufferGeometry();
   windGeo.setAttribute("position", new THREE.BufferAttribute(windPos, 3));
@@ -1066,8 +1085,8 @@
     const v = vAt(zoneV(st, st.h, probe.z), probe.rainF, st), k = kOf(probe.clean, st);
     const up = tempAt(v, probe.d, .3, st, k, probe.wheel), down = tempAt(v, probe.d, probe.d * .9, st, k, probe.wheel);
     const extra = [st.rain ? "비 온 다음날" : "", iceAt(st) >= .3 ? "동쪽 못 얼음" : ""].filter(Boolean).join(" · ");
-    const [wd, ws] = windAt(st), wName = "북 북동 동 남동 남 남서 서 북서".split(" ")[Math.round(wd / 45) % 8];
-    $("cond").innerHTML = `<span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span>바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}`;
+    const [wd, ws, , wg] = windAt(st), wName = "북 북동 동 남동 남 남서 서 북서".split(" ")[Math.round(wd / 45) % 8];
+    $("cond").innerHTML = `<div class="ctext"><span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span class="${ws > 3 ? "windy" : ""}">바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s (돌풍 ${wg.toFixed(1)})</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}</div><div class="cicon" title="${sky}">${skyIcon(sky, st.h)}</div>`;
     $("cond").title = `${md ? (f ? "날씨는 Open-Meteo 예보" : "날씨는 지난 3년 같은 날짜 평균(평년)") : "날씨 흐름 예시"}. 수온은 부교와 가두리 사이 추정값이며 평년 날씨로 계산했습니다.`;
   }
   function panel() {
