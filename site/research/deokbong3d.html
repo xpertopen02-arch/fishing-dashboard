@@ -423,13 +423,16 @@
   const RESIDENT_FISH = 40;   // 중앙 가두리 곁과 아래에 머무는 마릿수 (가정)
   // 가두리 고기는 11월 초부터 3월 말까지 있습니다. 날씨 흐름 선택은 겨울로 봅니다.
   const cageSeason = (st) => !/^04-/.test(st.s);
+  // 방류는 15~20분 동안 이어집니다. 방류 시각부터 20분에 걸쳐 방류어가 고르게 들어온다고 봅니다.
+  const RELEASE_H = 20 / 60;
   function releaseState(st) {
-    if (st.stock === 2) return { share: 0, sigma: 1, hours: 99 };
-    const share = st.stockN / (st.total + st.stockN);   // 방류어는 있던 송어에 더해집니다.
-    if (st.stock === 1) return { share, sigma: 45, hours: 99 };
+    if (st.stock === 2) return { share: 0, sigma: 1, hours: 99, ramp: 0 };
+    const full = st.stockN / (st.total + st.stockN);   // 방류어는 있던 송어에 더해집니다.
+    if (st.stock === 1) return { share: full, sigma: 45, hours: 99, ramp: 1 };
     const hours = st.h - st.relH;
-    if (hours < 0) return { share: 0, sigma: 1, hours, before: true };
-    return { share, sigma: Math.min(60, 10 + 15 * hours), hours };   // 시간이 갈수록 퍼집니다.
+    if (hours < 0) return { share: 0, sigma: 1, hours, before: true, ramp: 0 };
+    const ramp = Math.min(1, Math.max(hours, 1 / 60) / RELEASE_H), n = st.stockN * ramp;   // 방류 시작 순간에도 첫 몇 마리는 들어와 있습니다.
+    return { share: n / (st.total + n), sigma: Math.min(60, 10 + 15 * hours), hours, ramp, during: hours < RELEASE_H };   // 시간이 갈수록 퍼집니다.
   }
   // 반응성: 많이 있어도 모두 물지는 않습니다. 한 마리의 값 R = 활성 × (0.25 + 0.75 × 개체 차이)
   const HIGH = .66, LOW = .33, BITE = { high: 1, mid: .4, low: .08 };
@@ -465,7 +468,7 @@
     const act = .35 + .65 * clamp((Tm - 2) / 6, 0, 1), eff = st.cruise * act;   // 차가울수록 도는 무리도 머뭅니다.
     const n = westCells.length, w = new Float64Array(n), free = new Float64Array(n), lay = new Float64Array(n), bite = new Float64Array(n), hiW = new Float64Array(n), stir = new Float64Array(n), freshP = new Float64Array(n);
     // 중앙 가두리 곁과 아래에 늘 머무는 송어 (부교 가두리 주변에는 없음)
-    const pop = rel.share ? st.total + st.stockN : st.total;
+    const pop = rel.share ? st.total + Math.round(st.stockN * rel.ramp) : st.total;
     const resident = cageSeason(st) ? Math.min(.35, RESIDENT_FISH / pop) : 0;
     let resSum = 0;
     const resW = westCells.map((c) => { const v = c.cage <= 4.5 ? 1 : 0; resSum += v; return v; });
@@ -718,8 +721,8 @@ attribute vec2 aSwim;`)
   fish.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fish.frustumCulled = false; scene.add(fish);
   const fishCur = [], fishTo = [];
   const dummy = new THREE.Object3D();
-  // 방류 모습: 방류 시각부터 약 30분 동안 가두리 안의 송어가 그물 위로 뛰어 사방으로 나옵니다.
-  const JUMP_N = 100, JUMP_MIN = .5;   // 방류량 최대 100마리까지 그립니다.
+  // 방류 모습: 방류가 이어지는 20분 동안 가두리 안의 송어가 그물 위로 뛰어 나옵니다.
+  const JUMP_N = 100, JUMP_MIN = 20 / 60;   // 방류량 최대 100마리까지 그립니다.
   const jumpFish = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), JUMP_N);
   jumpFish.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(JUMP_N * 3).fill(1.1), 3);
   jumpFish.instanceMatrix.setUsage(THREE.DynamicDrawUsage); jumpFish.frustumCulled = false; jumpFish.visible = false; scene.add(jumpFish);
@@ -1230,7 +1233,7 @@ attribute vec2 aSwim;`)
     $("fishKey").innerHTML = $("fishColor").value === "depth" ? '<b style="color:#d9b400">■</b> 1m 안 <b style="color:#35b86a">■</b> 1~2m <b style="color:#3f8fe0">■</b> 2~3m <b style="color:#b45fd6">■</b> 3m 아래 <b style="color:#8a7f73">■</b> 가두리 안' : $("fishColor").value === "react" ? '<b style="color:#2f6fe0">■</b> 반응 좋음 <b style="color:#d9a400">■</b> 보통 <b style="color:#e5392c">■</b> 낮음 <b style="color:#8a7f73">■</b> 가두리 안' : '<b style="color:#5fb6e6">■</b> 도는 송어 <b style="color:#b9b4a6">■</b> 머무는 송어 <b style="color:#8a7f73">■</b> 가두리 안';
     const relName = st.release === "center" ? "중앙 가두리" : "부교 가두리";
     const near = nearSpots(list);
-    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${(() => { const mm = Math.round(info.rel.hours * 60), hh = Math.floor(mm / 60); return mm < 60 ? `${mm}분` : `${hh}시간${mm % 60 ? ` ${mm % 60}분` : ""}`; })()} 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. 방류어는 활성도가 높아 움직이는 루어에 빠르게 반응합니다. 방류어 무리가 지나간 곳의 기존 송어도 지나간 뒤 약 1시간 동안 반응이 살아납니다.${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
+    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip">${info.rel.during ? `<b>방류 중 ${Math.round(info.rel.hours * 60)}분째</b> ${relName}에서 20분 동안 넣는 ${st.stockN}마리 중 약 ${Math.round(st.stockN * info.rel.ramp)}마리가 들어와 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다.` : `<b>방류 ${(() => { const mm = Math.round(info.rel.hours * 60), hh = Math.floor(mm / 60); return mm < 60 ? `${mm}분` : `${hh}시간${mm % 60 ? ` ${mm % 60}분` : ""}`; })()} 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. 방류는 15~20분 동안 이어졌습니다.`} 방류어는 활성도가 높아 움직이는 루어에 빠르게 반응합니다. 방류어 무리가 지나간 곳의 기존 송어도 지나간 뒤 약 1시간 동안 반응이 살아납니다.${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
     $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${hourOf(st.h)}시대</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `부채꼴은 중앙 가두리 쪽으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : castInfo().mode === "front" ? `부채꼴은 자리별로 정한 정면 방향으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
     const sim = Object.fromEntries(Object.keys(D.zoneNames).map((k) => [k, zoneV(st, st.h, k)]));
     const alerts = [], ks = Object.keys(sim);
