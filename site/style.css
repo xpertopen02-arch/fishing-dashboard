@@ -471,4 +471,4 @@ details.table-view summary { cursor: pointer; font-size: 13px; color: var(--ink-
 .lit-sum[open] summary { margin-bottom: 4px; }
 .lit-sum p { margin: 3px 0; font-size: 13.5px; }
 .lit-more { font-weight: 600; margin-top: 6px !important; }
-.ver-plain, .ver-plain:disabled { cursor: default; opacity: 1; color: inherit; pointer-events: none; }
+.ver-plain, .ver-plain:hover { cursor: default; color: inherit; border-color: var(--border); }

@@ -1425,18 +1425,23 @@
   addEventListener("scroll", () => $("#toTop").classList.toggle("show", window.scrollY > 400), { passive: true });
   $("#searchOpen").addEventListener("click", openSearch);
   $("#verBtn").innerHTML = `<span class="ver-long">Version </span><span class="ver-short">v</span>${esc(window.FISH_VERSIONS[0].version)}${IS_BETA ? " Beta" : ""}`;
-  // 버전 기록은 베타에서만 열립니다. 공개판은 번호만 보여 줍니다.
-  if (IS_BETA) $("#verBtn").addEventListener("click", openVersions);
-  else { $("#verBtn").disabled = true; $("#verBtn").removeAttribute("title"); $("#verBtn").classList.add("ver-plain"); }
+  // 일반 상태의 버전 버튼은 숫자만 보여 줍니다. 베타에서는 한 번 누르면 기록이 열립니다.
+  if (!IS_BETA) { $("#verBtn").removeAttribute("title"); $("#verBtn").classList.add("ver-plain"); }
   $("#searchClose").addEventListener("click", () => { $("#searchLayer").hidden = true; });
   $("#searchInput").addEventListener("input", runSearch);
-  // 이스터에그: 테마 버튼을 5초 안에 12번 누르면 베타와 일반 상태가 바뀝니다.
+  // 이스터에그: 버전 버튼을 5초 안에 12번 누르면 베타와 일반 상태가 바뀝니다.
+  // 베타에서 기록을 바로 열면 창이 버튼을 가리므로, 잠시 더 누르지 않을 때만 엽니다.
   const eggTimes = [];
-  $("#themeBtn").addEventListener("click", () => {
+  let verOpenTimer = null;
+  $("#verBtn").addEventListener("click", () => {
+    clearTimeout(verOpenTimer);
     const now = Date.now();
     eggTimes.push(now);
     if (eggTimes.length > 12) eggTimes.shift();
-    if (eggTimes.length < 12 || now - eggTimes[0] > 5000) return;
+    if (eggTimes.length < 12 || now - eggTimes[0] > 5000) {
+      if (IS_BETA) verOpenTimer = setTimeout(openVersions, 500);
+      return;
+    }
     eggTimes.length = 0;
     const next = !IS_BETA;
     try {

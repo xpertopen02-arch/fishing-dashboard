@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.62", date: "2026-11-07", title: "이스터에그를 버전 버튼으로 변경",
+    changes: [
+      "베타 전환을 버전 버튼 5초 안에 12번으로 변경, 일반 상태의 버전 버튼은 숫자만 표시",
+    ],
+  },
+  {
     version: "1.61", date: "2026-11-07", title: "이스터에그 탭과 조건 변경",
     changes: [
       "테마 버튼 5초 안에 12번으로 베타와 일반 상태 전환",
