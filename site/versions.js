@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.49", date: "2026-11-07", title: "버전 기록을 베타에서만 표시",
+    changes: [
+      "공개판에서는 버전 번호만 보이고 기록은 베타에서 열리도록 변경",
+      "북쪽 줄을 북쪽 데크의 측면과 중앙으로 변경",
+    ],
+  },
+  {
     version: "1.48", date: "2026-11-07", title: "가두리와 최대 수심, 기본 화면 조정",
     changes: [
       "가두리 깊이를 1.3m, 가장 깊은 곳을 4.5m로 변경",

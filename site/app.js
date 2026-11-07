@@ -1411,7 +1411,9 @@
   addEventListener("scroll", () => $("#toTop").classList.toggle("show", window.scrollY > 400), { passive: true });
   $("#searchOpen").addEventListener("click", openSearch);
   $("#verBtn").innerHTML = `<span class="ver-long">Version </span><span class="ver-short">v</span>${esc(window.FISH_VERSIONS[0].version)}${IS_BETA ? " Beta" : ""}`;
-  $("#verBtn").addEventListener("click", openVersions);
+  // 버전 기록은 베타에서만 열립니다. 공개판은 번호만 보여 줍니다.
+  if (IS_BETA) $("#verBtn").addEventListener("click", openVersions);
+  else { $("#verBtn").disabled = true; $("#verBtn").removeAttribute("title"); $("#verBtn").classList.add("ver-plain"); }
   $("#searchClose").addEventListener("click", () => { $("#searchLayer").hidden = true; });
   $("#searchInput").addEventListener("input", runSearch);
   let eggCount = 0, eggLast = 0;

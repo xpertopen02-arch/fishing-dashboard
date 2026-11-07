@@ -451,7 +451,7 @@
   bar(...D.southPier, 3.6, .5, 0xa8b0b5);
   bar([670, 312], [738, 306], 8, 2.6, 0x4a4239, 1.3);          // 수상 건물
   const whiteBars = {};
-  whites.forEach((s) => { whiteBars[s.key] = bar(s.a, s.b, 2.6, .4, 0xffffff, .4); }); // 낚시 자리 (흰색 줄)
+  whites.forEach((s) => { whiteBars[s.key] = bar(s.a, s.b, 2.6, .4, 0xffffff, .4); }); // 낚시 자리
   const netWall = bar(...D.causeway, .25, 1, 0xffffff, 0);
   netWall.material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .28, depthWrite: false, side: THREE.DoubleSide });
   const cageParts = [];
@@ -806,7 +806,7 @@
     const relName = st.release === "center" ? "중앙 가두리" : "부교 가두리";
     const near = nearSpots(list);
     const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. ${info.rel.hours <= 6 ? "방류어는 움직이는 루어에 빠르게 반응하고, " : ""}${info.rel.hours <= 3 ? "주변 기존 송어 일부도 자극받아 반응이 올라갑니다." : ""}${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
-    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. 원은 약 30m 사거리입니다. 흰색 줄은 붉을수록 점수가 높습니다.</p>`;
+    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. 원은 약 30m 사거리입니다. 자리 선은 붉을수록 점수가 높습니다.</p>`;
     const alerts = [], sim = D.sims[st.f][st.s][st.h], ks = Object.keys(sim);
     const tops = ks.map((k) => sim[k][0]), maxT = Math.max(...ks.map((k) => Math.max(sim[k][0], sim[k][2]))), iced = ks.filter((k) => sim[k][4]), minO = Math.min(...ks.map((k) => sim[k][3]));
     if (maxT < 1.5) alerts.push("전체가 0℃에 가까워 자리 차이가 작게 계산됩니다. 순위보다 덜 찬 곳을 고르는 정도로 보세요.");
