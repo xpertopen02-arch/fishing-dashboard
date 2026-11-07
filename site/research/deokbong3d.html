@@ -627,7 +627,8 @@
     const { cv, text, neon, weight, pad, fs } = sp.userData, ctx = cv.getContext("2d"), color = NEON[neon] || neon, ty = cv.height / 2 + 1;
     ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.font = `${weight} ${fs}px "Malgun Gothic", sans-serif`; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
-    if (weight < 700) {   // 공략법 글자: 네온 없이 글자색만
+    if (weight < 700) {   // 공략법 글자: 네온 없이, 진한 어두운 테두리 위에 글자색
+      ctx.strokeStyle = "rgba(10,14,18,.92)"; ctx.lineWidth = 8; ctx.strokeText(text, pad, ty);
       ctx.fillStyle = color; ctx.fillText(text, pad, ty);
     } else {
       ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.shadowColor = color;
