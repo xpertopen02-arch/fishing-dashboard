@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.66", date: "2026-11-07", title: "덕봉 정리 문구 바로잡기",
+    changes: [
+      "덕봉 정리의 옛 이름과 기본값, 얼음 시기, 표의 계산 조건 문구 수정",
+    ],
+  },
+  {
     version: "1.65", date: "2026-11-07", title: "베타 암호 추가",
     changes: [
       "베타로 전환할 때 숫자 네 자리 암호 입력 추가",
