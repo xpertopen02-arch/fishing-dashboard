@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.47", date: "2026-11-07", title: "모델 근거와 한계를 덕봉 정리로 이동",
+    changes: [
+      "덕봉 3D 화면의 근거와 한계를 덕봉 정리 탭으로 옮겨 근거별로 정리",
+    ],
+  },
+  {
     version: "1.46", date: "2026-11-07", title: "송어 반응성을 색으로 구분",
     changes: [
       "송어를 반응성별 색으로 표시하고 추천 순위를 반응 좋은 송어 기준으로 변경",
