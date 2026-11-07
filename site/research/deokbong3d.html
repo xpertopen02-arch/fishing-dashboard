@@ -1071,7 +1071,7 @@
   $("play").addEventListener("click", () => {
     if (playing) { clearInterval(playing); playing = null; $("play").textContent = "재생"; return; }
     $("play").textContent = "정지";
-    playing = setInterval(() => { const h = $("hour"); h.value = +h.value >= 1140 ? 360 : +h.value + 10; panel(); }, 200);   // 10분씩, 한 시간에 약 1.2초
+    playing = setInterval(() => { const h = $("hour"); h.value = +h.value >= 1140 ? 360 : +h.value + 10; panel(); }, 500);   // 10분씩, 한 시간에 3초
   });
   const zoomBy = (f) => { const d = camera.position.clone().sub(controls.target); const len = clamp(d.length() * f, 6, 900); camera.position.copy(controls.target).add(d.setLength(len)); };
   $("zIn").onclick = () => zoomBy(.82); $("zOut").onclick = () => zoomBy(1.22);
