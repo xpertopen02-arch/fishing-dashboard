@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.89", date: "2026-11-07", title: "회유 위치 변경 취소",
+    changes: [
+      "1.88의 회유 송어 위치 변경(테두리를 따라 도는 경로, 5m 안쪽 띠, 바짝 붙는 비율, 시계·반시계 반반)을 모두 취소하고 1.87의 회유 방식으로 되돌림",
+      "LED 디지털 시계는 그대로 유지",
+    ],
+  },
+  {
     version: "1.88", date: "2026-11-07", title: "회유 경로와 LED 시계",
     changes: [
       "회유 송어가 부교 그물 밖으로 나가던 오류 수정: 서쪽 못의 실제 테두리(물가선과 부교 그물선)를 따라 돌도록 바꿈",
