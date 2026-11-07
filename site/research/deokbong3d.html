@@ -123,15 +123,14 @@
     .cond .ctext { padding:2px 5px; }
     .cond .cicon { padding:2px 4px; }
   }
-  /* 디지털 시계: 지금 보고 있는 시각을 크게 보여 줍니다. */
-  .clock { position:absolute; right:10px; top:8px; z-index:3; pointer-events:none; padding:2px 10px; border-radius:8px;
-    background:color-mix(in srgb, var(--panel) 72%, transparent); border:1px solid color-mix(in srgb, var(--line) 85%, transparent);
-    -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px);
-    font:700 42px/1.1 "Consolas", "DejaVu Sans Mono", "Courier New", monospace; font-variant-numeric:tabular-nums; letter-spacing:2px; color:var(--ink); }
-  .clock .c { display:inline-block; width:.45em; text-align:center; }
-  .clock.play .c { animation:clockBlink 1s steps(1) infinite; }
-  @keyframes clockBlink { 50% { opacity:.25; } }
-  @media (max-width: 760px) { .clock { font-size:32px; padding:1px 8px; } }
+  /* LED 디지털 시계: 테두리 없이 시점 버튼 아래에 7분할 숫자로 보여 줍니다. 꺼진 칸은 희미하게 남습니다. */
+  .clock { position:absolute; left:44px; top:40px; z-index:3; pointer-events:none; line-height:0; }
+  .clock svg { height:40px; width:auto; overflow:visible; }
+  .clock .on { fill:var(--accent); filter:drop-shadow(0 0 1.5px color-mix(in srgb, var(--accent) 90%, transparent)) drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 55%, transparent)); }   /* 테마의 강조색 */
+  .clock .off { fill:color-mix(in srgb, var(--accent) 14%, transparent); }
+  .clock.play .colon { animation:clockBlink 1s steps(1) infinite; }
+  @keyframes clockBlink { 50% { opacity:.15; } }
+  @media (max-width: 760px) { .clock svg { height:30px; } }
 </style>
 </head>
 <body>
@@ -308,6 +307,52 @@
     while (ringCum[i + 1] < d) i++;
     const p = ring[i], q = ring[(i + 1) % ring.length], f = (d - ringCum[i]) / (ringCum[i + 1] - ringCum[i]);
     return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  }
+  // 회유 경로: 서쪽 못의 실제 바깥 테두리(물가선 + 부교 그물선)를 따라 안쪽으로 정해진 거리만큼 들어와 돕니다.
+  // 회유 띠는 테두리에서 5m 안쪽부터 폭 1.5m입니다(5.2~6.5m). 띠 바깥쪽에 바짝 붙는 송어(0.45m 이내)는 회유 송어의 20% 미만(약 12~16%)입니다.
+  // 회유 송어의 절반은 시계 방향, 절반은 반대 방향으로 돕니다.
+  const LANE_IN = 5, LANE_MAX = 1.5, LANE_HUG = .45, HUG_SHARE = .12;
+  const westOf = (p) => p[0] < xLine(p[1]);
+  const edgeLoop = (() => {
+    const sh = D.shore, n = sh.length, st = sh.findIndex((p, i) => westOf(p) && !westOf(sh[(i - 1 + n) % n])), run = [];
+    for (let i = 0; i < n && westOf(sh[(st + i) % n]); i++) run.push(sh[(st + i) % n]);
+    const [c0, c1] = D.causeway, d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    return d(run[0], c0) < d(run[0], c1) ? [c0, ...run, c1] : [c1, ...run, c0];   // 마지막 점에서 첫 점으로 가는 변이 부교 그물선
+  })();
+  const inPoly = (x, y, poly) => { let o = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) o = !o; } return o; };
+  const edgeSeg = edgeLoop.map((p, i) => {
+    const q = edgeLoop[(i + 1) % edgeLoop.length], len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+    let nx = -(q[1] - p[1]) / len, ny = (q[0] - p[0]) / len;   // 안쪽을 향하는 법선
+    if (!inPoly((p[0] + q[0]) / 2 + nx * 3, (p[1] + q[1]) / 2 + ny * 3, edgeLoop)) { nx = -nx; ny = -ny; }
+    return { p, q, nx, ny, len: len * M };
+  });
+  const laneCum = [0]; edgeSeg.forEach((e, i) => laneCum.push(laneCum[i] + e.len));
+  const laneLen = laneCum[edgeSeg.length];
+  // 안쪽으로 lane(m)만큼 평행하게 옮긴 두 변이 만나는 점 (모서리 i의 안쪽 꼭짓점)
+  function insetVertex(i, lane) {
+    const n = edgeSeg.length, a = edgeSeg[(i - 1 + n) % n], b = edgeSeg[i % n], L = lane / M;
+    const ax = a.p[0] + a.nx * L, ay = a.p[1] + a.ny * L, adx = a.q[0] - a.p[0], ady = a.q[1] - a.p[1];
+    const bx = b.p[0] + b.nx * L, by = b.p[1] + b.ny * L, bdx = b.q[0] - b.p[0], bdy = b.q[1] - b.p[1];
+    const den = adx * bdy - ady * bdx;
+    if (Math.abs(den) < 1e-6) return [bx, by];
+    const t = ((bx - ax) * bdy - (by - ay) * bdx) / den, x = ax + adx * t, y = ay + ady * t;
+    if (Math.hypot(x - b.p[0], y - b.p[1]) > 2.5 * L) { const nx = a.nx + b.nx, ny = a.ny + b.ny, l = Math.hypot(nx, ny) || 1; return [b.p[0] + nx / l * L, b.p[1] + ny / l * L]; }   // 아주 뾰족한 모서리
+    return [x, y];
+  }
+  function laneAt(u, lane) {   // u: 테두리 위 위치(0~1), lane: 테두리에서 안쪽으로 들어온 거리(m)
+    const d = (u % 1 + 1) % 1 * laneLen; let i = 0;
+    while (laneCum[i + 1] < d) i++;
+    const f = (d - laneCum[i]) / edgeSeg[i].len, v0 = insetVertex(i, lane), v1 = insetVertex(i + 1, lane);
+    let x = v0[0] + (v1[0] - v0[0]) * f, y = v0[1] + (v1[1] - v0[1]) * f;
+    // 뾰족한 모서리 근처에서 테두리와 LANE_IN보다 가까워지면 가장 가까운 테두리에서 그만큼 밀어냅니다.
+    let best = 1e9, bx = 0, by = 0;
+    for (const e of edgeSeg) {
+      const dx = e.q[0] - e.p[0], dy = e.q[1] - e.p[1], t = clamp(((x - e.p[0]) * dx + (y - e.p[1]) * dy) / (dx * dx + dy * dy), 0, 1), cx = e.p[0] + dx * t, cy = e.p[1] + dy * t, dd = Math.hypot(x - cx, y - cy);
+      if (dd < best) { best = dd; bx = cx; by = cy; }
+    }
+    const need = LANE_IN / M;
+    if (best < need && best > 1e-6) { x = bx + (x - bx) / best * need; y = by + (y - by) / best * need; }
+    return [x, y];
   }
   let ringSum = 0;
   // 탁한 날 상류에서 들어오는 맑은 물: 유입구 주변과 첫 물골을 따라 퍼지며 옅어집니다.
@@ -1000,7 +1045,7 @@ attribute vec2 aSwim;`)
         if (j >= st.total && info.rel.share) R = 1;   // 방류어
         else if (S.t3 < info.freshP[ci]) R = freshLevel(info.rel) === "high" ? 1 : .6;
         const dep = clamp(info.lay[ci] + S.dd, .25, Math.max(.3, c.d - .15));
-        set(k, { cruise, x: wx(c.x + S.jx * G.step * 2), z: wz(c.y + S.jy * G.step * 2), dep, u: S.u, ox: S.ox, oz: S.oz, dd: S.dd, ph: S.ph, wob: R >= HIGH ? 2.6 : 1.6, fast: R >= HIGH }, tintFor(cruise, R, cruise ? clamp(cruiseDepth + S.dd, .25, 3) : dep), j >= st.total ? freshStart : null);
+        set(k, { cruise, x: wx(c.x + S.jx * G.step * 2), z: wz(c.y + S.jy * G.step * 2), dep, u: S.u, lane: LANE_IN + (S.jx + .5 < HUG_SHARE ? .2 + (S.jy + .5) * (LANE_HUG - .2) : LANE_HUG + .05 + (S.jy + .5) * (LANE_MAX - LANE_HUG - .05)), dir: k % 2 ? 1 : -1, ox: S.ox, oz: S.oz, dd: S.dd, ph: S.ph, wob: R >= HIGH ? 2.6 : 1.6, fast: R >= HIGH }, tintFor(cruise, R, cruise ? clamp(cruiseDepth + S.dd, .25, 3) : dep), j >= st.total ? freshStart : null);
       }
       fishRole[k] = role;
     }
@@ -1009,13 +1054,13 @@ attribute vec2 aSwim;`)
   }
   function drawFish(t) {
     const ve = +$("ve").value, dt = Math.min(.1, t - lastT); lastT = t;
-    ringPhase += cruiseSpeed * dt / ringLen;
+    ringPhase += cruiseSpeed * dt / laneLen;
     for (let k = 0; k < fish.count; k++) {
       const c = fishCur[k], g = fishTo[k];
       let tx, tz, td, rate;
       if (g.cruise) {
-        const p = ringAt(g.u + ringPhase);
-        tx = wx(p[0]) + g.ox; tz = wz(p[1]) + g.oz; rate = .05;
+        const p = laneAt(g.u + g.dir * ringPhase, g.lane);
+        tx = wx(p[0]); tz = wz(p[1]); rate = .05;
         const n = Math.round((p[1] - D.crop[1]) / G.step) * G.nx + Math.round((p[0] - D.crop[0]) / G.step);
         td = clamp(cruiseDepth + g.dd, .25, Math.max(.3, (G.depth[n] || 1) - .15));
       } else {
@@ -1205,7 +1250,7 @@ attribute vec2 aSwim;`)
   function panel() {
     const st = state(), list = ranks(st), best = list[0].score || 1;
     $("hourLabel").textContent = fmtH(st.h);
-    $("clock").innerHTML = fmtH(st.h).replace(":", '<span class="c">:</span>');
+    $("clock").innerHTML = ledSVG(fmtH(st.h));
     $("recTitle").textContent = `${nice(st.s)} ${fmtH(st.h)} 추천 자리`;
     setWind(st); condBox(st, list[0]);
     const info = dist(st);
@@ -1290,11 +1335,22 @@ attribute vec2 aSwim;`)
   $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
   Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
   let playing = null;
-  function placeClock() {
-    const c = $("clock"), v = document.querySelector(".views"), stage = document.querySelector(".stage");
-    c.style.top = "8px";
-    const cr = c.getBoundingClientRect(), last = [...v.children].reduce((m, b) => Math.max(m, b.getBoundingClientRect().right), 0);
-    if (last > cr.left - 6) c.style.top = `${v.getBoundingClientRect().bottom - stage.getBoundingClientRect().top + 6}px`;
+  // 7분할 LED 숫자 (a~g 칸). 숫자 하나는 폭 22, 높이 40 단위입니다.
+  const SEG = { a: "4,1 18,1 15,4 7,4", b: "19,2 19,19 16,17 16,5", c: "19,21 19,38 16,35 16,23", d: "4,39 18,39 15,36 7,36", e: "3,21 6,23 6,35 3,38", f: "3,2 6,5 6,17 3,19", g: "4,20 7,18 15,18 18,20 15,22 7,22" };
+  const DIG = { 0: "abcdef", 1: "bc", 2: "abged", 3: "abgcd", 4: "fgbc", 5: "afgcd", 6: "afgedc", 7: "abc", 8: "abcdefg", 9: "abcdfg" };
+  function ledSVG(text) {
+    let x = 0, out = "";
+    for (const ch of text) {
+      if (ch === ":") { out += `<g class="colon"><rect class="on" x="${x + 2}" y="11" width="4" height="4" rx="1"/><rect class="on" x="${x + 2}" y="25" width="4" height="4" rx="1"/></g>`; x += 9; continue; }
+      const lit = DIG[ch] || "";
+      out += `<g transform="translate(${x} 0)">${Object.entries(SEG).map(([k, pt]) => `<polygon class="${lit.includes(k) ? "on" : "off"}" points="${pt}"/>`).join("")}</g>`;
+      x += 24;
+    }
+    return `<svg viewBox="-1 -1 ${x + 1} 42" aria-label="${text}" role="img">${out}</svg>`;
+  }
+  function placeClock() {   // 시점 버튼(부교·가두리 줄) 바로 아래, 버튼과 같은 왼쪽 선에 둡니다.
+    const c = $("clock"), v = document.querySelector(".views"), stage = document.querySelector(".stage").getBoundingClientRect(), vr = v.getBoundingClientRect();
+    c.style.left = `${vr.left - stage.left}px`; c.style.top = `${vr.bottom - stage.top + 6}px`;
   }
   addEventListener("resize", placeClock);
   // 재생 속도: 10분이 지나가는 데 걸리는 시간(ms). 기본은 0.5초(한 시간 3초)입니다.
@@ -1449,7 +1505,7 @@ attribute vec2 aSwim;`)
     controls.update();
     const under = camera.position.y < 0;
     scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); window.__lastT = now; fishT += Math.min(.1, now - (window.__fishPrev ?? now)) * fishMul; window.__fishPrev = now; drawFish(fishT); renderer.render(scene, camera); })();
-  window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }) };
+  window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }), laneAt, edgeLoop, xLine, M };
 })();
 </script>
 </body>
