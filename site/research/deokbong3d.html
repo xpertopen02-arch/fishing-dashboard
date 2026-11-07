@@ -47,6 +47,7 @@
   .cond { display:flex; align-items:flex-start; gap:8px; }
   .cond .ctext { min-width:0; }
   .cond .cicon { flex:none; filter:drop-shadow(0 0 2px rgba(0,0,0,.7)); }
+  .cond .cicon svg { display:block; height:5.4em; width:auto; }   /* 글 네 줄 높이 (줄 높이 1.35em × 4) */
   .cond span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cond .windy { color:#ff6b6b; font-weight:700; }
   .cond b { font-weight:700; }
@@ -79,7 +80,7 @@
     .readout { display:none; }
     .legend i { width:110px; }
     .cond { left:130px; font-size:10.5px; gap:5px; }
-    .cond .cicon svg { width:24px; height:26px; }
+
     .side { border-left:0; border-top:1px solid var(--line); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
   }
 </style>
@@ -622,7 +623,7 @@
   const fishCur = [], fishTo = [];
   const dummy = new THREE.Object3D();
   // 방류 모습: 방류 시각부터 약 30분 동안 가두리 안의 송어가 그물 위로 뛰어 사방으로 나옵니다.
-  const JUMP_N = 40, JUMP_MIN = .5;
+  const JUMP_N = 100, JUMP_MIN = .5;   // 방류량 최대 100마리까지 그립니다.
   const jumpFish = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), JUMP_N);
   jumpFish.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(JUMP_N * 3).fill(1.1), 3);
   jumpFish.instanceMatrix.setUsage(THREE.DynamicDrawUsage); jumpFish.frustumCulled = false; jumpFish.visible = false; scene.add(jumpFish);
@@ -632,7 +633,7 @@
   const jumpRing = new THREE.Object3D(); jumpRing.rotation.x = -Math.PI / 2;
   let jump = null;
   function setRelease(st, rel) {
-    jump = st.stock === 0 && rel.hours >= 0 && rel.hours < JUMP_MIN ? { strength: 1 - rel.hours / JUMP_MIN } : null;
+    jump = st.stock === 0 && rel.hours >= 0 && rel.hours < JUMP_MIN ? { n: Math.min(JUMP_N, st.stockN) } : null;   // 넘어오는 송어는 방류량만큼
     jumpFish.visible = splash.visible = !!jump;
     if (!jump) return;
     const c = st.release === "bridge" ? D.cages.east : D.cages.west;   // 부교 방류는 부교 가두리, 중앙 방류는 중앙 가두리에서 나옵니다.
@@ -640,7 +641,7 @@
   }
   function drawJump(t) {
     if (!jump) return;
-    const n = Math.max(6, Math.round(JUMP_N * jump.strength)), [cx, cz] = jump.center;
+    const n = jump.n, [cx, cz] = jump.center;
     for (let k = 0; k < JUMP_N; k++) {
       const S = jumpSeed[k], u = (t * S.spd + S.ph) % 1, on = k < n, ca = Math.cos(S.ang), sa = Math.sin(S.ang);
       const r0 = Math.abs(S.lat) * 1.6, r1 = CAGE_HALF + .8 + S.land;   // 가두리 안쪽에서 출발해 그물 밖에 떨어집니다.
@@ -1029,7 +1030,7 @@
       : sky === "눈" ? CLOUD("#cfd8de", -3) + '<g fill="#fff"><circle cx="11" cy="29" r="1.6"/><circle cx="17" cy="31" r="1.6"/><circle cx="23" cy="29" r="1.6"/></g>'
       : sky === "안개" ? '<g stroke="#d3dbe0" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h22M8 18h19M5 24h20"/></g>'
       : CLOUD("#9aa6ae", -3) + '<path d="M18 24l-4 6h4l-2 5 6-8h-4l2-3z" fill="#ffd24a"/>';
-    return `<svg viewBox="0 0 32 34" width="30" height="32" aria-hidden="true">${body}</svg>`;
+    return `<svg viewBox="0 0 32 34" aria-hidden="true">${body}</svg>`;
   }
   const SKY = (c) => (c <= 1 ? "맑음" : c === 2 ? "구름 조금" : c === 3 ? "흐림" : c <= 48 ? "안개" : c <= 67 || (c >= 80 && c <= 82) ? "비" : c <= 77 || c === 85 || c === 86 ? "눈" : "뇌우");
   function windAt(st) {
@@ -1086,7 +1087,7 @@
     const up = tempAt(v, probe.d, .3, st, k, probe.wheel), down = tempAt(v, probe.d, probe.d * .9, st, k, probe.wheel);
     const extra = [st.rain ? "비 온 다음날" : "", iceAt(st) >= .3 ? "동쪽 못 얼음" : ""].filter(Boolean).join(" · ");
     const [wd, ws, , wg] = windAt(st), wName = "북 북동 동 남동 남 남서 서 북서".split(" ")[Math.round(wd / 45) % 8];
-    $("cond").innerHTML = `<div class="ctext"><span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span class="${ws > 3 ? "windy" : ""}">바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s (돌풍 ${wg.toFixed(1)})</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}</div><div class="cicon" title="${sky}">${skyIcon(sky, st.h)}</div>`;
+    $("cond").innerHTML = `<div class="ctext"><span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span class="${ws >= 4 ? "windy" : ""}">바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s (돌풍 ${wg.toFixed(1)})</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}</div><div class="cicon" title="${sky}">${skyIcon(sky, st.h)}</div>`;
     $("cond").title = `${md ? (f ? "날씨는 Open-Meteo 예보" : "날씨는 지난 3년 같은 날짜 평균(평년)") : "날씨 흐름 예시"}. 수온은 부교와 가두리 사이 추정값이며 평년 날씨로 계산했습니다.`;
   }
   function panel() {

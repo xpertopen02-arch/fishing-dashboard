@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.78", date: "2026-11-07", title: "방류 마릿수와 날씨 그림 크기",
+    changes: [
+      "방류 때 가두리를 넘어오는 송어 수를 방류량 설정만큼 표시",
+      "날씨 그림을 글 네 줄 높이로 키움",
+      "바람이 4m/s 이상일 때 빨간색으로 표시하고, 괄호 안 돌풍 표시는 유지",
+    ],
+  },
+  {
     version: "1.77", date: "2026-11-07", title: "덕봉 3D 날씨 그림과 방류 모습",
     changes: [
       "지도 아래 날씨 글 오른쪽에 날씨 그림(해, 달, 구름, 비, 눈, 안개, 뇌우) 표시",
