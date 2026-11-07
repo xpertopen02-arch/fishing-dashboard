@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.34", date: "2026-11-07", title: "영상 가이드 장과 영상 연결",
+    changes: [
+      "영상 자료 탭을 로고 버튼으로 표시하고, 영상별 관련 장 링크와 장별 참조 영상 링크 추가 (이 PC에서만 표시)",
+    ],
+  },
+  {
     version: "1.33", date: "2026-11-07", title: "예상 수온을 날씨 옆으로 이동",
     changes: [
       "예상 수온을 아래 칸에서 낚시터 이름과 날씨가 있는 칸의 날씨 옆으로 이동",

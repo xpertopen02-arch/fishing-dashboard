@@ -295,6 +295,11 @@ details.older summary { cursor: pointer; font-size: 13px; color: var(--ink-2); p
 .fig-open { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
 .fig-dialog img { cursor: zoom-out; }
 @media (min-width: 721px) { .tile span { white-space: nowrap; } }
+.yt-icon { display: block; width: 26px; height: 18px; }
+.ch-links { white-space: nowrap; }
+.ch-link { margin: 0 3px 3px 0; padding: 0 7px; border: 1px solid var(--accent); border-radius: 99px; background: none; color: var(--accent); font-size: 11.5px; line-height: 18px; cursor: pointer; }
+.ch-link:hover, .ch-link:focus-visible { background: var(--accent); color: var(--surface); }
+.guide-refs { margin-top: 24px; padding-top: 4px; border-top: 1px solid var(--grid); }
 .guide-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 8px; }
 .guide-gallery figure { margin: 0; }
 .guide-gallery figure img { aspect-ratio: 4 / 3; object-fit: contain; }

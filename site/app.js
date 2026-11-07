@@ -1070,9 +1070,11 @@
     box.showModal();
   }
 
+  const YOUTUBE_ICON = '<svg class="yt-icon" viewBox="0 0 28 20" aria-hidden="true"><rect width="28" height="20" rx="5" fill="#f00"/><path d="M11 5.5v9l8-4.5z" fill="#fff"/></svg>';
+
   function renderChapterGuide(g) {
     const c = g.chapters[state.notes.chapters[state.notes.tab] || 0] || g.chapters[0];
-    const chip = (x) => `<button class="chip ${x === c ? "on" : ""}" data-guide-chapter="${g.chapters.indexOf(x)}">${esc(x.short || x.title.split(".")[0])}</button>`;
+    const chip = (x) => `<button class="chip ${x === c ? "on" : ""}" data-guide-chapter="${g.chapters.indexOf(x)}"${x.icon ? ` aria-label="${esc(x.short)}" title="${esc(x.short)}"` : ""}>${x.icon === "youtube" ? YOUTUBE_ICON : esc(x.short || x.title.split(".")[0])}</button>`;
     const groups = [...new Set(g.chapters.map((x) => x.group))];
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">이 PC에서만 표시</span></div></div>
