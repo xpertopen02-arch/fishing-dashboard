@@ -101,7 +101,7 @@
       <p class="note" id="dayInfo"></p>
       <div id="dayHours"></div>
     </div>
-    <div class="time"><button id="play" aria-label="재생">재생</button><input id="hour" type="range" min="6" max="19" value="13" aria-label="시각"><b id="hourLabel"></b></div>
+    <div class="time"><button id="play" aria-label="재생">재생</button><input id="hour" type="range" min="360" max="1140" step="10" value="780" aria-label="시각"><b id="hourLabel"></b></div>
     <label class="f">새물 유입 성격 <select id="inflow"><option value="ground">지하수형 (10℃ 가정)</option><option value="stream">계곡수, 눈 녹은 물 (1.5℃ 가정)</option><option value="rain">비 온 다음날 (그날 기온 연동)</option></select></label>
     <label class="f">방류 뒤 경과 <select id="stock"><option value="2">1주 이상</option><option value="1">1~3일</option><option value="0">방류 당일</option></select></label>
     <label class="f">방류량 <span id="stockLabel"></span><input id="stockN" type="range" min="50" max="100" step="5" value="75" aria-label="방류 마릿수"></label>
@@ -289,7 +289,17 @@
     return idx.length ? idx.filter(wheelOn).length / idx.length : wheelShare;
   };
   const shareByZone = {};
+  // 계산 자료는 정시마다 있습니다. 10분 단위 시각은 앞뒤 정시 값을 이어서 씁니다.
+  const hSpan = (h) => { const a = clamp(Math.floor(h + 1e-6), 6, 19), b = Math.min(19, a + 1); return [a, b, clamp(h - a, 0, 1)]; };
+  const fmtH = (h) => { const m = Math.round(h * 60); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+  const hourOf = (h) => Math.floor(h + 1e-6);
   function zoneV(st, h, z) {
+    const [h0, h1, t] = hSpan(h);
+    if (!t) return zoneAt(st, h0, z);
+    const a = zoneAt(st, h0, z), b = zoneAt(st, h1, z);
+    return [0, 1, 2, 3].map((i) => a[i] + (b[i] - a[i]) * t).concat(t < .5 ? a[4] : b[4]);
+  }
+  function zoneAt(st, h, z) {
     const a = D.sims[st.f][st.s][h][z];
     if (wheelsAllOn) return a;
     const b = D.simsOff[st.f][st.s][h][z], f = shareByZone[z];
@@ -310,7 +320,7 @@
 
   // ---------- 점수 ----------
   let calDate = "";
-  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: +$("hour").value, f: $("inflow").value, stock: +$("stock").value, crowd: $("crowd").checked, cruise: +$("cruise").value / 100, castMode: $("castMode").value, castR: +$("castR").value, wheels: wheelMask, total: +$("total").value, stockN: +$("stockN").value, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2 });
+  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: Math.round(+$("hour").value / 10) / 6, f: $("inflow").value, stock: +$("stock").value, crowd: $("crowd").checked, cruise: +$("cruise").value / 100, castMode: $("castMode").value, castR: +$("castR").value, wheels: wheelMask, total: +$("total").value, stockN: +$("stockN").value, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2 });
   // 맑은 날 낮에 물이 받은 햇빛 (℃·m). 해가 진 뒤에는 빠르게 사라집니다.
   function sunEnergy(h, clear) {
     const S0 = 120 + 430 * clear, hh = clamp(h, 7.5, 17.5);
@@ -418,7 +428,7 @@
   }
   // 공략 노트의 시간대별 자리
   function notePrior(key, st) {
-    const h = st.h;
+    const h = hourOf(st.h);
     // 공략법의 '부교'는 긴 부교입니다. 좌측 입구는 서쪽 못을 볼 때 왼쪽인 남쪽으로 봅니다.
     const P = h <= 7 ? { cwS: 1.5, cwMS: 1.4 } : h <= 11 ? { cwS: 1.4, cwMS: 1.3, cwN: 1.4 } : h <= 14 ? { sE: 1.5, sM: 1.4 } : h === 15 ? { sW: 1.4, sM: 1.3 } : h === 16 ? { sW: 1.5, wS: 1.4 } : { wS: 1.6, sW: 1.3 };
     let v = P[key] || 1;
@@ -430,6 +440,7 @@
     return v;
   }
   function noteTip(h, worm) {
+    h = hourOf(h);
     const T = h < 8 ? ["해 뜨기 전 피딩: 부교 좌측 입구 3~5번째(수차 1 우측 1~3번), 정면 가두리 왼쪽 1~2칸에서 바닥권.", "형광 센코, 또는 카키웜 스위밍."]
       : h <= 10 ? ["해 뜬 뒤: 바닥을 벗어납니다. 냉수대가 없으면 부교 앞치기. 부교 우측 입구 첫 수차(수차 3) 왼쪽 두 자리는 정면으로 회유하고, 부교 정면 4m 권을 염두에 둡니다. 해가 강할수록 흰색, 오렌지.", "FT 미노우 미드스트롤링과 스테이, 가벼운 트라우트웜 폴링."]
       : h === 11 ? ["방류 입질이 가라앉을 때입니다.", "흰색 트라우트웜 3m 앞 커브폴링, 가두리 앞 3m 안 스테이."]
@@ -635,11 +646,11 @@
   const iceSheet = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(eastPoly.map((p) => new THREE.Vector2(wx(p[0]), -wz(p[1]))))), new THREE.MeshLambertMaterial({ color: 0xe9f3f7, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
   iceSheet.rotation.x = -Math.PI / 2; iceSheet.position.y = .2; iceSheet.renderOrder = 3; scene.add(iceSheet);
   const iceLabel = label("동쪽 못 얼음", wx(600), 5, wz(480)); scene.add(iceLabel);
-  const iceAt = (st, h = st.h) => (D.iceCm[st.f][st.s] || {})[h] || 0;
+  const iceAt = (st, h = st.h) => { const o = D.iceCm[st.f][st.s] || {}, [a, b, t] = hSpan(h); return (o[a] || 0) * (1 - t) + (o[b] || 0) * t; };
   const westPoly = [[275, 378], [340, 362], [410, 362], [326, 622], [270, 640], [200, 642], [150, 622], [120, 590], [114, 560], [130, 520], [165, 455], [215, 398]];
   const iceWest = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(westPoly.map((p) => new THREE.Vector2(wx(p[0]), -wz(p[1]))))), new THREE.MeshLambertMaterial({ color: 0xe9f3f7, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
   iceWest.rotation.x = -Math.PI / 2; iceWest.position.y = .2; iceWest.renderOrder = 3; scene.add(iceWest);
-  const iceWestAt = (st) => ((D.simsOff.westIce[st.f][st.s] || {})[st.h] || 0) * (1 - wheelShare);
+  const iceWestAt = (st) => { const o = D.simsOff.westIce[st.f][st.s] || {}, [a, b, t] = hSpan(st.h); return ((o[a] || 0) * (1 - t) + (o[b] || 0) * t) * (1 - wheelShare); };
   function drawIce(st) {
     const cm = iceAt(st);
     iceSheet.visible = iceLabel.visible = cm >= .3;
@@ -692,7 +703,7 @@
   const probe = cells.reduce((b, c) => (Math.hypot(c.x - 316, c.y - 505) < Math.hypot(b.x - 316, b.y - 505) ? c : b), cells[0]);
   function profile(st) {
     const hours = [7, 9, 11, 13, 15, 17], depths = [.3, 1, 2, 3].filter((z) => z < probe.d);
-    const row = (z) => `<tr><th>${z}m</th>${hours.map((h) => `<td class="${h === st.h ? "on" : ""}">${tempAt(vAt(zoneV(st, h, probe.z), probe.rainF, st), probe.d, z, { ...st, h }, kOf(probe.clean, st), probe.wheel).toFixed(1)}</td>`).join("")}</tr>`;
+    const row = (z) => `<tr><th>${z}m</th>${hours.map((h) => `<td class="${h === Math.round(st.h) ? "on" : ""}">${tempAt(vAt(zoneV(st, h, probe.z), probe.rainF, st), probe.d, z, { ...st, h }, kOf(probe.clean, st), probe.wheel).toFixed(1)}</td>`).join("")}</tr>`;
     const top = zoneV(st, st.h, probe.z)[0];
     $("profile").innerHTML = `<table><tr><th>수심</th>${hours.map((h) => `<th>${h}시</th>`).join("")}</tr><tr><th>햇빛</th>${hours.map((h) => `<td>${Math.round(solar(h, D.weather[st.s].clear))}</td>`).join("")}</tr>${depths.map(row).join("")}</table>
       <p class="note">햇빛은 W/㎡입니다. ${top < 3.5 ? "지금은 4℃ 아래라 데워진 물이 가라앉으면서 섞여, 표층의 따뜻한 층은 약합니다. 대신 얕은 곳이 바닥까지 먼저 데워집니다." : "4℃ 위에서는 데워진 물이 위에 머물러 바람이 약하면 표층이 먼저 따뜻해집니다."} 수차를 돌리면 차이는 더 작아집니다.</p>`;
@@ -865,7 +876,7 @@
     if (!dates.length) return;
     const [y, m] = MONTHS[calM], first = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate();
     $("calMonth").textContent = `${y}년 ${m}월`;
-    $("calTitle").textContent = `${st.h}시 1순위, 지난 3년 평균 날씨`;
+    $("calTitle").textContent = `${fmtH(st.h)} 1순위, 지난 3년 평균 날씨`;
     const tds = Array(first).fill("<td></td>");
     for (let d = 1; d <= days; d++) {
       const key = `${pad(m)}-${pad(d)}`;
@@ -881,10 +892,10 @@
   }
   function dayHours(st) {
     const hours = [7, 9, 11, 13, 15, 17], tops = hours.map((h) => ranks({ ...st, h })[0]);
-    $("dayHours").innerHTML = `<table><tr><th>${nice(st.s)}</th>${hours.map((h) => `<th>${h}시</th>`).join("")}</tr><tr><th>자리</th>${tops.map((r, i) => `<td class="cell ${hours[i] === st.h ? "on" : ""}" data-h="${hours[i]}">${r.short}</td>`).join("")}</tr><tr><th>수온</th>${tops.map((r) => `<td>${r.t.toFixed(1)}</td>`).join("")}</tr><tr><th>층</th>${tops.map((r) => `<td>${r.dep.toFixed(1)}m</td>`).join("")}</tr></table>`;
+    $("dayHours").innerHTML = `<table><tr><th>${nice(st.s)}</th>${hours.map((h) => `<th>${h}시</th>`).join("")}</tr><tr><th>자리</th>${tops.map((r, i) => `<td class="cell ${hours[i] === Math.round(st.h) ? "on" : ""}" data-h="${hours[i]}">${r.short}</td>`).join("")}</tr><tr><th>수온</th>${tops.map((r) => `<td>${r.t.toFixed(1)}</td>`).join("")}</tr><tr><th>층</th>${tops.map((r) => `<td>${r.dep.toFixed(1)}m</td>`).join("")}</tr></table>`;
   }
   $("cal").addEventListener("click", (e) => { const td = e.target.closest("td.day"); if (td) { calDate = td.dataset.date; $("scenario").value = "cal"; panel(); } });
-  $("dayHours").addEventListener("click", (e) => { const td = e.target.closest("td.cell"); if (td) { $("hour").value = td.dataset.h; panel(); } });
+  $("dayHours").addEventListener("click", (e) => { const td = e.target.closest("td.cell"); if (td) { $("hour").value = td.dataset.h * 60; panel(); } });
   $("calPrev").onclick = () => { calM = (calM + MONTHS.length - 1) % MONTHS.length; calendar(state()); };
   $("calNext").onclick = () => { calM = (calM + 1) % MONTHS.length; calendar(state()); };
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]);
@@ -892,7 +903,14 @@
   const SCEN_WIND = { "평년": 300, "맑은 겨울날": 290, "한파 1일째": 320, "한파 2일째": 320, "한파 3일째": 310, "눈 오는 날": 40, "풀림 첫날": 240, "풀림 둘째 날": 220, "강풍, 흐림": 315, "포근한 날": 210 };
   // 예보: 앞으로 약 16일은 Open-Meteo 예보를 쓰고, 그 밖의 날짜는 지난 3년 평균(평년)을 씁니다.
   let FC = {};
-  const fcDay = (st) => (/^\d\d-\d\d$/.test(st.s) && FC[st.s] && FC[st.s].h[st.h] ? FC[st.s] : null);
+  const fcDay = (st) => (/^\d\d-\d\d$/.test(st.s) && FC[st.s] && FC[st.s].h[hourOf(st.h)] ? FC[st.s] : null);
+  // 정시 두 값을 시각 비율로 잇습니다. 풍향은 벡터로 이어 360°를 넘나들 때도 부드럽게 바뀝니다.
+  function mixWind(a, b, t) {
+    if (!b || !t) return a;
+    const u = (1 - t) * a[1] * Math.sin(a[0] * Math.PI / 180) + t * b[1] * Math.sin(b[0] * Math.PI / 180);
+    const v = (1 - t) * a[1] * Math.cos(a[0] * Math.PI / 180) + t * b[1] * Math.cos(b[0] * Math.PI / 180);
+    return [((Math.atan2(u, v) * 180 / Math.PI) + 360) % 360, a[1] + (b[1] - a[1]) * t, (a[2] ?? 1) + ((b[2] ?? 1) - (a[2] ?? 1)) * t];
+  }
   fetch(`https://api.open-meteo.com/v1/forecast?latitude=37.0526&longitude=127.192&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=Asia%2FSeoul&forecast_days=16`)
     .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
     .then((j) => {
@@ -908,10 +926,10 @@
     .catch(() => { /* 예보를 못 받으면 평년으로 보여 줍니다. */ });
   const SKY = (c) => (c <= 1 ? "맑음" : c === 2 ? "구름 조금" : c === 3 ? "흐림" : c <= 48 ? "안개" : c <= 67 || (c >= 80 && c <= 82) ? "비" : c <= 77 || c === 85 || c === 86 ? "눈" : "뇌우");
   function windAt(st) {
-    const f = fcDay(st);
-    if (f && f.h[st.h].ws != null) return [f.h[st.h].wd, f.h[st.h].ws, 1];
+    const f = fcDay(st), [h0, h1, t] = hSpan(st.h);
+    if (f && f.h[h0].ws != null) { const g = (x) => (x && x.ws != null ? [x.wd, x.ws, 1] : null); return mixWind(g(f.h[h0]), g(f.h[h1]), t); }
     const w = (D.wind || {})[st.s];
-    if (w && w[st.h]) return w[st.h];
+    if (w && w[h0]) return mixWind(w[h0], w[h1], t);
     return [SCEN_WIND[st.s] ?? 300, D.weather[st.s].wind, .8];
   }
   const WN = 320, windPos = new Float32Array(WN * 6), windGeo = new THREE.BufferGeometry();
@@ -949,9 +967,10 @@
     let day = st.s;
     if (md) { const m = +st.s.slice(0, 2), d = +st.s.slice(3), y = m >= 7 ? seasonYear : seasonYear + 1; day = `${m}월 ${d}일 (${"일월화수목금토"[new Date(y, m - 1, d).getDay()]})`; }
     const f = fcDay(st);
-    const sky = f ? SKY(f.h[st.h].code) : W.clear >= .75 ? "맑음" : W.clear >= .45 ? "구름 조금" : W.clear >= .25 ? "구름 많음" : "흐림";
+    const fh = f ? f.h[Math.min(19, Math.round(st.h))] || f.h[hourOf(st.h)] : null, fa = f ? f.h[hourOf(st.h)] : null, fb = f ? f.h[Math.min(19, hourOf(st.h) + 1)] : null;
+    const sky = f ? SKY(fh.code) : W.clear >= .75 ? "맑음" : W.clear >= .45 ? "구름 조금" : W.clear >= .25 ? "구름 많음" : "흐림";
     let air;
-    if (f) air = `기온 ${f.h[st.h].t.toFixed(1)}℃ (${f.lo.toFixed(1)}~${f.hi.toFixed(1)}℃)`;
+    if (f) air = `기온 ${(fb ? fa.t + (fb.t - fa.t) * (st.h - hourOf(st.h)) : fa.t).toFixed(1)}℃ (${f.lo.toFixed(1)}~${f.hi.toFixed(1)}℃)`;
     else if (W.lo !== undefined) {   // 최저는 6시 무렵, 최고는 15시 무렵으로 보고 시각별 기온을 어림합니다.
       const f = st.h <= 15 ? (1 - Math.cos(Math.PI * clamp((st.h - 6) / 9, 0, 1))) / 2 : (1 + Math.cos(Math.PI * clamp((st.h - 15) / 15, 0, 1))) / 2;
       air = `기온 약 ${(W.lo + (W.hi - W.lo) * f).toFixed(1)}℃ (${W.lo}~${W.hi}℃)`;
@@ -960,13 +979,13 @@
     const up = tempAt(v, probe.d, .3, st, k, probe.wheel), down = tempAt(v, probe.d, probe.d * .9, st, k, probe.wheel);
     const extra = [st.rain ? "비 온 다음날" : "", iceAt(st) >= .3 ? "동쪽 못 얼음" : ""].filter(Boolean).join(" · ");
     const [wd, ws] = windAt(st), wName = "북 북동 동 남동 남 남서 서 북서".split(" ")[Math.round(wd / 45) % 8];
-    $("cond").innerHTML = `<span><b>${esc(day)} ${String(st.h).padStart(2, "0")}:00</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span>바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}`;
+    $("cond").innerHTML = `<span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span>바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}`;
     $("cond").title = `${md ? (f ? "날씨는 Open-Meteo 예보" : "날씨는 지난 3년 같은 날짜 평균(평년)") : "날씨 흐름 예시"}. 수온은 부교와 가두리 사이 추정값이며 평년 날씨로 계산했습니다.`;
   }
   function panel() {
     const st = state(), list = ranks(st), best = list[0].score || 1;
-    $("hourLabel").textContent = `${String(st.h).padStart(2, "0")}:00`;
-    $("recTitle").textContent = `${nice(st.s)} ${st.h}시 추천 자리`;
+    $("hourLabel").textContent = fmtH(st.h);
+    $("recTitle").textContent = `${nice(st.s)} ${fmtH(st.h)} 추천 자리`;
     setWind(st); condBox(st, list[0]);
     const info = dist(st);
     mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
@@ -984,7 +1003,7 @@
     const relName = st.release === "center" ? "중앙 가두리" : "부교 가두리";
     const near = nearSpots(list);
     const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. ${info.rel.hours <= 1 ? "방류어는 움직이는 루어에 빠르게 반응하고, 주변 기존 송어 일부도 자극받아 반응이 올라갑니다." : "활발한 입질은 약 1시간으로 봅니다."}${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
-    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `부채꼴은 중앙 가두리 쪽으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : castInfo().mode === "front" ? `부채꼴은 자리별로 정한 정면 방향으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
+    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${hourOf(st.h)}시대</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `부채꼴은 중앙 가두리 쪽으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : castInfo().mode === "front" ? `부채꼴은 자리별로 정한 정면 방향으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
     const sim = Object.fromEntries(Object.keys(D.zoneNames).map((k) => [k, zoneV(st, st.h, k)]));
     const alerts = [], ks = Object.keys(sim);
     const offCount = D.wheels.filter((_, i) => !wheelOn(i)).length, westNow = iceWestAt(st);
@@ -1014,9 +1033,9 @@
       matrixKey = key; matrixTop = {};
       D.scenarios.forEach((s) => TIMES.forEach((h) => { matrixTop[s + h] = ranks({ ...st, s, h })[0].short; }));
     }
-    $("matrix").innerHTML = `<table><tr><th></th>${TIMES.map((h) => `<th>${h}시</th>`).join("")}</tr>${D.scenarios.map((s) => `<tr><th>${s}</th>${TIMES.map((h) => `<td class="cell ${s === st.s && h === st.h ? "on" : ""}" data-s="${s}" data-h="${h}">${matrixTop[s + h]}</td>`).join("")}</tr>`).join("")}</table>`;
+    $("matrix").innerHTML = `<table><tr><th></th>${TIMES.map((h) => `<th>${h}시</th>`).join("")}</tr>${D.scenarios.map((s) => `<tr><th>${s}</th>${TIMES.map((h) => `<td class="cell ${s === st.s && h === Math.round(st.h) ? "on" : ""}" data-s="${s}" data-h="${h}">${matrixTop[s + h]}</td>`).join("")}</tr>`).join("")}</table>`;
   }
-  $("matrix").addEventListener("click", (e) => { const td = e.target.closest("td.cell"); if (!td) return; $("scenario").value = td.dataset.s; $("hour").value = td.dataset.h; panel(); });
+  $("matrix").addEventListener("click", (e) => { const td = e.target.closest("td.cell"); if (!td) return; $("scenario").value = td.dataset.s; $("hour").value = td.dataset.h * 60; panel(); });
 
   // ---------- 조작 ----------
   const NEON_INPUTS = { neonFac: "fac", neonNote: "note", neonRec: "rec" };
@@ -1037,7 +1056,7 @@
   const now = new Date(), today = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   if (dates.length) { $("scenario").add(new Option("달력에서 고른 날짜", "cal"), 0); calDate = dates.includes(today) ? today : dates[0]; }
   $("scenario").value = dates.includes(today) ? "cal" : "맑은 겨울날";
-  $("hour").value = clamp(now.getHours(), 6, 19);   // 창을 여는 시점의 날짜와 시각으로 시작합니다.
+  $("hour").value = clamp(now.getHours() * 60 + Math.floor(now.getMinutes() / 10) * 10, 360, 1140);   // 창을 여는 시점의 날짜와 시각으로 시작합니다.
   const curM = MONTHS.findIndex((m) => m[1] === now.getMonth() + 1);
   if (curM >= 0) calM = curM;
   $("summary").textContent = `수면 약 ${(D.area / 10000).toFixed(1)}ha, 부피 약 ${(D.volume / 10000).toFixed(1)}만㎥, 평균 수심 약 ${(D.volume / D.area).toFixed(1)}m (사진에서 측정, 동쪽 수심은 추정)`;
@@ -1052,7 +1071,7 @@
   $("play").addEventListener("click", () => {
     if (playing) { clearInterval(playing); playing = null; $("play").textContent = "재생"; return; }
     $("play").textContent = "정지";
-    playing = setInterval(() => { const h = $("hour"); h.value = +h.value >= 19 ? 6 : +h.value + 1; panel(); }, 1100);
+    playing = setInterval(() => { const h = $("hour"); h.value = +h.value >= 1140 ? 360 : +h.value + 10; panel(); }, 200);   // 10분씩, 한 시간에 약 1.2초
   });
   const zoomBy = (f) => { const d = camera.position.clone().sub(controls.target); const len = clamp(d.length() * f, 6, 900); camera.position.copy(controls.target).add(d.setLength(len)); };
   $("zIn").onclick = () => zoomBy(.82); $("zOut").onclick = () => zoomBy(1.22);

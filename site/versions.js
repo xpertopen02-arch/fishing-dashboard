@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.75", date: "2026-11-07", title: "덕봉 3D 10분 단위 시각",
+    changes: [
+      "시각 막대와 재생을 1시간에서 10분 단위로 바꿔 부드럽게 변하도록 함",
+      "정시 사이의 수온, 산소, 얼음, 기온, 바람은 앞뒤 정시 값을 이어서 계산",
+    ],
+  },
+  {
     version: "1.74", date: "2026-11-07", title: "덕봉 3D 글자 크기",
     changes: [
       "지도 위 시점 버튼과 조작 안내 글자를 작게 줄임",
