@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.43", date: "2026-11-07", title: "비 온 다음날을 새물 유입 성격으로 이동",
+    changes: [
+      "비 온 다음날을 새물 유입 성격에서 고르고, 유입 수온은 선택한 날짜의 기온에 연동",
+    ],
+  },
+  {
     version: "1.42", date: "2026-11-07", title: "덕봉 3D에 얼음과 비 옵션 추가",
     changes: [
       "부교 동쪽 못의 얼음을 날짜별로 계산해 3D와 달력에 표시",

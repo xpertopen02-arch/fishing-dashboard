@@ -86,12 +86,12 @@
       <div id="dayHours"></div>
     </div>
     <div class="time"><button id="play" aria-label="재생">재생</button><input id="hour" type="range" min="6" max="19" value="13" aria-label="시각"><b id="hourLabel"></b></div>
-    <label class="f">새물 유입 성격 <select id="inflow"><option value="ground">지하수형 (10℃ 가정)</option><option value="stream">계곡수, 눈 녹은 물 (1.5℃ 가정)</option></select></label>
+    <label class="f">새물 유입 성격 <select id="inflow"><option value="ground">지하수형 (10℃ 가정)</option><option value="stream">계곡수, 눈 녹은 물 (1.5℃ 가정)</option><option value="rain">비 온 다음날 (그날 기온 연동)</option></select></label>
     <label class="f">방류 뒤 경과 <select id="stock"><option value="2">1주 이상</option><option value="1">1~3일</option><option value="0">방류 당일</option></select></label>
     <label class="f">방류 위치 <select id="release"><option value="center">중앙 가두리</option><option value="bridge">부교 가두리</option></select></label>
     <label class="f">방류 시각 (당일) <select id="relH"><option value="6">6시</option><option value="7">7시</option><option value="8">8시</option><option value="9">9시</option><option value="10" selected>10시</option><option value="11">11시</option><option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option><option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option></select></label>
     <label class="f">물색 <select id="clarity"><option value="clear">맑음</option><option value="turbid">탁함</option></select></label>
-    <div class="row"><label><input type="checkbox" id="note" checked> 공략법 켜기</label><label><input type="checkbox" id="worm" checked> 웜 내용</label><label><input type="checkbox" id="rain"> 비 온 다음날</label><label><input type="checkbox" id="crowd"> 사람 많음</label><label><input type="checkbox" id="spin"> 자동 회전</label></div>
+    <div class="row"><label><input type="checkbox" id="note" checked> 공략법 켜기</label><label><input type="checkbox" id="worm" checked> 웜 내용</label><label><input type="checkbox" id="crowd"> 사람 많음</label><label><input type="checkbox" id="spin"> 자동 회전</label></div>
     <label class="f">송어 총 마릿수 <span id="totalLabel"></span><input id="total" type="range" min="100" max="3000" step="100" value="600" aria-label="송어 총 마릿수"></label>
     <label class="f">도는 송어 비율 <span id="cruiseLabel"></span><input id="cruise" type="range" min="0" max="100" step="5" value="50" aria-label="도는 송어 비율"></label>
     <p class="note" id="cruiseNote"></p>
@@ -143,7 +143,7 @@
       <li><b>방류:</b> 방류어는 전체의 25%로 가정했습니다. 방류 뒤 시간당 약 15m씩 퍼지며(최대 60m) 얕은 층에서 서서히 내려간다고 계산합니다. 1~3일 뒤에는 방류 위치에서 약 45m 안에 남습니다. 부교 가두리는 그물 동쪽에 있어, 그 앞 부교 서쪽면으로 들어온다고 가정했습니다.</li>
       <li><b>탁한 날:</b> 상류 새물이 맑다고 보고, 유입구 주변 약 15m와 첫 물골을 따라 옅어지는 맑은 물 범위를 계산합니다(물골 약 60m마다 약 37%로 감소, 폭 약 6m). 그 안에서는 빛이 더 깊이 들고 송어가 더 모인다고(최대 1.6배) 가정했습니다. 수치는 측정값이 아닙니다. 비로 새물까지 탁해지면 맞지 않습니다.</li>
       <li><b>동쪽 못 얼음:</b> 부교 동쪽만 언다고 보고(서쪽은 수차 가동 가정), 기온, 바람, 일사량으로 두께를 날짜별로 계산합니다. 달력은 3년 평균이라 실제 얼음 유무와 다를 수 있습니다. 실측 보정은 없습니다.</li>
-      <li><b>비 온 다음날:</b> 유입 수온은 그날 평균 기온(0.5~15℃), 산소는 포화로 잡았습니다. 유입구 약 40m와 물골을 따라 약 120m 규모로 퍼진다고 가정했고 유입량 수치 계산은 아닙니다. 탁한 날이면 새물도 탁하다고 봅니다.</li>
+      <li><b>비 온 다음날:</b> 새물 유입 성격에서 고릅니다. 유입 수온은 선택한 날짜의 평균 기온을 따르고(0.5~15℃로 제한), 산소는 포화로 잡았습니다. 바탕 수온은 지하수형과 계곡수형의 평균입니다. 유입구 약 40m와 물골을 따라 약 120m 규모로 퍼진다고 가정했고 유입량 수치 계산은 아닙니다. 탁한 날이면 새물도 탁하다고 봅니다.</li>
       <li><b>낚시 자리:</b> 부교 서쪽 흰색 줄(3구간씩)과 긴 부교의 서쪽면(4구간)을 비교합니다. 부교 동쪽으로는 던지지 않습니다. 공략법의 좌측 입구는 부교의 남쪽 끝입니다.</li>
       <li><b>햇빛:</b> 시각별 일사량과 물색에 따른 빛 감쇠(맑음 0.8/m, 탁함 2/m, 가정)로 깊이별 수온을 나누고, 강한 빛을 피하는 효과를 더했습니다. 4℃ 아래에서는 데워진 물이 가라앉는 성질을 반영했습니다. 산과 나무의 그늘은 넣지 않았습니다.</li>
       <li><b>송어 수와 크기:</b> 총 마릿수는 화면 표시와 사거리 안 마릿수 계산에만 쓰고, 추정 산소량(고기 5톤 가정)은 바꾸지 않습니다. 크기는 보기 쉽게 실제보다 크게 그렸습니다.</li>
@@ -169,6 +169,18 @@
   const M = D.mPerPx, CX = (D.crop[0] + D.crop[2]) / 2, CY = (D.crop[1] + D.crop[3]) / 2;
   const wx = (px) => (px - CX) * M, wz = (py) => (py - CY) * M;
 
+  // 비 온 날 평소의 새물 성격은 알 수 없어, 두 유입 계산의 평균을 바탕으로 삼습니다.
+  D.sims.rain = {}; D.iceCm.rain = D.iceCm.ground;
+  Object.keys(D.sims.ground).forEach((key) => {
+    D.sims.rain[key] = {};
+    Object.keys(D.sims.ground[key]).forEach((h) => {
+      D.sims.rain[key][h] = {};
+      Object.keys(D.sims.ground[key][h]).forEach((z) => {
+        const a = D.sims.ground[key][h][z], b = D.sims.stream[key][h][z];
+        D.sims.rain[key][h][z] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[3] + b[3]) / 2, a[4]];
+      });
+    });
+  });
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sat = (t) => { const T = t + 273.15; return Math.exp(-139.34411 + 1.575701e5 / T - 6.642308e7 / T ** 2 + 1.2438e10 / T ** 3 - 8.621949e11 / T ** 4); };
   const solar = (h, c) => (h < 7.5 || h > 17.5) ? 0 : (120 + 430 * c) * Math.sin(Math.PI * (h - 7.5) / 10);
@@ -245,7 +257,7 @@
 
   // ---------- 점수 ----------
   let calDate = "";
-  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: +$("hour").value, f: $("inflow").value, stock: +$("stock").value, crowd: $("crowd").checked, cruise: +$("cruise").value / 100, note: $("note").checked, rain: $("rain").checked, release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2 });
+  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: +$("hour").value, f: $("inflow").value, stock: +$("stock").value, crowd: $("crowd").checked, cruise: +$("cruise").value / 100, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2 });
   // 맑은 날 낮에 물이 받은 햇빛 (℃·m). 해가 진 뒤에는 빠르게 사라집니다.
   function sunEnergy(h, clear) {
     const S0 = 120 + 430 * clear, hh = clamp(h, 7.5, 17.5);
@@ -752,11 +764,12 @@
     else if (maxT < 5) alerts.push("대부분 5℃ 미만이라 먹는 양이 적은 구간으로 봅니다. 작은 스푼을 느리게 시험할 만합니다.");
     const iceNow = iceAt(st), icePrev = iceAt(st, Math.max(6, st.h - 3));
     if (iceNow >= .3) alerts.push(`부교 동쪽 못 얼음 약 ${iceNow.toFixed(1)}cm (${iceNow > icePrev + .05 ? "어는 중" : iceNow < icePrev - .05 ? "녹는 중" : "유지"}). 얼음 아래로는 바람과 산소가 들어가지 못하고, 녹은 0℃ 물은 그물을 지나 서쪽 못과 섞입니다.`);
-    if (st.rain) { const [T, O] = rainWater(st); alerts.push(`비 온 다음날: 약 ${T.toFixed(1)}℃, 산소 약 ${O.toFixed(1)}mg/L의 물이 유입구에서 물골을 따라 퍼진다고 계산합니다. 구역별 표에는 넣지 않았습니다.`); }
+    if (st.rain) { const [T, O] = rainWater(st); alerts.push(`비 온 다음날: ${nice(st.s)} 평균 기온 ${D.weather[st.s].air}℃에 맞춰 약 ${T.toFixed(1)}℃, 산소 약 ${O.toFixed(1)}mg/L의 물이 유입구에서 물골을 따라 퍼진다고 계산합니다. 구역별 표에는 넣지 않았습니다.`); }
     if (minO < 7) alerts.push("바닥 쪽 산소가 7mg/L 아래로 계산됩니다. 깊은 곳을 피해 보세요.");
     if (st.f === "stream" && ["wS", "sW"].includes(list[0].key)) alerts.push("찬 물이 바로 닿는 유입구 앞은 피하고, 좌대에서 얕은 둘레 쪽으로 던지는 경우의 계산입니다.");
     const others = ks.filter((k) => k !== "A").map((k) => sim[k][0]);
-    if (sim.A[0] > Math.max(...others)) alerts.push("유입구 앞이 가장 따뜻하게 계산됩니다. 새물 온도는 재기 전까지 가정입니다.");
+    if (st.rain) { /* 새물 안내는 아래에 따로 표시합니다. */ }
+    else if (sim.A[0] > Math.max(...others)) alerts.push("유입구 앞이 가장 따뜻하게 계산됩니다. 새물 온도는 재기 전까지 가정입니다.");
     else if (sim.A[0] < Math.min(...others)) alerts.push("유입구 앞이 가장 차갑게 계산됩니다. 새물 온도는 재기 전까지 가정입니다.");
     alerts.push(st.note ? ($("worm").checked ? NOTE_COLOR : "공략법 컬러: 스푼은 오렌지, 초록(뒷면 검정, 금)에 반응이 좋습니다.") : `컬러: ${colorTip()}. 15℃ 이상 낚시터 실험이라 겨울 적용은 확인이 필요합니다.`);
     $("alerts").innerHTML = alerts.map((a) => `<p class="warn">${a}</p>`).join("");
@@ -798,7 +811,7 @@
   const curM = MONTHS.findIndex((m) => m[1] === now.getMonth() + 1);
   if (curM >= 0) calM = curM;
   $("summary").textContent = `수면 약 ${(D.area / 10000).toFixed(1)}ha, 부피 약 ${(D.volume / 10000).toFixed(1)}만㎥, 평균 수심 약 ${(D.volume / D.area).toFixed(1)}m (사진에서 측정, 동쪽 수심은 추정)`;
-  ["scenario", "hour", "inflow", "stock", "crowd", "clarity", "cruise", "note", "worm", "rain", "total", "release", "relH"].forEach((id) => $(id).addEventListener("input", panel));
+  ["scenario", "hour", "inflow", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "release", "relH"].forEach((id) => $(id).addEventListener("input", panel));
   $("mode").addEventListener("input", paint);
   $("ve").addEventListener("input", applyVe);
   $("spin").addEventListener("input", (e) => { controls.autoRotate = e.target.checked; });
@@ -860,7 +873,7 @@
   function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   new ResizeObserver(resize).observe(view); resize(); views.focus(true);
   // 마지막 옵션과 시점을 다시 열 때 그대로 보여 줍니다.
-  const KEEP = ["inflow", "stock", "release", "relH", "clarity", "note", "worm", "rain", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText"];
+  const KEEP = ["inflow", "stock", "release", "relH", "clarity", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText"];
   const saveSettings = () => {
     const o = { cam: camera.position.toArray(), tgt: controls.target.toArray() };
     KEEP.forEach((id) => { const e = $(id); o[id] = e.type === "checkbox" ? e.checked : e.value; });
