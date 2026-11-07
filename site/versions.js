@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.56", date: "2026-11-07", title: "캐스팅 거리와 정면 캐스팅 옵션",
+    changes: [
+      "캐스팅 거리를 5m 단위로 조절하고, 정면만 던지는 폭 3m 범위 옵션 추가",
+    ],
+  },
+  {
     version: "1.55", date: "2026-11-07", title: "대포형 수차 확산 범위 반영",
     changes: [
       "수차의 확산 범위를 반경 4~5m로 줄이고 3D에 범위 표시",
