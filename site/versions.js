@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.74", date: "2026-11-07", title: "덕봉 3D 글자 크기",
+    changes: [
+      "지도 위 시점 버튼과 조작 안내 글자를 작게 줄임",
+    ],
+  },
+  {
     version: "1.73", date: "2026-11-07", title: "덕봉 3D 날씨와 바람",
     changes: [
       "지도 아래 수심 막대 오른쪽에 날짜, 시각, 날씨, 기온, 바람, 수온을 작은 글자로 표시",
