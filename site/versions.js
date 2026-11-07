@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.59", date: "2026-11-07", title: "캐스팅 범위를 부채꼴로 변경",
+    changes: [
+      "정면과 중앙 가두리 쪽 캐스팅 범위를 출발 지점 중심의 부채꼴로 변경 (도달 거리에서 폭 5m)",
+    ],
+  },
+  {
     version: "1.58", date: "2026-11-07", title: "자리별 정면 캐스팅 방향 반영",
     changes: [
       "지도에서 정한 자리별 정면 캐스팅 방향을 계산과 3D 표시에 반영",
