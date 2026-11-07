@@ -39,9 +39,13 @@
   td.cell:hover, td.on { background:color-mix(in srgb, var(--accent) 18%, transparent); font-weight:600; }
   .tools { position:absolute; left:10px; top:10px; display:flex; flex-direction:column; gap:4px; z-index:3; }
   .tools button { width:32px; height:32px; padding:0; font-size:16px; }
-  .readout { position:absolute; left:10px; bottom:72px; max-width:calc(100% - 20px); z-index:3; pointer-events:none; font-size:12.5px; color:#fff; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
+  .readout { position:absolute; left:10px; bottom:92px; max-width:calc(100% - 20px); z-index:3; pointer-events:none; font-size:12.5px; color:#fff; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
   .views { position:absolute; left:50px; top:10px; right:10px; z-index:3; display:flex; flex-wrap:wrap; gap:4px; }
   .legend { position:absolute; left:10px; bottom:10px; z-index:3; color:#fff; font-size:12px; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
+  .cond { position:absolute; left:192px; bottom:10px; right:10px; z-index:3; pointer-events:none; color:#fff; font-size:11px; line-height:1.35; text-shadow:0 0 2px #000, 0 0 5px #000; }
+  .cond span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cond b { font-weight:700; }
+  .cond .arrow { display:inline-block; line-height:1; }
   .legend i { display:block; width:170px; height:9px; border-radius:3px; margin:3px 0; }
   .fold { margin:12px 0; }
   .fold summary { cursor:pointer; font-size:14px; font-weight:700; }
@@ -83,6 +87,7 @@
     <div class="readout" id="readout">끌기 회전 · 오른쪽 끌기 이동 · Ctrl+스크롤, +/− 확대 · 더블클릭 다가가기</div>
     <div class="views"><button data-view="focus">부교·가두리</button><button data-view="cage">가두리 가까이</button><button data-view="west">서쪽 못</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="all">전체</button></div>
     <div class="legend" id="legend"></div>
+    <div class="cond" id="cond" aria-live="polite"></div>
   </div>
   <aside class="side">
     <h1>덕봉저수지 3D</h1>
@@ -131,6 +136,7 @@
       <label><input type="checkbox" id="lRec" checked> 추천</label>
       <label><input type="checkbox" id="lFac" checked> 시설</label>
       <label><input type="checkbox" id="lText" checked> 이름</label>
+      <label><input type="checkbox" id="lWind" checked> 바람</label>
     </div>
 
     <p class="note" id="cutLegend"></p>
@@ -152,6 +158,7 @@
 <script src="deokbong_data.js"></script>
 <script src="deokbong_calendar.js"></script>
 <script src="deokbong_off.js"></script>
+<script src="deokbong_wind.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
@@ -879,10 +886,87 @@
   $("dayHours").addEventListener("click", (e) => { const td = e.target.closest("td.cell"); if (td) { $("hour").value = td.dataset.h; panel(); } });
   $("calPrev").onclick = () => { calM = (calM + MONTHS.length - 1) % MONTHS.length; calendar(state()); };
   $("calNext").onclick = () => { calM = (calM + 1) % MONTHS.length; calendar(state()); };
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]);
+  // 바람: 날짜는 지난 3년 같은 날짜, 같은 시각의 평균, 날씨 흐름은 겨울에 흔한 방향으로 가정합니다. 풍향은 불어오는 쪽입니다.
+  const SCEN_WIND = { "평년": 300, "맑은 겨울날": 290, "한파 1일째": 320, "한파 2일째": 320, "한파 3일째": 310, "눈 오는 날": 40, "풀림 첫날": 240, "풀림 둘째 날": 220, "강풍, 흐림": 315, "포근한 날": 210 };
+  // 예보: 앞으로 약 16일은 Open-Meteo 예보를 쓰고, 그 밖의 날짜는 지난 3년 평균(평년)을 씁니다.
+  let FC = {};
+  const fcDay = (st) => (/^\d\d-\d\d$/.test(st.s) && FC[st.s] && FC[st.s].h[st.h] ? FC[st.s] : null);
+  fetch(`https://api.open-meteo.com/v1/forecast?latitude=37.0526&longitude=127.192&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=Asia%2FSeoul&forecast_days=16`)
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((j) => {
+      const H = j.hourly, out = {};
+      H.time.forEach((t, i) => {
+        if (H.temperature_2m[i] == null) return;
+        const md = t.slice(5, 10), hr = +t.slice(11, 13), d = out[md] || (out[md] = { date: t.slice(0, 10), h: {}, lo: 99, hi: -99 });
+        d.lo = Math.min(d.lo, H.temperature_2m[i]); d.hi = Math.max(d.hi, H.temperature_2m[i]);
+        d.h[hr] = { t: H.temperature_2m[i], code: H.weather_code[i], ws: H.wind_speed_10m[i], wd: H.wind_direction_10m[i] };
+      });
+      FC = out; panel();
+    })
+    .catch(() => { /* 예보를 못 받으면 평년으로 보여 줍니다. */ });
+  const SKY = (c) => (c <= 1 ? "맑음" : c === 2 ? "구름 조금" : c === 3 ? "흐림" : c <= 48 ? "안개" : c <= 67 || (c >= 80 && c <= 82) ? "비" : c <= 77 || c === 85 || c === 86 ? "눈" : "뇌우");
+  function windAt(st) {
+    const f = fcDay(st);
+    if (f && f.h[st.h].ws != null) return [f.h[st.h].wd, f.h[st.h].ws, 1];
+    const w = (D.wind || {})[st.s];
+    if (w && w[st.h]) return w[st.h];
+    return [SCEN_WIND[st.s] ?? 300, D.weather[st.s].wind, .8];
+  }
+  const WN = 320, windPos = new Float32Array(WN * 6), windGeo = new THREE.BufferGeometry();
+  windGeo.setAttribute("position", new THREE.BufferAttribute(windPos, 3));
+  const windLines = new THREE.LineSegments(windGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .7, depthWrite: false }));
+  windLines.frustumCulled = false; windLines.renderOrder = 4; scene.add(windLines);
+  const wetAt = (px, py) => { const i = Math.round((px - D.crop[0]) / G.step), j = Math.round((py - D.crop[1]) / G.step); return i >= 0 && j >= 0 && i < G.nx && j < G.ny && G.depth[j * G.nx + i] > 0; };
+  const windRnd = rng(11), gusts = Array.from({ length: WN }, () => ({ x: 0, y: 0, age: 0, life: 0, j: 0 }));
+  let wind = { vx: 0, vy: 0, spd: 0, steady: 1 };
+  function spawnGust(g) {
+    for (let n = 0; n < 30; n++) { g.x = D.crop[0] + windRnd() * (D.crop[2] - D.crop[0]); g.y = D.crop[1] + windRnd() * (D.crop[3] - D.crop[1]); if (wetAt(g.x, g.y)) break; }
+    g.age = 0; g.life = 2 + windRnd() * 3; g.j = (windRnd() - .5) * 2;
+  }
+  gusts.forEach((g) => { spawnGust(g); g.age = windRnd() * g.life; });
+  function setWind(st) {
+    const [d, spd, steady] = windAt(st), a = (d + 180) * Math.PI / 180;   // 바람이 가는 방향
+    wind = { vx: Math.sin(a), vy: -Math.cos(a), spd, steady };              // 그림 좌표: 오른쪽 동, 아래 남
+  }
+  function drawWind(dt) {
+    if (!windLines.visible) return;
+    const pxPerS = (2 + wind.spd * 4) / M, len = (3 + wind.spd * 2.2) / M, spread = (1 - wind.steady) * .9 + .12;
+    gusts.forEach((g, k) => {
+      const c = Math.cos(g.j * spread), s = Math.sin(g.j * spread), vx = wind.vx * c - wind.vy * s, vy = wind.vx * s + wind.vy * c;
+      g.age += dt; g.x += vx * pxPerS * dt; g.y += vy * pxPerS * dt;
+      if (g.age > g.life || !wetAt(g.x, g.y)) spawnGust(g);
+      const fade = Math.min(1, g.age * 2, (g.life - g.age) * 2), l = len * Math.max(0, fade), o = k * 6;
+      windPos[o] = wx(g.x - vx * l); windPos[o + 1] = 1.2; windPos[o + 2] = wz(g.y - vy * l);
+      windPos[o + 3] = wx(g.x); windPos[o + 4] = 1.2; windPos[o + 5] = wz(g.y);
+    });
+    windGeo.attributes.position.needsUpdate = true;
+  }
+  // 지도 위 정보: 날짜, 시각, 날씨, 수온
+  function condBox(st, top) {
+    const W = D.weather[st.s], md = /^\d\d-\d\d$/.test(st.s);
+    let day = st.s;
+    if (md) { const m = +st.s.slice(0, 2), d = +st.s.slice(3), y = m >= 7 ? seasonYear : seasonYear + 1; day = `${m}월 ${d}일 (${"일월화수목금토"[new Date(y, m - 1, d).getDay()]})`; }
+    const f = fcDay(st);
+    const sky = f ? SKY(f.h[st.h].code) : W.clear >= .75 ? "맑음" : W.clear >= .45 ? "구름 조금" : W.clear >= .25 ? "구름 많음" : "흐림";
+    let air;
+    if (f) air = `기온 ${f.h[st.h].t.toFixed(1)}℃ (${f.lo.toFixed(1)}~${f.hi.toFixed(1)}℃)`;
+    else if (W.lo !== undefined) {   // 최저는 6시 무렵, 최고는 15시 무렵으로 보고 시각별 기온을 어림합니다.
+      const f = st.h <= 15 ? (1 - Math.cos(Math.PI * clamp((st.h - 6) / 9, 0, 1))) / 2 : (1 + Math.cos(Math.PI * clamp((st.h - 15) / 15, 0, 1))) / 2;
+      air = `기온 약 ${(W.lo + (W.hi - W.lo) * f).toFixed(1)}℃ (${W.lo}~${W.hi}℃)`;
+    } else air = `평균 기온 ${W.air}℃`;
+    const v = vAt(zoneV(st, st.h, probe.z), probe.rainF, st), k = kOf(probe.clean, st);
+    const up = tempAt(v, probe.d, .3, st, k, probe.wheel), down = tempAt(v, probe.d, probe.d * .9, st, k, probe.wheel);
+    const extra = [st.rain ? "비 온 다음날" : "", iceAt(st) >= .3 ? "동쪽 못 얼음" : ""].filter(Boolean).join(" · ");
+    const [wd, ws] = windAt(st), wName = "북 북동 동 남동 남 남서 서 북서".split(" ")[Math.round(wd / 45) % 8];
+    $("cond").innerHTML = `<span><b>${esc(day)} ${String(st.h).padStart(2, "0")}:00</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span>바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}`;
+    $("cond").title = `${md ? (f ? "날씨는 Open-Meteo 예보" : "날씨는 지난 3년 같은 날짜 평균(평년)") : "날씨 흐름 예시"}. 수온은 부교와 가두리 사이 추정값이며 평년 날씨로 계산했습니다.`;
+  }
   function panel() {
     const st = state(), list = ranks(st), best = list[0].score || 1;
     $("hourLabel").textContent = `${String(st.h).padStart(2, "0")}:00`;
     $("recTitle").textContent = `${nice(st.s)} ${st.h}시 추천 자리`;
+    setWind(st); condBox(st, list[0]);
     const info = dist(st);
     mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
     drawIce(st);
@@ -960,7 +1044,7 @@
   $("mode").addEventListener("input", paint);
   $("ve").addEventListener("input", applyVe);
   $("spin").addEventListener("input", (e) => { controls.autoRotate = e.target.checked; });
-  const vis = { lWater: water, lFish: fish, lRec: recGroup, lFac: fac, lText: texts, lCut: curtain };
+  const vis = { lWater: water, lFish: fish, lRec: recGroup, lFac: fac, lText: texts, lCut: curtain, lWind: windLines };
   $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
   Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
   let playing = null;
@@ -1023,9 +1107,9 @@
     cam: [-49.08, 57.74, -92.7], tgt: [-52, -14.37, 14.32],
     inflow: "stream", stock: "0", stockN: "75", release: "center", relH: "10", clarity: "turbid", fishColor: "react",
     note: true, worm: true, crowd: true, spin: true, total: "600", cruise: "40", mode: "depth", ve: "4", waterOp: "0.3",
-    lCut: true, lWater: true, lFish: true, lRec: true, lFac: true, lText: true,
+    lCut: true, lWater: true, lFish: true, lRec: true, lFac: true, lText: true, lWind: true,
   };
-  const KEEP = ["castMode", "castR", "wheel1", "wheel2", "wheel3", "wheel4", "wheel5", "wheel6", "wheel7", "inflow", "stock", "stockN", "release", "relH", "clarity", "fishColor", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText"];
+  const KEEP = ["castMode", "castR", "wheel1", "wheel2", "wheel3", "wheel4", "wheel5", "wheel6", "wheel7", "inflow", "stock", "stockN", "release", "relH", "clarity", "fishColor", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText", "lWind"];
   const saveSettings = () => {
     const o = { cam: camera.position.toArray(), tgt: controls.target.toArray() };
     KEEP.forEach((id) => { const e = $(id); o[id] = e.type === "checkbox" ? e.checked : e.value; });
@@ -1059,7 +1143,7 @@
     if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }
     controls.update();
     const under = camera.position.y < 0;
-    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; drawFish(clock.getElapsedTime()); renderer.render(scene, camera); })();
+    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); window.__lastT = now; drawFish(now); renderer.render(scene, camera); })();
   window.__model = { ranks, state, cells: cells.length };
 })();
 </script>

@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.73", date: "2026-11-07", title: "덕봉 3D 날씨와 바람",
+    changes: [
+      "지도 아래 수심 막대 오른쪽에 날짜, 시각, 날씨, 기온, 바람, 수온을 작은 글자로 표시",
+      "앞으로 약 16일은 예보 날씨, 그 밖의 날짜는 지난 3년 평균(평년)으로 표시",
+      "수면 위 바람 흐름을 줄무늬로 표시하고, 화면의 바람 옵션으로 끌 수 있게 함",
+    ],
+  },
+  {
     version: "1.72", date: "2026-11-07", title: "덕봉 3D 휴대폰 화면",
     changes: [
       "휴대폰에서 덕봉 3D 지도는 위에 고정하고 아래 조건만 스크롤되도록 변경",
