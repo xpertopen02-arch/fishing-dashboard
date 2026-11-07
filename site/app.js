@@ -1111,8 +1111,6 @@
   function renderNotes() {
     if (!IS_BETA && ["book", "versions"].includes(state.notes.tab)) state.notes.tab = "summary";
     if (state.notes.tab === "versions") { notesFrame(`<h2 class="ver-title">버전 기록 <button class="ver-public" data-to-public>공개전환</button></h2><p class="sub">현재 v${esc(window.FISH_VERSIONS[0].version)} 베타 · 자료 빌드 ${esc(window.FISH.built)}</p>${versionListHtml()}`); return; }
-    // 공개판의 수집 자료는 직접 쓴 기록과 공개 영상만 담은 별도 자료입니다. 전체 자료는 이 PC의 베타에서만 열립니다.
-    if (state.notes.tab === "study" && !window.FISH_NOTES) { renderChapterGuide(window.FISH_COLLECTED); return; }
     const missing = { book: !window.FISH_BOOK_GUIDE }[state.notes.tab];
     if (missing) { notesFrame('<h2>이 PC에서만 열리는 자료입니다</h2><p class="sub">이 자료는 공개 사이트에 올리지 않았습니다. 자료가 있는 PC에서 열어 주세요.</p>'); return; }
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
@@ -1123,7 +1121,8 @@
       renderChapterGuide({ title: "덕봉 정리와 문헌", sub: `${d.sub} ${r.sub}`, chapters: [...d.chapters, ...r.chapters] });
       return;
     }
-    const n = window.FISH_NOTES;
+    // 공개판은 공개 자료만, 이 PC의 베타는 비공개 자료까지 합쳐 보여 줍니다.
+    const n = { ...window.FISH_COLLECTED_DATA, ...(window.FISH_NOTES || {}) };
     const places = [...new Set(n.temperatures.map((r) => r.place))];
     const placeColors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
     const colorOf = (p) => placeColors[places.indexOf(p) % placeColors.length];
@@ -1140,10 +1139,10 @@
     state.notes.fitNow = fit;
     const trips = places.flatMap((p) => (placeById[p] ? placeById[p].trips.filter((t) => !t.trip.other).map((t) => ({ ...t, place: p })) : []));
     const done = store.get("notesChecklist", []);
-    const month = n.jangwangMonths.find((m) => m.month === state.notes.month) || n.jangwangMonths[0];
-    const measured = n.temperatures.filter((r) => r.place === "장광" && parseISO(r.date).getMonth() + 1 === month.month);
+    const month = n.jangwangMonths ? n.jangwangMonths.find((m) => m.month === state.notes.month) || n.jangwangMonths[0] : null;
+    const measured = month ? n.temperatures.filter((r) => r.place === "장광" && parseISO(r.date).getMonth() + 1 === month.month) : [];
     const allT = measured.flatMap((r) => [r.surface, r.bottom]);
-    const jangwangTrips = placeById["장광"].trips.filter((t) => parseISO(t.trip.date).getMonth() + 1 === month.month);
+    const jangwangTrips = month ? placeById["장광"].trips.filter((t) => parseISO(t.trip.date).getMonth() + 1 === month.month) : [];
 
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
@@ -1180,13 +1179,13 @@
           <button class="chip" data-check-reset="1">체크 지우기</button>
         </div>
 
-        <div class="panel"><h2>상황별 메모</h2><p class="sub">가이드북의 일반론 중 관리터에 쓸 만한 내용입니다.</p>
+        <div class="panel"><h2>상황별 메모</h2><p class="sub">관리터에 쓸 만한 일반 내용입니다.</p>
           <table class="notes-table">${n.situations.map(([a, b]) => `<tr><th>${esc(a)}</th><td>${esc(b)}</td></tr>`).join("")}</table>
           <h3 class="notes-sub">그대로 믿으면 안 되는 부분</h3>
           <ul class="notes-list">${n.cautions.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
         </div>
 
-        <div class="panel notes-wide"><h2>장광 시간대별 운용</h2><p class="sub">ChatGPT로 정리한 표를 요약한 참고 자료입니다. 작성자도 맞지 않는 부분이 있다고 밝혔습니다.</p>
+        ${month ? `<div class="panel notes-wide"><h2>장광 시간대별 운용</h2><p class="sub">ChatGPT로 정리한 표를 요약한 참고 자료입니다. 작성자도 맞지 않는 부분이 있다고 밝혔습니다.</p>
           <div class="filter-row">${n.jangwangMonths.map((m) => `<button class="chip ${m.month === month.month ? "on" : ""}" data-notes-month="${m.month}">${m.label}</button>`).join("")}</div>
           <div class="month-facts">
             <div class="tile" style="--i:0"><span>표의 예상 수온</span><strong>${esc(month.water)}</strong></div>
@@ -1196,7 +1195,7 @@
           <p class="month-note">${esc(month.note)}</p>
           <div class="table-wrap"><table class="notes-table pattern"><tr><th>시간대</th><th>송어 상태</th><th>운용</th><th>색상</th></tr>${n.jangwangPattern.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table></div>
           ${jangwangTrips.length ? `<h3 class="notes-sub">이 달의 내 기록</h3><div class="trip-grid">${jangwangTrips.map((t, i) => tripCard(t, i)).join("")}</div>` : ""}
-        </div>
+        </div>` : ""}
 
         <div class="panel"><h2>캐스팅</h2><p class="sub">루어 무게에 따라 던지는 방법을 나눕니다.</p>
           ${n.casting.map((c) => `<div class="cast-item"><b>${esc(c.title)}</b><p>${esc(c.body)}</p></div>`).join("")}
@@ -1206,6 +1205,7 @@
           <ul class="notes-list">${n.videos.map((v) => `<li><a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc(v.title)}</a></li>`).join("")}</ul>
         </div>
 
+        ${window.FISH_NOTES ? "" : window.FISH_COLLECTED.chapters.filter((c) => c.short !== "캐스팅 영상").map((c) => `<div class="panel"><h2>${esc(c.title)}</h2>${c.html}</div>`).join("")}
         ${(n.guides || []).map((g) => `<div class="panel notes-wide"><h2>${esc(g.title)}</h2><p class="sub">${esc(g.sub)}</p>
           ${g.blocks.map((b) => `<h3 class="notes-sub">${esc(b.heading)}</h3>${b.rows
             ? `<div class="table-wrap"><table class="notes-table pattern"><tr>${b.head.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>${b.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table></div>`
@@ -1227,7 +1227,7 @@
     const refresh = () => { if (!$("#view-notes").hidden) renderNotes(); };
     (async () => {
       if (IS_BETA && CAN_LOAD_PRIVATE && await load("private/notes.js") && window.FISH_NOTES) renderBrief();
-      await Promise.all(["research_guide", "deokbong_guide", "video_guide", "collected_guide"].map((name) => load(`research/${name}.js`)));
+      await Promise.all(["research_guide", "deokbong_guide", "video_guide", "collected_guide", "collected_data"].map((name) => load(`research/${name}.js`)));
       if (window.FISH_NOTES || window.FISH_RESEARCH_GUIDE) {
         $('.tabs [data-go="notes"]').hidden = false;
         moveInk();
