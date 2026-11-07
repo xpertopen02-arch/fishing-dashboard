@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.91", date: "2026-11-07", title: "LED 시계 색",
+    changes: [
+      "디지털 시계 숫자를 노란색으로 하고 초록 네온 빛을 더함",
+    ],
+  },
+  {
     version: "1.90", date: "2026-11-07", title: "회유 송어 그물 이탈 방지",
     changes: [
       "회유 방식은 그대로 두고, 회유 송어가 부교 그물선 1m 안쪽을 넘지 않도록 막아 그물 밖으로 나가지 않게 함",
