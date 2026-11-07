@@ -84,6 +84,7 @@
       <button id="zIn" aria-label="확대">+</button>
       <button id="zOut" aria-label="축소">−</button>
       <button id="home" aria-label="처음 시점" title="처음 시점">⌂</button>
+      <button id="resetIcon" aria-label="설정 처음으로" title="설정 처음으로"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg></button>
     </div>
     <div class="readout" id="readout">끌기 회전 · 오른쪽 끌기 이동 · Ctrl+스크롤, +/− 확대 · 더블클릭 다가가기</div>
     <div class="views"><button data-view="focus">부교·가두리</button><button data-view="cage">가두리</button><button data-view="west">서쪽 못</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="all">전체</button></div>
@@ -612,6 +613,43 @@
   fish.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fish.frustumCulled = false; scene.add(fish);
   const fishCur = [], fishTo = [];
   const dummy = new THREE.Object3D();
+  // 방류 모습: 방류 시각부터 약 30분 동안 송어가 물 위로 튀어 넘어와 방류 지점에 떨어집니다.
+  const JUMP_N = 40, JUMP_MIN = .5;
+  const jumpFish = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), JUMP_N);
+  jumpFish.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(JUMP_N * 3).fill(1.1), 3);
+  jumpFish.instanceMatrix.setUsage(THREE.DynamicDrawUsage); jumpFish.frustumCulled = false; jumpFish.visible = false; scene.add(jumpFish);
+  const splash = new THREE.InstancedMesh(new THREE.RingGeometry(.35, .6, 20), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .75, side: THREE.DoubleSide, depthWrite: false }), JUMP_N);
+  splash.instanceMatrix.setUsage(THREE.DynamicDrawUsage); splash.frustumCulled = false; splash.visible = false; scene.add(splash);
+  const jumpSeed = Array.from({ length: JUMP_N }, (_, k) => { const r = rng(500 + k); return { ph: r(), lat: (r() - .5) * 2.4, land: r() * 3.2, ang: r() * 6.28, peak: .8 + r() * .9, spd: .75 + r() * .4 }; });
+  const jumpRing = new THREE.Object3D(); jumpRing.rotation.x = -Math.PI / 2;
+  let jump = null;
+  function setRelease(st, rel) {
+    jump = st.stock === 0 && rel.hours >= 0 && rel.hours < JUMP_MIN ? { strength: 1 - rel.hours / JUMP_MIN } : null;
+    jumpFish.visible = splash.visible = !!jump;
+    if (!jump) return;
+    const L = RELEASE[st.release], from = [xLine(L[1]), L[1]];   // 부교 쪽에서 방류 지점 쪽으로 넘깁니다.
+    let dx = L[0] - from[0], dy = L[1] - from[1]; const m = Math.hypot(dx, dy) * M || 1;
+    dx /= m / M; dy /= m / M;   // 1m 길이 방향(그림 좌표)
+    const reach = Math.min(m, 4);
+    jump.land = [wx(L[0]), wz(L[1])]; jump.start = [wx(L[0] - dx / M * reach), wz(L[1] - dy / M * reach)]; jump.dir = [dx, dy];
+  }
+  function drawJump(t) {
+    if (!jump) return;
+    const n = Math.max(6, Math.round(JUMP_N * jump.strength)), [lx, lz] = jump.land, [sx, sz] = jump.start, px = -(lz - sz), pz = lx - sx, pl = Math.hypot(px, pz) || 1;
+    for (let k = 0; k < JUMP_N; k++) {
+      const S = jumpSeed[k], u = (t * S.spd + S.ph) % 1, on = k < n;
+      const ex = lx + Math.cos(S.ang) * S.land, ez = lz + Math.sin(S.ang) * S.land, bx = sx + px / pl * S.lat, bz = sz + pz / pl * S.lat;
+      const s = Math.min(1, u / .7);   // 0.7까지 날고, 남은 시간은 물보라만 남습니다.
+      const x = bx + (ex - bx) * s, z = bz + (ez - bz) * s, y = 1.1 * (1 - s) + S.peak * 4 * s * (1 - s);
+      const vy = -1.1 + S.peak * 4 * (1 - 2 * s), hz = Math.hypot(ex - bx, ez - bz) || 1;
+      dummy.position.set(x, y, z); dummy.rotation.set(0, -Math.atan2(ez - bz, ex - bx), Math.atan2(vy, hz), "YZX");
+      dummy.scale.setScalar(on && u < .7 ? 1 : 0); dummy.updateMatrix(); jumpFish.setMatrixAt(k, dummy.matrix);
+      const g = u >= .7 ? (u - .7) / .3 : -1;
+      jumpRing.position.set(ex, .08, ez); jumpRing.scale.setScalar(on && g >= 0 ? .6 + g * 2.2 : 0); jumpRing.updateMatrix(); splash.setMatrixAt(k, jumpRing.matrix);
+    }
+    dummy.rotation.set(0, 0, 0, "XYZ");
+    jumpFish.instanceMatrix.needsUpdate = true; splash.instanceMatrix.needsUpdate = true;
+  }
   function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
   const relMarks = {};
@@ -684,6 +722,23 @@
   const cutGeo = new THREE.BufferGeometry(); cutGeo.setAttribute("position", new THREE.BufferAttribute(cutPos, 3)); cutGeo.setAttribute("color", new THREE.BufferAttribute(cutCol, 3)); cutGeo.setIndex(cutIdx);
   const curtain = new THREE.Mesh(cutGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: .8, depthWrite: false, fog: false }));
   curtain.frustumCulled = false; curtain.renderOrder = 1; curtain.visible = false; scene.add(curtain);
+  // 수심 눈금: 선을 따라 1m마다 가로선을 긋고, 가장 깊은 곳에 세로 자와 숫자를 둡니다. 수심 과장 배율을 따라 늘어납니다.
+  const rawDepth = (px, py) => { const i = Math.round((px - D.crop[0]) / G.step), j = Math.round((py - D.crop[1]) / G.step); return i >= 0 && j >= 0 && i < G.nx && j < G.ny ? G.depth[j * G.nx + i] || 0 : 0; };
+  function depthRuler(pts, parent, color) {
+    const seg = [], maxD = Math.max(...pts.map((p) => p.d)), deep = pts.reduce((b, p) => (p.d > b.d ? p : b), pts[0]);
+    for (let z = 1; z < maxD; z++) for (let i = 0; i < pts.length - 1; i++) if (pts[i].d >= z && pts[i + 1].d >= z) seg.push(wx(pts[i].x), -z, wz(pts[i].y), wx(pts[i + 1].x), -z, wz(pts[i + 1].y));
+    for (let i = 0; i < pts.length - 1; i++) if (pts[i].d && pts[i + 1].d) seg.push(wx(pts[i].x), -pts[i].d, wz(pts[i].y), wx(pts[i + 1].x), -pts[i + 1].d, wz(pts[i + 1].y));   // 바닥선
+    seg.push(wx(deep.x), 0, wz(deep.y), wx(deep.x), -deep.d, wz(deep.y));   // 세로 자
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(seg, 3));
+    const lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity: .85 }));
+    lines.renderOrder = 6; lines.frustumCulled = false; parent.add(lines);
+    const marks = [];
+    for (let z = 1; z <= Math.floor(maxD); z++) { const sp = label(`${z}m`, wx(deep.x), -z, wz(deep.y), "fac", .015); parent.add(sp); marks.push([sp, z]); }
+    const sp = label(`${maxD.toFixed(1)}m`, wx(deep.x), -maxD, wz(deep.y), "fac", .015); parent.add(sp); marks.push([sp, maxD + .35]);
+    return (ve) => { lines.scale.y = ve; marks.forEach(([m, z]) => { m.position.y = -z * ve; }); };
+  }
+  const causewayPts = Array.from({ length: 61 }, (_, i) => { const t = i / 60, x = D.causeway[0][0] + (D.causeway[1][0] - D.causeway[0][0]) * t, y = D.causeway[0][1] + (D.causeway[1][1] - D.causeway[0][1]) * t; return { x, y, d: rawDepth(x, y) }; });
+  const rulers = [depthRuler(causewayPts, fac, 0xffe08a), depthRuler(cutCols, curtain, 0xffffff)];
   function drawCurtain(st) {
     const vals = []; let lo = 99, hi = -99;
     cutCols.forEach((c) => { const v = vAt(zoneV(st, st.h, c.z), c.rainF, st); for (let r = 0; r < ROWS; r++) { const T = tempAt(v, c.d, Math.max(.05, c.d * r / (ROWS - 1)), st, kOf(c.clean, st), c.wheel); vals.push(T); lo = Math.min(lo, T); hi = Math.max(hi, T); } });
@@ -756,6 +811,7 @@
     const netH = (D.zoneDepth.D || 2.6) * ve; netWall.scale.y = netH; netWall.position.y = -netH / 2;
     cutCols.forEach((c, i) => { for (let r = 0; r < ROWS; r++) cutPos[(i * ROWS + r) * 3 + 1] = -c.d * ve * r / (ROWS - 1); });
     cutGeo.attributes.position.needsUpdate = true;
+    rulers.forEach((u) => u(ve));
     cageParts.forEach((g) => { const h = g.userData.h * ve; g.children.forEach((m) => { m.scale.y = h; }); g.position.y = -h / 2 + .3; });
     $("veLabel").textContent = `${ve}배`;
     placeFish(false);
@@ -772,40 +828,70 @@
   };
   const CAGE_HALF = 3.5, CAGE_DEPTH = 1.3, CAGE_FISH = 75;   // 가두리 절반 폭 m, 깊이 m, 가두리당 마릿수(50~100의 중간)
   const depthAt = (px, py) => G.depth[Math.round((py - D.crop[1]) / G.step) * G.nx + Math.round((px - D.crop[0]) / G.step)] || 1;
+  // 송어마다 고정된 값: 시간이 바뀌어도 같은 송어는 같은 역할과 자리를 유지합니다.
+  const CAGE_N = CAGE_FISH * 2, NEAR_M = 25, SWIM = 4;   // 가두리 송어는 앞 번호에 고정, 자리를 옮길 때 가까운 곳 우선(m), 최고 속도(m/s)
+  const fishSeed = Array.from({ length: FISH }, (_, k) => { const r = rng(1000 + k * 7919); return { q: r(), p: r(), u: r(), ph: r() * 6.28, ox: (r() - .5) * 9, oz: (r() - .5) * 9, dd: (r() - .5) * .9, jx: r() - .5, jy: r() - .5, a: r() * 6.28, m: r(), under: r(), dr: r(), t0: r(), t1: r(), t2: r(), t3: r() }; });
+  const fishCell = [], fishRole = [];
+  let prevFree = null;
+  const toPx = (c) => [c.x / M + CX, c.z / M + CY];
+  function cellNear(px, py, weights, pick) {
+    let tot = 0; const acc = new Float64Array(weights.length);
+    for (let i = 0; i < weights.length; i++) { const c = westCells[i]; tot += weights[i] * Math.exp(-Math.hypot(c.x - px, c.y - py) * M / NEAR_M); acc[i] = tot; }
+    if (!(tot > 0)) return -1;
+    const v = pick * tot; let lo = 0, hi = acc.length - 1;
+    while (lo < hi) { const m = lo + hi >> 1; if (acc[m] < v) lo = m + 1; else hi = m; }
+    return lo;
+  }
   function placeFish(resample) {
     if (!resample && fishTo.length) return;
-    const st = state(), info = dist(st), r = rng(42), inSeason = cageSeason(st);
-    const count = info.pop, cageN = inSeason ? CAGE_FISH * 2 : 0;
-    fish.count = count + cageN;
-    nCruise = Math.round(count * (1 - info.resident) * info.eff); cruiseDepth = Math.min(info.depth, 2); cruiseSpeed = .25 + .75 * info.act;
-    const nRes = Math.round(count * info.resident), cw = D.cages.west, cageBottom = depthAt(cw[0], cw[1]);
-    let total = 0; const cum = Array.from(info.free, (v) => (total += v));
-    const set = (k, g, tint) => {
+    const st = state(), info = dist(st), inSeason = cageSeason(st);
+    const count = info.pop, wNew = info.free;
+    fish.count = CAGE_N + count;
+    cruiseDepth = Math.min(info.depth, 2); cruiseSpeed = .25 + .75 * info.act;
+    const cw = D.cages.west, cageBottom = depthAt(cw[0], cw[1]), shareCruise = (1 - info.resident) * info.eff;
+    let total = 0; const cum = Array.from(wNew, (v) => (total += v));
+    const excess = prevFree ? Array.from(wNew, (v, i) => Math.max(0, v - prevFree[i])) : null;
+    const pickCum = (p) => { const v = p * total; let lo = 0, hi = cum.length - 1; while (lo < hi) { const m = lo + hi >> 1; if (cum[m] < v) lo = m + 1; else hi = m; } return lo; };
+    const set = (k, g, tint, start) => {
       fishTo[k] = g;
-      if (!fishCur[k]) fishCur[k] = { x: g.x, z: g.z, dep: g.dep, head: g.ph };
+      if (!fishCur[k]) { const o = start || g; fishCur[k] = { x: o.x, z: o.z, dep: g.dep, head: g.ph }; }
       fish.setColorAt(k, tint);
     };
-    for (let k = 0; k < fish.count; k++) {
-      const ph = r() * 6.28, u = (r() + k * .618) % 1, ox = (r() - .5) * 9, oz = (r() - .5) * 9, dd = (r() - .5) * .9;
-      if (k >= count) {   // 가두리 안
-        const c = k - count < CAGE_FISH ? D.cages.west : D.cages.east, a = r() * 6.28, m = Math.sqrt(r()) * 2.8;
-        set(k, { x: wx(c[0]) + Math.cos(a) * m, z: wz(c[1]) + Math.sin(a) * m, dep: .3 + r() * (CAGE_DEPTH - .45), ph, wob: .35 }, CAGE_TINT);
-      } else if (k >= nCruise && k < nCruise + nRes) {   // 중앙 가두리 곁과 아래
-        const a = r() * 6.28, under = cageBottom > CAGE_DEPTH + .2 && r() < .45;
-        const m = under ? Math.sqrt(r()) * CAGE_HALF : CAGE_HALF + r();
-        const dep = under ? CAGE_DEPTH + .1 + r() * (cageBottom - CAGE_DEPTH - .2) : .3 + r() * (CAGE_DEPTH - .3);
-        set(k, { x: wx(cw[0]) + Math.cos(a) * m, z: wz(cw[1]) + Math.sin(a) * m, dep, ph, wob: .3 }, tintFor(false, activity(info.Tm, st.h) * .7 * (.25 + .75 * r()), dep));
-      } else {
-        const pick = r() * total; let lo = 0, hi = cum.length - 1;
-        while (lo < hi) { const m = lo + hi >> 1; if (cum[m] < pick) lo = m + 1; else hi = m; }
-        const c = westCells[lo], cruise = k < nCruise;
-        let R = activity(info.evals[lo].T, st.h) * (.25 + .75 * r());
-        if (r() < .05 || r() < info.stir[lo]) R = 1;
-        if (r() < info.freshP[lo]) R = freshLevel(info.rel) === "high" ? 1 : .6;
-        const dep = clamp(info.lay[lo] + dd, .25, Math.max(.3, c.d - .15));
-        set(k, { cruise, x: wx(c.x + (r() - .5) * G.step * 2), z: wz(c.y + (r() - .5) * G.step * 2), dep, u, ox, oz, dd, ph, wob: 1.6 }, tintFor(cruise, R, cruise ? clamp(cruiseDepth + dd, .25, 3) : dep));
+    const relPt = RELEASE[st.release], freshStart = info.rel.share && info.rel.hours >= 0 && info.rel.hours <= 1 ? { x: wx(relPt[0]), z: wz(relPt[1]) } : null;
+    nCruise = 0;
+    for (let k = 0; k < FISH; k++) {
+      const S = fishSeed[k], j = k - CAGE_N;
+      if (k < CAGE_N) {   // 가두리 안: 앞 절반은 중앙 가두리, 뒤 절반은 부교 가두리에 늘 있습니다.
+        const c = k < CAGE_FISH ? D.cages.west : D.cages.east, m = Math.sqrt(S.m) * 2.8;
+        set(k, { hidden: !inSeason, x: wx(c[0]) + Math.cos(S.a) * m, z: wz(c[1]) + Math.sin(S.a) * m, dep: .3 + S.dr * (CAGE_DEPTH - .45), ph: S.ph, wob: .35 }, CAGE_TINT);
+        continue;
       }
+      if (j >= count) { fishCur[k] = fishTo[k] = undefined; fishCell[k] = fishRole[k] = undefined; continue; }   // 방류 전에는 없는 송어
+      const role = S.q < info.resident ? "res" : S.q < info.resident + shareCruise ? "cruise" : "free";
+      if (role === "res") {   // 중앙 가두리 곁과 아래
+        const under = cageBottom > CAGE_DEPTH + .2 && S.under < .45;
+        const m = under ? Math.sqrt(S.m) * CAGE_HALF : CAGE_HALF + S.m;
+        const dep = under ? CAGE_DEPTH + .1 + S.dr * (cageBottom - CAGE_DEPTH - .2) : .3 + S.dr * (CAGE_DEPTH - .3);
+        set(k, { x: wx(cw[0]) + Math.cos(S.a) * m, z: wz(cw[1]) + Math.sin(S.a) * m, dep, ph: S.ph, wob: .3 }, tintFor(false, activity(info.Tm, st.h) * .7 * (.25 + .75 * S.t0), dep));
+      } else {
+        // 머무는 칸: 처음엔 분포대로 고르고, 이후에는 분포가 줄어든 칸의 송어만 늘어난 칸 중 가까운 곳으로 옮깁니다.
+        let ci = fishCell[k];
+        const cur = fishCur[k];
+        if (ci === undefined) ci = cur ? Math.max(0, cellNear(...toPx(cur), wNew, S.p)) : pickCum(S.p);
+        else if (fishRole[k] !== "free" && cur) ci = Math.max(0, cellNear(...toPx(cur), wNew, S.p));
+        else if (excess && Math.random() > (prevFree[ci] ? Math.min(1, wNew[ci] / prevFree[ci]) : 0)) { const n = cur ? cellNear(...toPx(cur), excess, Math.random()) : -1; if (n >= 0) ci = n; }
+        fishCell[k] = ci;
+        const c = westCells[ci], cruise = role === "cruise";
+        if (cruise) nCruise++;
+        let R = activity(info.evals[ci].T, st.h) * (.25 + .75 * S.t0);
+        if (S.t1 < .05 || S.t2 < info.stir[ci]) R = 1;
+        if (S.t3 < info.freshP[ci]) R = freshLevel(info.rel) === "high" ? 1 : .6;
+        const dep = clamp(info.lay[ci] + S.dd, .25, Math.max(.3, c.d - .15));
+        set(k, { cruise, x: wx(c.x + S.jx * G.step * 2), z: wz(c.y + S.jy * G.step * 2), dep, u: S.u, ox: S.ox, oz: S.oz, dd: S.dd, ph: S.ph, wob: 1.6 }, tintFor(cruise, R, cruise ? clamp(cruiseDepth + S.dd, .25, 3) : dep), j >= st.total ? freshStart : null);
+      }
+      fishRole[k] = role;
     }
+    prevFree = Float64Array.from(wNew);
     fish.instanceColor.needsUpdate = true;
   }
   function drawFish(t) {
@@ -822,10 +908,12 @@
       } else {
         tx = g.x + Math.sin(t * .3 + g.ph) * g.wob; tz = g.z + Math.cos(t * .27 + g.ph) * g.wob; td = g.dep; rate = .03;
       }
-      const dx = (tx - c.x) * rate, dz = (tz - c.z) * rate;
+      let dx = (tx - c.x) * rate, dz = (tz - c.z) * rate;
+      const step = Math.hypot(dx, dz), cap = SWIM * dt;   // 멀리 가야 해도 헤엄치는 속도로만 움직입니다.
+      if (step > cap) { dx *= cap / step; dz *= cap / step; }
       c.x += dx; c.z += dz; c.dep += (td - c.dep) * rate;
       if (Math.hypot(dx, dz) > 1e-4) { let a = Math.atan2(dz, dx) - c.head; a = Math.atan2(Math.sin(a), Math.cos(a)); c.head += a * .12; }
-      dummy.position.set(c.x, -c.dep * ve, c.z);
+      dummy.position.set(c.x, -c.dep * ve, c.z); dummy.scale.setScalar(g.hidden ? 0 : 1);
       dummy.rotation.y = -c.head + Math.sin(t * 5 + g.ph) * .1;
       dummy.updateMatrix(); fish.setMatrixAt(k, dummy.matrix);
     }
@@ -988,6 +1076,7 @@
     $("recTitle").textContent = `${nice(st.s)} ${fmtH(st.h)} 추천 자리`;
     setWind(st); condBox(st, list[0]);
     const info = dist(st);
+    setRelease(st, info.rel);
     mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
     drawIce(st);
     water.material.color.setHex(st.k === 2 ? 0x8f7c52 : 0x2f7fa3);
@@ -1150,6 +1239,7 @@
   $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; go(new THREE.Vector3(...DEFAULT_VIEW.cam), new THREE.Vector3(...DEFAULT_VIEW.tgt)); };
   document.querySelector(".side").addEventListener("input", saveSettings);
   controls.addEventListener("end", saveSettings);
+  $("resetIcon").onclick = () => { if (confirm("옵션과 시점을 처음 설정으로 되돌릴까요?")) $("settingsReset").click(); };
   $("settingsSave").onclick = () => { saveSettings(); $("settingsSave").textContent = "저장했습니다"; setTimeout(() => { $("settingsSave").textContent = "설정 현재상태로"; }, 1500); };
   $("settingsReset").onclick = () => { try { localStorage.removeItem("deokbongSettings"); } catch (e) { /* 무시 */ } document.querySelector(".side").removeEventListener("input", saveSettings); controls.removeEventListener("end", saveSettings); location.reload(); };
   document.querySelectorAll(".wheel-sw").forEach((e) => e.addEventListener("input", () => { refreshWheels(); panel(); }));
@@ -1163,8 +1253,8 @@
     if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }
     controls.update();
     const under = camera.position.y < 0;
-    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); window.__lastT = now; drawFish(now); renderer.render(scene, camera); })();
-  window.__model = { ranks, state, cells: cells.length };
+    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); window.__lastT = now; drawFish(now); renderer.render(scene, camera); })();
+  window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N };
 })();
 </script>
 </body>
