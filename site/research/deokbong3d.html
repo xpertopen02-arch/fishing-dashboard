@@ -96,6 +96,21 @@
 
     .side { border-left:0; border-top:1px solid var(--line); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
   }
+  /* 지도 아래 세 상자(수심, 날씨 글, 날씨 그림)는 같은 높이로 맞춥니다. 날씨 글은 다섯 줄입니다. */
+  .stage { --boxH:70px; }
+  .legend, .cond { height:var(--boxH); }
+  .legend { display:flex; flex-direction:column; justify-content:space-between; font-size:11px; line-height:1.2; }
+  .legend i { height:12px; margin:0; }
+  .cond .ctext, .cond .cicon { height:100%; }
+  .cond .ctext { font-size:10.2px; line-height:1.21; padding:3px 8px; display:flex; flex-direction:column; justify-content:space-between; }
+  .cond .cicon { padding:3px 6px; justify-content:space-between; font-size:10.2px; line-height:1.21; }
+  .cond .cicon svg { height:calc(var(--boxH) - 8px - 1.3em); }
+  @media (max-width: 760px) {
+    .stage { --boxH:64px; }
+    .cond .ctext, .cond .cicon { font-size:9.4px; }
+    .cond .ctext { padding:2px 5px; }
+    .cond .cicon { padding:2px 4px; }
+  }
 </style>
 </head>
 <body>
@@ -759,12 +774,14 @@
   // 수심 눈금: 선을 따라 1m마다 가로선을 긋고, 가장 깊은 곳에 세로 자와 숫자를 둡니다. 수심 과장 배율을 따라 늘어납니다.
   const rawDepth = (px, py) => { const i = Math.round((px - D.crop[0]) / G.step), j = Math.round((py - D.crop[1]) / G.step); return i >= 0 && j >= 0 && i < G.nx && j < G.ny ? G.depth[j * G.nx + i] || 0 : 0; };
   function depthRuler(pts, parent, color) {
-    const seg = [], maxD = Math.max(...pts.map((p) => p.d)), deep = pts.reduce((b, p) => (p.d > b.d ? p : b), pts[0]);
-    for (let z = 1; z < maxD; z++) for (let i = 0; i < pts.length - 1; i++) if (pts[i].d >= z && pts[i + 1].d >= z) seg.push(wx(pts[i].x), -z, wz(pts[i].y), wx(pts[i + 1].x), -z, wz(pts[i + 1].y));
-    for (let i = 0; i < pts.length - 1; i++) if (pts[i].d && pts[i + 1].d) seg.push(wx(pts[i].x), -pts[i].d, wz(pts[i].y), wx(pts[i + 1].x), -pts[i + 1].d, wz(pts[i + 1].y));   // 바닥선
-    seg.push(wx(deep.x), 0, wz(deep.y), wx(deep.x), -deep.d, wz(deep.y));   // 세로 자
-    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(seg, 3));
-    const lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity: .85 }));
+    const seg = [], col = [], maxD = Math.max(...pts.map((p) => p.d)), deep = pts.reduce((b, p) => (p.d > b.d ? p : b), pts[0]);
+    const near = new THREE.Color(color), far = new THREE.Color(0x4f8ea6), tint = (z) => near.clone().lerp(far, clamp(z / Math.max(1, maxD), 0, 1) * .75);
+    const add = (a, b, za, zb) => { seg.push(...a, ...b); const ca = tint(za), cb = tint(zb); col.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b); };
+    for (let z = 1; z < maxD; z++) for (let i = 0; i < pts.length - 1; i++) if (pts[i].d >= z && pts[i + 1].d >= z) add([wx(pts[i].x), -z, wz(pts[i].y)], [wx(pts[i + 1].x), -z, wz(pts[i + 1].y)], z, z);
+    for (let i = 0; i < pts.length - 1; i++) if (pts[i].d && pts[i + 1].d) add([wx(pts[i].x), -pts[i].d, wz(pts[i].y)], [wx(pts[i + 1].x), -pts[i + 1].d, wz(pts[i + 1].y)], pts[i].d * .6, pts[i + 1].d * .6);   // 바닥선은 조금 더 또렷하게
+    add([wx(deep.x), 0, wz(deep.y)], [wx(deep.x), -deep.d, wz(deep.y)], 0, deep.d);   // 세로 자
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(seg, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    const lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .42, depthWrite: false }));
     lines.renderOrder = 6; lines.frustumCulled = false; parent.add(lines);
     const marks = [];
     for (let z = 1; z <= Math.floor(maxD); z++) { const sp = label(`${z}m`, wx(deep.x), -z, wz(deep.y), "fac", .015); parent.add(sp); marks.push([sp, z]); }
@@ -772,7 +789,7 @@
     return (ve) => { lines.scale.y = ve; marks.forEach(([m, z]) => { m.position.y = -z * ve; }); };
   }
   const causewayPts = Array.from({ length: 61 }, (_, i) => { const t = i / 60, x = D.causeway[0][0] + (D.causeway[1][0] - D.causeway[0][0]) * t, y = D.causeway[0][1] + (D.causeway[1][1] - D.causeway[0][1]) * t; return { x, y, d: rawDepth(x, y) }; });
-  const rulers = [depthRuler(causewayPts, fac, 0xffe08a), depthRuler(cutCols, curtain, 0xffffff)];
+  const rulers = [depthRuler(causewayPts, fac, 0xcfeaf3), depthRuler(cutCols, curtain, 0xe6f3f7)];
   function drawCurtain(st) {
     const vals = []; let lo = 99, hi = -99;
     cutCols.forEach((c) => { const v = vAt(zoneV(st, st.h, c.z), c.rainF, st); for (let r = 0; r < ROWS; r++) { const T = tempAt(v, c.d, Math.max(.05, c.d * r / (ROWS - 1)), st, kOf(c.clean, st), c.wheel); vals.push(T); lo = Math.min(lo, T); hi = Math.max(hi, T); } });
@@ -810,7 +827,8 @@
     clean: [[.48, .36, .2], [.25, .55, .55], [.72, .95, 1]],
     fish: [[.1, .13, .22], [.2, .4, .55], [.95, .8, .3], [.95, .35, .2]],
   };
-  const LEG = { depth: ["수심", "얕음", "4.5m", "depth"], temp: ["윗층 수온", "0℃", "10℃", "temp"], tempb: ["바닥 쪽 수온", "0℃", "10℃", "temp"], do: ["바닥 쪽 산소", "6mg/L", "14mg/L", "do"], clean: ["맑은 물 영향", "탁함", "맑음", "clean"], fish: ["송어 예상 밀도 (상대값)", "낮음", "높음", "fish"], bite: ["반응 좋은 송어 밀도 (상대값)", "낮음", "높음", "fish"] };
+  const MAXD = Math.max(...G.depth);   // 가장 깊은 곳 (현재 약 5.0m)
+  const LEG = { depth: ["수심", "얕음", `${MAXD.toFixed(1)}m`, "depth"], temp: ["윗층 수온", "0℃", "10℃", "temp"], tempb: ["바닥 쪽 수온", "0℃", "10℃", "temp"], do: ["바닥 쪽 산소", "6mg/L", "14mg/L", "do"], clean: ["맑은 물 영향", "탁함", "맑음", "clean"], fish: ["송어 예상 밀도 (상대값)", "낮음", "높음", "fish"], bite: ["반응 좋은 송어 밀도 (상대값)", "낮음", "높음", "fish"] };
   function paint() {
     const st = state(), mode = $("mode").value;
     let maxW = 1e-9; const ev = {};
@@ -824,7 +842,7 @@
     cells.forEach((c) => {
       const n = c.j * G.nx + c.i, v = vAt(zoneV(st, st.h, c.z), c.rainF, st);
       let rgb;
-      if (mode === "depth") rgb = lerpCol(RAMP.depth, c.d / 4.5);
+      if (mode === "depth") rgb = lerpCol(RAMP.depth, c.d / MAXD);
       else if (mode === "temp") rgb = lerpCol(RAMP.temp, (tempAt(v, c.d, .2, st, kOf(c.clean, st), c.wheel) - tLo) / (tHi - tLo));
       else if (mode === "tempb") rgb = lerpCol(RAMP.temp, (tempAt(v, c.d, c.d * .9, st, kOf(c.clean, st), c.wheel) - tLo) / (tHi - tLo));
       else if (mode === "clean") rgb = lerpCol(RAMP.clean, st.k === 2 ? c.clean : 1);
@@ -1117,7 +1135,7 @@
     const up = tempAt(v, probe.d, .3, st, k, probe.wheel), down = tempAt(v, probe.d, probe.d * .9, st, k, probe.wheel);
     const extra = [st.rain ? "비 온 다음날" : "", iceAt(st) >= .3 ? "동쪽 못 얼음" : ""].filter(Boolean).join(" · ");
     const [wd, ws, , wg] = windAt(st), wName = "북 북동 동 남동 남 남서 서 북서".split(" ")[Math.round(wd / 45) % 8];
-    $("cond").innerHTML = `<div class="ctext"><span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span class="${ws >= 4 ? "windy" : ""}">바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s (돌풍 ${wg.toFixed(1)})</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}</div><div class="cicon" title="${sky}, 바람 ${wName}풍 ${ws.toFixed(1)}m/s">${skyIcon(sky, st.h)}<div class="cwind ${ws >= 4 ? "windy" : ""}"><i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i>${ws.toFixed(1)}m/s</div></div>`;
+    $("cond").innerHTML = `<div class="ctext"><span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span class="${ws >= 4 ? "windy" : ""}">바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s (돌풍 ${wg.toFixed(1)})</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃${extra ? ` · ${extra}` : ""}</span></div><div class="cicon" title="${sky}, 바람 ${wName}풍 ${ws.toFixed(1)}m/s">${skyIcon(sky, st.h)}<div class="cwind ${ws >= 4 ? "windy" : ""}"><i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i>${ws.toFixed(1)}m/s</div></div>`;
     $("cond").title = `${md ? (f ? "날씨는 Open-Meteo 예보" : "날씨는 지난 3년 같은 날짜 평균(평년)") : "날씨 흐름 예시"}. 수온은 부교와 가두리 사이 추정값이며 평년 날씨로 계산했습니다.`;
   }
   function panel() {

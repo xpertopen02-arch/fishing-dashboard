@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.81", date: "2026-11-07", title: "덕봉 수심 5.0m와 아래 상자 정리",
+    changes: [
+      "가장 깊은 곳을 4.5m에서 5.0m로, 전체 수심을 같은 비율(약 1.11배)로 깊게 하고 수온, 산소, 얼음 계산을 다시 함 (평균 수심 2.8m → 3.1m)",
+      "수심 눈금선을 흰 직선 대신 옅은 하늘색 반투명 선으로, 깊을수록 물빛에 가깝게 표시",
+      "지도 아래 수심, 날씨 글, 날씨 그림 상자의 높이를 같게 맞추고 날씨 글을 다섯 줄로 정리",
+    ],
+  },
+  {
     version: "1.80", date: "2026-11-07", title: "방류 활성도와 날씨 상자",
     changes: [
       "방류된 송어는 높은 활성도로 표시",
