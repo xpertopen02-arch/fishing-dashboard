@@ -1050,11 +1050,13 @@
     return `<svg viewBox="0 0 ${W} ${H}" class="temp-chart" role="img" aria-label="계절별 수온 실측값">${grid}${axis}${curves}${dots}${marks}</svg>`;
   }
 
-  // 이 PC에서 열면 베타: 공개판에 PC 전용 자료를 더해 보여 줍니다.
-  const IS_BETA = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+  // 베타는 테마 버튼을 빠르게 12번 눌러 켭니다. PC 전용 파일은 이 PC에서 열 때만 불러옵니다.
+  const CAN_LOAD_PRIVATE = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+  let IS_BETA = false;
+  try { IS_BETA = localStorage.getItem("fishBeta") === "1"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [...(window.FISH_NOTES ? [["study", "카페 자료"]] : []), ...(window.FISH_RESEARCH_GUIDE ? [["research", "문헌조사"]] : []), ...(window.FISH_DEOKBONG_GUIDE ? [["deokbong", "덕봉 정리"]] : []), ...(window.FISH_VIDEO_GUIDE ? [["video", "영상 가이드"]] : []), ...(window.FISH_BOOK_GUIDE ? [["book", "북가이드"]] : [])];
+    const tabs = [...(window.FISH_NOTES ? [["study", "카페 자료"]] : []), ...(window.FISH_DEOKBONG_GUIDE ? [["model", "덕봉 3D"], ["summary", "덕봉 정리·문헌"]] : []), ...(window.FISH_VIDEO_GUIDE ? [["video", "영상 가이드"]] : []), ...(window.FISH_BOOK_GUIDE ? [["book", "북가이드"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -1075,12 +1077,23 @@
 
   const YOUTUBE_ICON = '<svg class="yt-icon" viewBox="0 0 28 20" aria-hidden="true"><rect width="28" height="20" rx="5" fill="#f00"/><path d="M11 5.5v9l8-4.5z" fill="#fff"/></svg>';
 
+  const notesTag = () => (["model", "summary"].includes(state.notes.tab) ? "공개 자료" : "베타 · 이 PC에서만 표시");
+
+  function renderModel() {
+    $("#view-notes").innerHTML = `
+      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
+      ${notesTabs()}
+      <div class="panel"><p class="sub">저수지 구조를 돌려 보며 날씨와 시각에 따른 추천 자리와 송어 예상 분포를 봅니다. 값은 모두 가설입니다. <a href="research/deokbong3d.html" target="_blank" rel="noopener noreferrer">새 창으로 크게 보기</a></p>
+        <iframe class="model-frame" src="research/deokbong3d.html" title="덕봉저수지 3D 모델"></iframe>
+      </div>`;
+  }
+
   function renderChapterGuide(g) {
     const c = g.chapters[state.notes.chapters[state.notes.tab] || 0] || g.chapters[0];
     const chip = (x) => `<button class="chip ${x === c ? "on" : ""}" data-guide-chapter="${g.chapters.indexOf(x)}"${x.icon ? ` aria-label="${esc(x.short)}" title="${esc(x.short)}"` : ""}>${x.icon === "youtube" ? YOUTUBE_ICON : esc(x.short || x.title.split(".")[0])}</button>`;
     const groups = [...new Set(g.chapters.map((x) => x.group))];
     $("#view-notes").innerHTML = `
-      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${["research", "deokbong"].includes(state.notes.tab) ? "공개 자료" : "베타 · 이 PC에서만 표시"}</span></div></div>
+      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
       ${notesTabs()}
       <div class="panel"><h2>${esc(g.title)}</h2><p class="sub">${esc(g.sub)}</p>
         ${groups.map((name) => `<div class="filter-row guide-chapters">${name ? `<span class="guide-group">${esc(name)}</span>` : ""}${g.chapters.filter((x) => x.group === name).map(chip).join("")}</div>`).join("")}
@@ -1089,11 +1102,15 @@
   }
 
   function renderNotes() {
-    if (!window.FISH_NOTES && state.notes.tab === "study") state.notes.tab = "research";
+    if (!window.FISH_NOTES && state.notes.tab === "study") state.notes.tab = "model";
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
     if (window.FISH_BOOK_GUIDE && state.notes.tab === "book") { renderChapterGuide(window.FISH_BOOK_GUIDE); return; }
-    if (window.FISH_RESEARCH_GUIDE && state.notes.tab === "research") { renderChapterGuide(window.FISH_RESEARCH_GUIDE); return; }
-    if (window.FISH_DEOKBONG_GUIDE && state.notes.tab === "deokbong") { renderChapterGuide(window.FISH_DEOKBONG_GUIDE); return; }
+    if (state.notes.tab === "model") { renderModel(); return; }
+    if (state.notes.tab === "summary") {
+      const d = window.FISH_DEOKBONG_GUIDE, r = window.FISH_RESEARCH_GUIDE;
+      renderChapterGuide({ title: "덕봉 정리와 문헌", sub: `${d.sub} ${r.sub}`, chapters: [...d.chapters, ...r.chapters] });
+      return;
+    }
     const n = window.FISH_NOTES;
     const places = [...new Set(n.temperatures.map((r) => r.place))];
     const placeColors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
@@ -1197,14 +1214,14 @@
     });
     const refresh = () => { if (!$("#view-notes").hidden) renderNotes(); };
     (async () => {
-      if (IS_BETA && await load("private/notes.js") && window.FISH_NOTES) renderBrief();
+      if (IS_BETA && CAN_LOAD_PRIVATE && await load("private/notes.js") && window.FISH_NOTES) renderBrief();
       await Promise.all(["research_guide", "deokbong_guide"].map((name) => load(`research/${name}.js`)));
       if (window.FISH_NOTES || window.FISH_RESEARCH_GUIDE) {
         $('.tabs [data-go="notes"]').hidden = false;
         moveInk();
         if (initialView === "notes") go("notes", false);
       }
-      if (IS_BETA) ["video_guide", "book_guide"].forEach((name) => load(`private/${name}.js`).then(refresh));
+      if (IS_BETA && CAN_LOAD_PRIVATE) ["video_guide", "book_guide"].forEach((name) => load(`private/${name}.js`).then(refresh));
     })();
   }
 
@@ -1397,6 +1414,21 @@
   $("#verBtn").addEventListener("click", openVersions);
   $("#searchClose").addEventListener("click", () => { $("#searchLayer").hidden = true; });
   $("#searchInput").addEventListener("input", runSearch);
+  let eggCount = 0, eggLast = 0;
+  $("#themeBtn").addEventListener("click", () => {
+    const now = Date.now();
+    eggCount = now - eggLast < 450 ? eggCount + 1 : 1;
+    eggLast = now;
+    if (eggCount < 12) return;
+    eggCount = 0;
+    const next = !IS_BETA;
+    try { if (next) localStorage.setItem("fishBeta", "1"); else localStorage.removeItem("fishBeta"); } catch (e) { return; }
+    const toast = document.createElement("div");
+    toast.className = "egg-toast";
+    toast.textContent = !next ? "공개판으로 돌아갑니다" : CAN_LOAD_PRIVATE ? "베타를 켭니다" : "베타 표시를 켭니다. PC 전용 자료는 이 PC에서 열 때만 보입니다";
+    document.body.append(toast);
+    setTimeout(() => location.reload(), 1600);
+  });
   $("#themeBtn").addEventListener("click", () => {
     const next = isDark() ? "light" : "dark";
     document.documentElement.dataset.theme = next;

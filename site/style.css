@@ -463,3 +463,11 @@ details.table-view summary { cursor: pointer; font-size: 13px; color: var(--ink-
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   .pin.sel::after { display: none; }
 }
+.egg-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 100; max-width: calc(100vw - 32px); padding: 9px 16px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 14px; }
+.lit-tag { font-size: 12px; color: var(--ink-3, var(--ink-2)); }
+.lit-tr { font-size: 12px; margin-left: 2px; font-weight: 400; }
+.lit-sum { margin: 3px 0 6px; }
+.lit-sum summary { display: inline-block; cursor: pointer; font-size: 12px; padding: 0 8px; border: 1px solid var(--border); border-radius: 10px; }
+.lit-sum[open] summary { margin-bottom: 4px; }
+.lit-sum p { margin: 3px 0; font-size: 13.5px; }
+.lit-more { font-weight: 600; margin-top: 6px !important; }

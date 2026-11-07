@@ -1,6 +1,15 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.42", date: "2026-11-07", title: "덕봉 3D에 얼음과 비 옵션 추가",
+    changes: [
+      "부교 동쪽 못의 얼음을 날짜별로 계산해 3D와 달력에 표시",
+      "비 온 다음날 옵션, 웜 내용 켜고 끄기, 옵션과 시점 기억 추가",
+      "연구 노트를 덕봉 3D 탭과 덕봉 정리·문헌 탭으로 재구성",
+      "문헌에 원문 링크, 번역 버튼, 요약 버튼 추가",
+    ],
+  },
+  {
     version: "1.41", date: "2026-11-07", title: "연구 노트 일부 공개, 공개판과 베타 구분",
     changes: [
       "덕봉 3D, 덕봉 정리, 문헌조사를 공개하고 3D 지면은 직접 그린 그림으로 표시",
