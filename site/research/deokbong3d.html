@@ -50,6 +50,7 @@
   td.cell:hover, td.on { background:color-mix(in srgb, var(--accent) 18%, transparent); font-weight:600; }
   .tools { position:absolute; left:10px; top:10px; display:flex; flex-direction:column; gap:4px; z-index:3; }
   .tools button { width:26px; height:26px; padding:0; font-size:13px; line-height:1; }
+  .tools button.on { background:var(--accent); color:#fff; border-color:var(--accent); font-size:9px; letter-spacing:-1px; }
   .tools button.armed { background:#d9534f; color:#fff; border-color:#d9534f; }
   .readout { position:absolute; left:10px; bottom:116px; max-width:calc(100% - 20px); z-index:3; pointer-events:none; font-size:11px; color:#fff; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
   .views { position:absolute; left:44px; top:10px; right:10px; z-index:3; display:flex; flex-wrap:wrap; gap:4px; }
@@ -144,6 +145,7 @@
       <button id="zIn" aria-label="확대">+</button>
       <button id="zOut" aria-label="축소">−</button>
       <button id="home" aria-label="처음 시점" title="처음 시점">⌂</button>
+      <button id="spinBtn" aria-label="지도 회전" title="지도 회전">⟳</button>
       <button id="resetIcon" aria-label="설정 처음으로" title="설정 처음으로"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg></button>
     </div>
     <div class="readout" id="readout">끌기 회전 · 오른쪽 끌기 이동 · Ctrl+스크롤, +/− 확대 · 더블클릭 다가가기</div>
@@ -1225,7 +1227,7 @@ attribute vec2 aSwim;`)
     const info = dist(st);
     setRelease(st, info.rel);
     const hd = hotDepth(info);
-    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `반응 좋은 송어 ${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "반응 좋은 송어 적음"}</div>`;
+    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응 좋은 송어의 주요 공략 수심: 반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "–"}</div>`;
     mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
     drawIce(st);
     water.material.color.setHex(st.k === 2 ? 0x8f7c52 : 0x2f7fa3);
@@ -1301,7 +1303,10 @@ attribute vec2 aSwim;`)
   ["scenario", "hour", "inflow", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH", "fishColor", "castMode", "castR"].forEach((id) => $(id).addEventListener("input", panel));
   $("mode").addEventListener("input", paint);
   $("ve").addEventListener("input", applyVe);
-  $("spin").addEventListener("input", (e) => { controls.autoRotate = e.target.checked; });
+  // 지도 회전/정지 버튼: 화면 옵션의 '자동 회전'과 같이 움직입니다.
+  function syncSpinBtn() { const on = $("spin").checked; $("spinBtn").textContent = on ? "❚❚" : "⟳"; $("spinBtn").title = on ? "회전 멈추기" : "지도 회전"; $("spinBtn").setAttribute("aria-label", $("spinBtn").title); $("spinBtn").classList.toggle("on", on); }
+  $("spin").addEventListener("input", (e) => { controls.autoRotate = e.target.checked; syncSpinBtn(); });
+  $("spinBtn").onclick = () => { $("spin").checked = !$("spin").checked; $("spin").dispatchEvent(new Event("input", { bubbles: true })); };
   const vis = { lWater: water, lFish: fish, lRec: recGroup, lFac: fac, lText: texts, lCut: curtain, lWind: windLines };
   $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
   Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
@@ -1398,7 +1403,7 @@ attribute vec2 aSwim;`)
     focus(now) { const t = at(321, 500, -3), k = aspectScale(); go(t.clone().add(new THREE.Vector3(-20 * k, 52 * k, 62 * k)), t, now); },
     west() { const t = at(240, 510, -2), k = aspectScale(); go(t.clone().add(new THREE.Vector3(0, 82 * k, 88 * k)), t); },
     cage() { const t = at(256, 514, -3), k = aspectScale(); go(t.clone().add(new THREE.Vector3(-8 * k, 12 * k, 20 * k)), t); },
-    top() { $("spin").checked = false; controls.autoRotate = false; const k = aspectScale(); go(new THREE.Vector3(0, 300 * k, 1), new THREE.Vector3(0, 0, 0)); },
+    top() { $("spin").checked = false; controls.autoRotate = false; syncSpinBtn(); const k = aspectScale(); go(new THREE.Vector3(0, 300 * k, 1), new THREE.Vector3(0, 0, 0)); },
     under() { const ve = +$("ve").value; go(at(235, 525, -ve * .8), at(345, 490, -ve * 1.6)); },
     all() { const k = Math.max(1, 1.08 / (view.clientWidth / view.clientHeight)); go(new THREE.Vector3(HOME[0] * k, HOME[1] * k, HOME[2] * k), new THREE.Vector3()); },
   };
@@ -1454,7 +1459,7 @@ attribute vec2 aSwim;`)
     Object.keys(vis).forEach((id) => { vis[id].visible = $(id).checked; });
     water.material.opacity = +$("waterOp").value;
     controls.autoRotate = $("spin").checked;
-    spinDraw(); fishDraw();
+    spinDraw(); fishDraw(); syncSpinBtn();
   };
   const INIT = Object.fromEntries(KEEP.map((id) => { const e = $(id); return [id, e.type === "checkbox" ? e.checked : e.value]; }));   // 페이지에 적힌 처음 값
   applySettings(DEFAULT_VIEW);
@@ -1462,7 +1467,7 @@ attribute vec2 aSwim;`)
     const o = JSON.parse(localStorage.getItem("deokbongSettings") || "null");
     if (o) applySettings(o);
   } catch (e) { /* 저장값이 깨졌으면 기본값 */ }
-  $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; go(new THREE.Vector3(...DEFAULT_VIEW.cam), new THREE.Vector3(...DEFAULT_VIEW.tgt)); };
+  $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; syncSpinBtn(); go(new THREE.Vector3(...DEFAULT_VIEW.cam), new THREE.Vector3(...DEFAULT_VIEW.tgt)); };
   document.querySelector(".side").addEventListener("input", saveSettings);
   controls.addEventListener("end", saveSettings);
   // 설정 처음으로: 저장값을 지우고 그 자리에서 처음 옵션과 시점으로 돌립니다. (그림 버튼과 아래 버튼이 같은 동작)

@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.97", date: "2026-11-08", title: "물가 비탈과 회전 버튼",
+    changes: [
+      "남쪽과 서쪽을 향한 물가의 비탈 폭을 약 8m에서 16m로 넓혀 더 천천히 깊어지게 하고 수온, 산소, 얼음 계산을 다시 함 (평균 수심 3.15m → 2.98m)",
+      "디지털 시계 아래 글자에서 '반응 좋은 송어'를 빼고 수심과 카운트만 표시",
+      "지도 왼쪽 위 버튼 줄에 회전/정지 버튼 추가 (화면 옵션의 자동 회전과 함께 바뀜)",
+    ],
+  },
+  {
     version: "1.96", date: "2026-11-08", title: "반응 좋은 송어 수심",
     changes: [
       "디지털 시계 아래에 반응 좋은 송어의 주요 공략 수심(가운데 절반 구간)과 카운트를 시계 절반 크기로 표시",
