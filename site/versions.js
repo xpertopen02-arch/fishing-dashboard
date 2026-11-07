@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.60", date: "2026-11-07", title: "반응성 색상 변경",
+    changes: [
+      "송어 반응성 색을 좋음은 파랑, 낮음은 빨강으로 변경",
+    ],
+  },
+  {
     version: "1.59", date: "2026-11-07", title: "캐스팅 범위를 부채꼴로 변경",
     changes: [
       "정면과 중앙 가두리 쪽 캐스팅 범위를 출발 지점 중심의 부채꼴로 변경 (도달 거리에서 폭 5m)",
