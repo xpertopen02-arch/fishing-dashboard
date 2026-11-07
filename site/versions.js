@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.44", date: "2026-11-07", title: "가두리 송어, 물골 깊이, 데크 이름 반영",
+    changes: [
+      "가두리 깊이 2m와 안팎의 송어를 3D 분포에 반영 (11월 초~3월 말)",
+      "유입구에서 동쪽으로 이어지는 물골을 50cm 이상 깊이로 수정",
+      "남줄과 서줄을 남쪽 데크, 서쪽 데크의 측면과 중앙으로 변경",
+    ],
+  },
+  {
     version: "1.43", date: "2026-11-07", title: "비 온 다음날을 새물 유입 성격으로 이동",
     changes: [
       "비 온 다음날을 새물 유입 성격에서 고르고, 유입 수온은 선택한 날짜의 기온에 연동",
