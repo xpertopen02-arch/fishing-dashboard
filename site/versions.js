@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.72", date: "2026-11-07", title: "덕봉 3D 휴대폰 화면",
+    changes: [
+      "휴대폰에서 덕봉 3D 지도는 위에 고정하고 아래 조건만 스크롤되도록 변경",
+    ],
+  },
+  {
     version: "1.71", date: "2026-11-07", title: "수온 실측 접기",
     changes: [
       "수온 실측을 평소에 접어 두고 이름을 누르면 펼치도록 변경",

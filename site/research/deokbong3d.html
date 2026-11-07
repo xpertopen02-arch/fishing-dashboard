@@ -62,7 +62,13 @@
   .fail { padding:30px; }
   ul { margin:4px 0; padding-left:18px; font-size:12.5px; color:var(--ink2); }
   li { margin-bottom:3px; }
-  @media (max-width: 760px) { .wrap { grid-template-columns:minmax(0,1fr); height:auto; } .stage { height:64vh; } .side { border-left:0; } }
+  /* 휴대폰: 지도는 위에 고정하고 아래 조건만 스크롤합니다. PC는 조건이 옆에서 스크롤됩니다. */
+  @media (max-width: 760px) {
+    html, body { overflow:hidden; }
+    .wrap { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(240px,46vh) minmax(0,1fr); grid-template-rows:minmax(240px,46dvh) minmax(0,1fr); height:100vh; height:100dvh; }
+    .stage { min-height:0; }
+    .side { border-left:0; border-top:1px solid var(--line); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  }
 </style>
 </head>
 <body>
