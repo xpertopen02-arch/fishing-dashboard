@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.51", date: "2026-11-07", title: "수차 7대 위치 반영",
+    changes: [
+      "찍어 주신 수차 7대를 덕봉 3D에 표시하고 수온, 산소, 송어 분포 계산에 반영",
+    ],
+  },
+  {
     version: "1.50", date: "2026-11-07", title: "새물과 방류 후 입질 관찰 반영",
     changes: [
       "덕봉 3D 기본 새물을 눈 녹은 물로 변경, 방류 후 활발한 입질을 약 1시간으로 변경",
