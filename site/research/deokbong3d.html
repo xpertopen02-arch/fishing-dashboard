@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive, noimageindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>덕봉저수지 3D</title>
+<style>
+  :root { --bg:#f4f4f1; --panel:#fff; --ink:#20252b; --ink2:#59626c; --line:#d9dcd6; --accent:#1c5cab; --warn:#a4561b; --sky:#dfe9ef; --neon:#39e6ff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#16191d; --panel:#20252b; --ink:#eceef0; --ink2:#a7afb8; --line:#39404a; --accent:#86b6ef; --warn:#e8a36a; --sky:#20282f; } }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:14px/1.5 -apple-system,"Segoe UI","Malgun Gothic",sans-serif; }
+  .wrap { display:grid; grid-template-columns:minmax(0,1fr) 350px; height:100%; }
+  .stage { position:relative; min-height:420px; overflow:hidden; background:var(--sky); }
+  #view { position:absolute; inset:0; cursor:grab; }
+  #view:active { cursor:grabbing; }
+  .side { overflow:auto; padding:12px 14px 20px; background:var(--panel); border-left:1px solid var(--line); }
+  h1 { font-size:17px; margin:0 0 2px; }
+  h2 { font-size:14px; margin:16px 0 6px; }
+  .note { color:var(--ink2); font-size:12.5px; margin:2px 0 6px; }
+  label.f { display:block; margin:7px 0; font-size:13px; color:var(--ink2); }
+  select, input[type=range] { width:100%; }
+  select { padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font:inherit; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .row label { display:inline-flex; gap:4px; align-items:center; font-size:13px; }
+  button { white-space:nowrap; flex:none; font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:2px 9px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .time { display:flex; gap:8px; align-items:center; }
+  .time b { min-width:44px; font-variant-numeric:tabular-nums; }
+  .rec { border:1px solid var(--line); border-radius:8px; padding:7px 9px; margin:6px 0; }
+  .rec b { display:block; }
+  .rec.top { border-color:var(--accent); border-width:2px; }
+  .rec span { display:block; font-size:12.5px; color:var(--ink2); }
+  .warn { color:var(--warn); font-size:12.5px; margin:6px 0; }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th, td { border-bottom:1px solid var(--line); padding:3px 3px; text-align:left; font-weight:400; }
+  th { color:var(--ink2); }
+  td.cell { cursor:pointer; }
+  td.cell:hover, td.on { background:color-mix(in srgb, var(--accent) 18%, transparent); font-weight:600; }
+  .tools { position:absolute; left:10px; top:10px; display:flex; flex-direction:column; gap:4px; z-index:3; }
+  .tools button { width:32px; height:32px; padding:0; font-size:16px; }
+  .readout { position:absolute; left:10px; bottom:72px; max-width:calc(100% - 20px); z-index:3; pointer-events:none; font-size:12.5px; color:#fff; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
+  .views { position:absolute; left:50px; top:10px; right:10px; z-index:3; display:flex; flex-wrap:wrap; gap:4px; }
+  .legend { position:absolute; left:10px; bottom:10px; z-index:3; color:#fff; font-size:12px; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
+  .legend i { display:block; width:170px; height:9px; border-radius:3px; margin:3px 0; }
+  .fold { margin:12px 0; }
+  .fold summary { cursor:pointer; font-size:14px; font-weight:700; }
+  .fold[open] summary { margin-bottom:6px; }
+  .wheelbox { margin:7px 0; font-size:13px; color:var(--ink2); }
+  .caltable { table-layout:fixed; }
+  .caltable td.day { white-space:nowrap; overflow:hidden; font-size:9.5px; line-height:1.15; text-align:center; padding:2px 0; cursor:pointer; border:1px solid var(--line); }
+  .caltable td.day b { display:block; font-size:11px; }
+  .caltable td.day i { display:block; font-style:normal; color:var(--ink2); }
+  .caltable td.day.on { outline:2px solid var(--accent); outline-offset:-2px; font-weight:600; }
+  .caltable th { text-align:center; }
+  .calbox { border:1px solid var(--line); border-radius:8px; padding:2px 8px 8px; margin:8px 0; }
+  .calbox h2 { margin-top:8px; }
+  .calnav { justify-content:space-between; margin-bottom:4px; }
+  h2 small { font-weight:400; color:var(--ink2); font-size:11.5px; }
+  .tip { font-size:12.5px; background:color-mix(in srgb, var(--accent) 10%, transparent); padding:6px 8px; border-radius:6px; margin:4px 0; }
+  .neonrow input[type=color] { width:30px; height:24px; padding:0; border:1px solid var(--line); border-radius:4px; background:none; cursor:pointer; }
+  .fail { padding:30px; }
+  ul { margin:4px 0; padding-left:18px; font-size:12.5px; color:var(--ink2); }
+  li { margin-bottom:3px; }
+  @media (max-width: 760px) { .wrap { grid-template-columns:minmax(0,1fr); height:auto; } .stage { height:64vh; } .side { border-left:0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage">
+    <div id="view" role="img" aria-label="덕봉저수지 3차원 모델"></div>
+    <div class="tools">
+      <button id="zIn" aria-label="확대">+</button>
+      <button id="zOut" aria-label="축소">−</button>
+      <button id="home" aria-label="처음 시점" title="처음 시점">⌂</button>
+    </div>
+    <div class="readout" id="readout">끌기 회전 · 오른쪽 끌기 이동 · Ctrl+스크롤, +/− 확대 · 더블클릭 다가가기</div>
+    <div class="views"><button data-view="focus">부교·가두리</button><button data-view="cage">가두리 가까이</button><button data-view="west">서쪽 못</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="all">전체</button></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <aside class="side">
+    <h1>덕봉저수지 3D</h1>
+    <p class="note" id="summary"></p>
+    <label class="f">날씨 흐름 <select id="scenario"></select></label>
+    <div class="calbox">
+      <h2>달력 <small id="calTitle"></small></h2>
+      <div class="row calnav"><button id="calPrev" aria-label="이전 달">‹</button><b id="calMonth"></b><button id="calNext" aria-label="다음 달">›</button></div>
+      <div id="cal"></div>
+      <p class="note" id="dayInfo"></p>
+      <div id="dayHours"></div>
+    </div>
+    <div class="time"><button id="play" aria-label="재생">재생</button><input id="hour" type="range" min="6" max="19" value="13" aria-label="시각"><b id="hourLabel"></b></div>
+    <label class="f">새물 유입 성격 <select id="inflow"><option value="ground">지하수형 (10℃ 가정)</option><option value="stream">계곡수, 눈 녹은 물 (1.5℃ 가정)</option><option value="rain">비 온 다음날 (그날 기온 연동)</option></select></label>
+    <label class="f">방류 뒤 경과 <select id="stock"><option value="2">1주 이상</option><option value="1">1~3일</option><option value="0">방류 당일</option></select></label>
+    <label class="f">방류량 <span id="stockLabel"></span><input id="stockN" type="range" min="50" max="100" step="5" value="75" aria-label="방류 마릿수"></label>
+    <label class="f">방류 위치 <select id="release"><option value="center">중앙 가두리</option><option value="bridge">부교 가두리</option></select></label>
+    <label class="f">방류 시각 (당일) <select id="relH"><option value="6">6시</option><option value="7">7시</option><option value="8">8시</option><option value="9">9시</option><option value="10" selected>10시</option><option value="11">11시</option><option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option><option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option></select></label>
+    <label class="f">캐스팅 <select id="castMode"><option value="circle">사방 (원)</option><option value="front">정면 (부채꼴)</option><option value="cage">중앙 가두리 쪽 (부채꼴)</option></select></label>
+    <label class="f">캐스팅 거리 <span id="castLabel"></span><input id="castR" type="range" min="5" max="60" step="5" value="30" aria-label="캐스팅 거리"></label>
+    <div class="f wheelbox">수차 <div class="row"><label><input type="checkbox" id="wheel1" class="wheel-sw" checked> 1</label><label><input type="checkbox" id="wheel2" class="wheel-sw" checked> 2</label><label><input type="checkbox" id="wheel3" class="wheel-sw" checked> 3</label><label><input type="checkbox" id="wheel4" class="wheel-sw" checked> 4</label><label><input type="checkbox" id="wheel5" class="wheel-sw" checked> 5</label><label><input type="checkbox" id="wheel6" class="wheel-sw" checked> 6</label><label><input type="checkbox" id="wheel7" class="wheel-sw" checked> 7</label></div><div class="row" style="margin-top:4px"><button id="wheelsOn">모두 켜기</button><button id="wheelsOff">모두 끄기</button></div></div>
+    <label class="f">물색 <select id="clarity"><option value="clear">맑음</option><option value="turbid">탁함</option></select></label>
+    <div class="row"><label><input type="checkbox" id="note" checked> 공략법 켜기</label><label><input type="checkbox" id="worm" checked> 웜 내용</label><label><input type="checkbox" id="crowd"> 사람 많음</label><label><input type="checkbox" id="spin"> 자동 회전</label></div>
+    <label class="f">송어 총 마릿수 <span id="totalLabel"></span><input id="total" type="range" min="100" max="3000" step="100" value="600" aria-label="송어 총 마릿수"></label>
+    <label class="f">도는 송어 비율 <span id="cruiseLabel"></span><input id="cruise" type="range" min="0" max="100" step="5" value="50" aria-label="도는 송어 비율"></label>
+    <p class="note" id="cruiseNote"></p>
+    <label class="f">송어 색 <select id="fishColor"><option value="react">반응성</option><option value="depth">수심</option><option value="group">도는 송어, 머무는 송어</option></select></label>
+    <p class="note" id="fishKey"></p>
+
+    <h2 id="recTitle">이 시각 추천 자리</h2>
+    <div id="recs"></div>
+    <div id="alerts"></div>
+
+    <details class="fold"><summary>가두리와 부교 사이 수심별 수온</summary><div id="profile"></div></details>
+
+    <details class="fold"><summary>시간대별 1순위</summary><div id="matrix"></div><p class="note">칸을 누르면 그 날씨와 시각으로 이동합니다.</p></details>
+
+    <h2>화면</h2>
+    <label class="f">표시 <select id="mode"><option value="depth">수심</option><option value="fish">송어 예상 밀도</option><option value="bite">반응 좋은 송어 밀도</option><option value="temp">수온 (윗층)</option><option value="tempb">수온 (바닥 쪽)</option><option value="do">용존산소 (바닥 쪽)</option><option value="clean">맑은 물 범위 (탁한 날)</option></select></label>
+    <label class="f">수심 과장 <span id="veLabel"></span><input id="ve" type="range" min="1" max="10" step="0.5" value="4" aria-label="수심 과장 배율"></label>
+    <label class="f">수면 진하기<input id="waterOp" type="range" min="0" max="0.8" step="0.05" value="0.3" aria-label="수면 진하기"></label>
+    <div class="row">
+      <label><input type="checkbox" id="lCut"> 수온 단면</label>
+      <label><input type="checkbox" id="lWater" checked> 수면</label>
+      <label><input type="checkbox" id="lFish" checked> 송어</label>
+      <label><input type="checkbox" id="lRec" checked> 추천</label>
+      <label><input type="checkbox" id="lFac" checked> 시설</label>
+      <label><input type="checkbox" id="lText" checked> 이름</label>
+    </div>
+
+    <p class="note" id="cutLegend"></p>
+
+    <h2>글자 색</h2>
+    <div class="row neonrow">
+      <label>시설 <input type="color" id="neonFac" aria-label="시설 글자 네온색"></label>
+      <label>공략법 <input type="color" id="neonNote" aria-label="공략법 글자색"></label>
+      <label>추천 <input type="color" id="neonRec" aria-label="추천 글자 네온색"></label>
+      <button id="neonReset">기본색</button>
+    </div>
+    <p class="note"><button id="settingsReset">설정 처음으로</button> <button id="settingsSave">설정 현재상태로</button> 옵션과 시점은 이 브라우저에 저장됩니다. 날짜와 시각은 늘 지금 값으로 열립니다.</p>
+
+    <details class="fold"><summary>구역별 추정값</summary><div id="zones"></div></details>
+
+    <p class="note">값은 모두 가설입니다. 모델의 근거, 분포에 고려한 내용, 한계는 <a href="../index.html#notes" target="_top">연구 노트의 덕봉 정리·문헌 탭</a>에 있습니다.</p>
+  </aside>
+</div>
+<script src="deokbong_data.js"></script>
+<script src="deokbong_calendar.js"></script>
+<script src="deokbong_off.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  if (!window.THREE || !THREE.OrbitControls) {
+    document.querySelector(".stage").innerHTML = '<p class="fail">3D 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 열어 주세요.</p>';
+    return;
+  }
+  const D = window.DEOKBONG, G = D.grid, $ = (s) => document.getElementById(s);
+  const M = D.mPerPx, CX = (D.crop[0] + D.crop[2]) / 2, CY = (D.crop[1] + D.crop[3]) / 2;
+  const wx = (px) => (px - CX) * M, wz = (py) => (py - CY) * M;
+
+  // 비 온 날 평소의 새물 성격은 알 수 없어, 두 유입 계산의 평균을 바탕으로 삼습니다.
+  D.iceCm.rain = D.iceCm.ground; D.simsOff.westIce.rain = D.simsOff.westIce.ground;
+  [D.sims, D.simsOff].forEach((SIM) => {
+  SIM.rain = {};
+  Object.keys(SIM.ground).forEach((key) => {
+    SIM.rain[key] = {};
+    Object.keys(SIM.ground[key]).forEach((h) => {
+      SIM.rain[key][h] = {};
+      Object.keys(SIM.ground[key][h]).forEach((z) => {
+        const a = SIM.ground[key][h][z], b = SIM.stream[key][h][z];
+        SIM.rain[key][h][z] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[3] + b[3]) / 2, a[4]];
+      });
+    });
+  });
+  });
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const sat = (t) => { const T = t + 273.15; return Math.exp(-139.34411 + 1.575701e5 / T - 6.642308e7 / T ** 2 + 1.2438e10 / T ** 3 - 8.621949e11 / T ** 4); };
+  const solar = (h, c) => (h < 7.5 || h > 17.5) ? 0 : (120 + 430 * c) * Math.sin(Math.PI * (h - 7.5) / 10);
+  const segDist = (x, y, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], t = clamp(((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1), 0, 1); return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy); };
+
+  // ---------- 물 격자 ----------
+  // 부교 아래 그물이 서쪽 못과 동쪽 못의 송어를 나눕니다.
+  const xLine = (y) => D.causeway[0][0] + (y - D.causeway[0][1]) * (D.causeway[1][0] - D.causeway[0][0]) / (D.causeway[1][1] - D.causeway[0][1]);
+  const stands = D.stands.map((s) => ({ ...s, west: s.x < xLine(s.y), a: [s.x1, s.y1], b: [s.x2, s.y2] }));
+  // 자리마다 데크나 부교에 직교하여 물 쪽을 향하는 정면 방향
+  stands.forEach((s) => {
+    const dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], len = Math.hypot(dx, dy) || 1;
+    let nx = -dy / len, ny = dx / len;
+    if ((250 - s.x) * nx + (510 - s.y) * ny < 0) { nx = -nx; ny = -ny; }
+    s.nx = nx; s.ny = ny; s.fx = nx; s.fy = ny;
+  });
+  // 자리별 정면 캐스팅 방향: 지도에서 정해 주신 값
+  stands.forEach((s) => { const d = D.castDirs[s.key]; if (d) { s.fx = d[0]; s.fy = d[1]; } });
+  const whites = stands.filter((s) => s.group === "white");
+  const cageList = Object.values(D.cages), cells = [];
+  for (let j = 0; j < G.ny; j++) for (let i = 0; i < G.nx; i++) {
+    const d = G.depth[j * G.nx + i];
+    if (!d) continue;
+    const x = D.crop[0] + i * G.step, y = D.crop[1] + j * G.step;
+    const coverDist = Math.min(segDist(x, y, ...D.causeway), segDist(x, y, ...D.northPier), segDist(x, y, ...D.southPier), ...cageList.map((c) => Math.hypot(x - c[0], y - c[1])));
+    const west = x < xLine(y), ownCage = west ? D.cages.west : D.cages.east;
+    cells.push({ i, j, x, y, d, west, z: G.zones[j * G.nx + i], cover: coverDist < 40, cage: Math.hypot(x - ownCage[0], y - ownCage[1]) * M, standDist: Math.min(...whites.map((s) => segDist(x, y, s.a, s.b))) * M });
+  }
+  // 캐스팅 범위: 사방 원, 또는 지점에서 정한 방향의 부채꼴
+  const castInfo = () => ({ mode: $("castMode").value, R: +$("castR").value });
+  const FAN_WIDTH = 5;
+  // 방향: 정면은 자리별로 정한 방향, 가두리는 중앙 가두리 쪽
+  function castVec(s, cast) {
+    if (cast.mode !== "cage") return [s.fx, s.fy];
+    const dx = D.cages.west[0] - s.x, dy = D.cages.west[1] - s.y, len = Math.hypot(dx, dy) || 1;
+    return [dx / len, dy / len];
+  }
+  function inCast(s, x, y, cast) {
+    if (cast.mode === "circle") return s.a ? segDist(x, y, s.a, s.b) * M <= cast.R : Math.hypot(x - s.x, y - s.y) * M <= cast.R;
+    const [vx, vy] = castVec(s, cast), px = (x - s.x) * M, py = (y - s.y) * M, along = px * vx + py * vy, side = Math.abs(-px * vy + py * vx);
+    // 부채꼴: 출발 지점이 중심이고, 도달 거리에서 폭이 5m입니다.
+    return along >= 0 && Math.hypot(px, py) <= cast.R && side <= along * FAN_WIDTH / 2 / cast.R;
+  }
+  const reachCache = {};
+  function reachFor(st) {
+    const key = st.castMode + st.castR;
+    if (reachCache[key]) return reachCache[key];
+    const cast = { mode: st.castMode, R: st.castR };
+    return (reachCache[key] = stands.map((s) => cells.filter((c) => c.west === s.west && inCast(s, c.x, c.y, cast))));
+  }
+  const westCells = cells.filter((c) => c.west); westCells.forEach((c, i) => { c.wi = i; });
+    // 공략법: 긴 부교 정면 약 4m에 도는 송어가 있고, 물은 유입구에서 물골을 따라 부교 쪽으로 갑니다.
+  const ring = [[140, 553], [202, 577], [329, 581], [346, 540], [375, 440], [393, 375], [370, 365], [285, 396], [238, 405], [195, 470], [150, 540]];
+  const ringCum = [0];
+  ring.forEach((p, i) => { const q = ring[(i + 1) % ring.length]; ringCum.push(ringCum[i] + Math.hypot(q[0] - p[0], q[1] - p[1]) * M); });
+  const ringLen = ringCum[ring.length];
+  function ringAt(u) {
+    const d = (u % 1 + 1) % 1 * ringLen; let i = 0;
+    while (ringCum[i + 1] < d) i++;
+    const p = ring[i], q = ring[(i + 1) % ring.length], f = (d - ringCum[i]) / (ringCum[i + 1] - ringCum[i]);
+    return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  }
+  let ringSum = 0;
+  // 탁한 날 상류에서 들어오는 맑은 물: 유입구 주변과 첫 물골을 따라 퍼지며 옅어집니다.
+  const mainChannel = D.channels[0];
+  function cleanAt(x, y) {
+    let best = Math.exp(-Math.hypot(x - D.inflow[0], y - D.inflow[1]) * M / 15), walked = 0;
+    for (let i = 0; i < mainChannel.length - 1; i++) {
+      const a = mainChannel[i], b = mainChannel[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const t = clamp(((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / (len * len), 0, 1);
+      const side = Math.hypot(x - a[0] - t * (b[0] - a[0]), y - a[1] - t * (b[1] - a[1])) * M;
+      best = Math.max(best, Math.exp(-(walked + t * len) * M / 60) * Math.exp(-((side / 6) ** 2)));
+      walked += len;
+    }
+    return best;
+  }
+  // 비 온 다음날: 그날 기온에 가까운 물이 많이 들어와 맑은 물 범위보다 넓게 퍼집니다.
+  function rainAt(x, y) {
+    let best = Math.exp(-Math.hypot(x - D.inflow[0], y - D.inflow[1]) * M / 40), walked = 0;
+    for (let i = 0; i < mainChannel.length - 1; i++) {
+      const a = mainChannel[i], b = mainChannel[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const t = clamp(((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / (len * len), 0, 1);
+      const side = Math.hypot(x - a[0] - t * (b[0] - a[0]), y - a[1] - t * (b[1] - a[1])) * M;
+      best = Math.max(best, Math.exp(-(walked + t * len) * M / 120) * Math.exp(-((side / 12) ** 2)));
+      walked += len;
+    }
+    return best;
+  }
+  const rainWater = (st) => { const T = clamp(D.weather[st.s].air, .5, 15); return [T, sat(T)]; };
+  function vAt(v, f, st) {
+    if (!st.rain) return v;
+    const [T, O] = rainWater(st);
+    return [v[0] + (T - v[0]) * f, v[1] + (O - v[1]) * f, v[2] + (T - v[2]) * f * .5, v[3] + (O - v[3]) * f * .5, v[4]];
+  }
+  // 수차 1~7은 따로 켜고 끕니다. 일부만 끄면 전부 켠 계산과 전부 끈 계산을 구역별 가동 비율로 섞습니다.
+  const wheelOn = (i) => $("wheel" + (i + 1)).checked;
+  let wheelMask = "", wheelsAllOn = true, wheelShare = 1;
+  const zoneShare = (z) => {
+    const idx = D.wheelZones.flatMap((k, i) => (k === z ? [i] : []));
+    return idx.length ? idx.filter(wheelOn).length / idx.length : wheelShare;
+  };
+  const shareByZone = {};
+  function zoneV(st, h, z) {
+    const a = D.sims[st.f][st.s][h][z];
+    if (wheelsAllOn) return a;
+    const b = D.simsOff[st.f][st.s][h][z], f = shareByZone[z];
+    return [0, 1, 2, 3].map((i) => a[i] * f + b[i] * (1 - f)).concat(f >= .5 ? a[4] : b[4]);
+  }
+  // 대포형 수차: 물이 섞이고 산소가 늘어나는 범위는 반경 4~5m입니다. 쏘는 방향은 아직 모릅니다.
+  const WHEEL_RADIUS = 4.5;
+  const wheelAt = (x, y) => Math.max(0, ...D.wheels.flatMap((w, i) => (wheelOn(i) ? [Math.exp(-(((Math.hypot(x - w[0], y - w[1]) * M) / WHEEL_RADIUS) ** 2))] : [])));
+  const kOf = (clean, st) => (st.k === 2 ? 2 - 1.2 * (st.rain ? 0 : clean) : st.k);   // 탁함 2/m, 맑은 물에 가까울수록 0.8/m
+  cells.forEach((c) => { c.clean = cleanAt(c.x, c.y); c.rainF = rainAt(c.x, c.y); c.wheel = wheelAt(c.x, c.y); });
+  const chanDist = (x, y) => Math.min(...D.channels.flatMap((p) => p.slice(0, -1).map((a, i) => segDist(x, y, a, p[i + 1])))) * M;
+  westCells.forEach((c) => {
+    c.chan = chanDist(c.x, c.y);
+    c.spot = Math.min(...D.mapSpots.map((s) => Math.hypot(c.x - s[0], c.y - s[1]))) * M;
+    const m = Math.min(...ring.map((p, i) => segDist(c.x, c.y, p, ring[(i + 1) % ring.length]))) * M;
+    c.ring = Math.exp(-m * m / 128); ringSum += c.ring;   // 경로 양옆 약 8m
+  });
+
+  // ---------- 점수 ----------
+  let calDate = "";
+  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: +$("hour").value, f: $("inflow").value, stock: +$("stock").value, crowd: $("crowd").checked, cruise: +$("cruise").value / 100, castMode: $("castMode").value, castR: +$("castR").value, wheels: wheelMask, total: +$("total").value, stockN: +$("stockN").value, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2 });
+  // 맑은 날 낮에 물이 받은 햇빛 (℃·m). 해가 진 뒤에는 빠르게 사라집니다.
+  function sunEnergy(h, clear) {
+    const S0 = 120 + 430 * clear, hh = clamp(h, 7.5, 17.5);
+    const E = .9 * S0 * (10 / Math.PI) * (1 - Math.cos(Math.PI * (hh - 7.5) / 10)) * 3600 / 4.18e6;
+    return h > 17.5 ? E * Math.exp(-(h - 17.5) / 1.5) : E;
+  }
+  // 깊이별 수온: 시뮬레이션의 두 층 값에 햇빛이 만드는 차이를 더합니다.
+  // 4℃ 아래에서는 데워진 물이 무거워 가라앉으므로 표층의 따뜻한 층이 약합니다.
+  function tempAt(v, d, z, st, k = st.k, mix = 0) {
+    const H = Math.min(d, 1.2);
+    let T = z <= 1.2 || d <= 1.2 ? v[0] : v[0] + (v[2] - v[0]) * (z - 1.2) / Math.max(d - 1.2, .1);
+    if (v[4]) return Math.max(0, T);
+    const W = D.weather[st.s], E = sunEnergy(st.h, W.clear), warm = clamp((v[0] - 3) / 2, 0, 1);
+    const fs = (.25 + .75 * warm) * Math.exp(-W.wind / (5 - 2.5 * warm));
+    if (z <= H) T += E * fs * (1 - .7 * mix) * (k * Math.exp(-k * z) / (1 - Math.exp(-k * H)) - 1 / H);
+    if (d < 1.2) T += E * (1 / Math.max(d, .4) - 1 / 1.2) * .2;   // 얕은 곳은 바닥까지 데워집니다.
+    return Math.max(0, T);
+  }
+  function cellEval(c, st) {
+    const v = vAt(zoneV(st, st.h, c.z), c.rainF, st), S = solar(st.h, D.weather[st.s].clear);
+    const k = kOf(c.clean, st), fT = (t) => (t > 16 ? clamp(1 - (t - 16) / 8, .1, 1) : clamp((t - 1) / 12, .05, 1)), fO = (o, t) => clamp((o / sat(t) - .3) / .4, 0, 1);
+    let e = -1, layer = .3, bt = v[0], bo = v[1];
+    const n = c.d < 1 ? 2 : 4;
+    for (let i = 0; i < n; i++) {
+      const z = c.d * (i + .5) / n, T = tempAt(v, c.d, z, st, k, c.wheel), O0 = z <= 1.2 ? v[1] : v[3], O = O0 + Math.max(0, sat(T) - O0) * .4 * c.wheel * (z <= 1.2 ? 1 : .3);
+      const I = S * Math.exp(-k * z) * (c.cover ? .6 : 1);   // 맑은 물, 얕은 층, 강한 해를 피합니다.
+      let q = fT(T) * fO(O, T) * (1 - .3 * Math.min(I, 400) / 400) * (c.d < .6 ? .5 : 1);
+      if (st.note && i === n - 1) q *= st.h < 8 ? 1.2 : st.h <= 11 ? .8 : st.h >= 15 ? 1.1 : 1;   // 노트: 해 뜨기 전 바닥, 해 뜬 뒤 바닥을 벗어남, 오후 바닥 스테이
+      if (q > e) { e = q; layer = z; bt = T; bo = O; }
+    }
+    if (c.z === "A") e *= .9;
+    let w = e * e * (c.cover ? 1.15 : 1) * (1 + .2 * c.wheel);
+    if (st.k === 2 && !st.rain) w *= 1 + .6 * c.clean;   // 탁한 날은 맑은 물 쪽을 더 찾는다고 가정합니다.
+    if (st.note) w *= (c.chan < 4 ? 1.3 : 1) * (c.spot < 5 ? 1.35 : 1);
+    if (st.crowd && c.standDist < 12) w *= .7;
+    return { w, layer, T: bt, O: bo, top: tempAt(v, c.d, .2, st, k, c.wheel), bot: tempAt(v, c.d, c.d * .9, st, k, c.wheel), botO: v[3], ice: v[4] };
+  }
+  // 송어는 부교 서쪽에만 있습니다. 머무는 무리는 살기 좋은 곳에, 도는 무리는 못 둘레 경로에 나뉩니다.
+  // 방류: 부교 가두리는 그물 동쪽에 있어, 방류어는 그 앞 부교 서쪽면으로 들어온다고 봅니다.
+  const RELEASE = { center: D.cages.west, bridge: [xLine(D.cages.east[1]) - 10, D.cages.east[1]] };
+  const RESIDENT_FISH = 40;   // 중앙 가두리 곁과 아래에 머무는 마릿수 (가정)
+  // 가두리 고기는 11월 초부터 3월 말까지 있습니다. 날씨 흐름 선택은 겨울로 봅니다.
+  const cageSeason = (st) => !/^04-/.test(st.s);
+  function releaseState(st) {
+    if (st.stock === 2) return { share: 0, sigma: 1, hours: 99 };
+    const share = st.stockN / (st.total + st.stockN);   // 방류어는 있던 송어에 더해집니다.
+    if (st.stock === 1) return { share, sigma: 45, hours: 99 };
+    const hours = st.h - st.relH;
+    if (hours < 0) return { share: 0, sigma: 1, hours, before: true };
+    return { share, sigma: Math.min(60, 10 + 15 * hours), hours };   // 시간이 갈수록 퍼집니다.
+  }
+  // 반응성: 많이 있어도 모두 물지는 않습니다. 한 마리의 값 R = 활성 × (0.25 + 0.75 × 개체 차이)
+  const HIGH = .66, LOW = .33, BITE = { high: 1, mid: .4, low: .08 };
+  const activity = (T, h) => clamp((T - 2) / 8, .1, 1) * (h < 9 || h >= 16 ? 1.15 : h >= 11 && h <= 14 ? .85 : 1);
+  const levelOf = (R) => (R >= HIGH ? "high" : R >= LOW ? "mid" : "low");
+  function reactShares(a) {   // 개체 차이가 고르게 퍼져 있을 때 높음, 보통, 낮음의 비율
+    // 아무리 차가워도 먼저 무는 개체가 조금은 있습니다 (5%, 가정).
+    const hi = Math.max(.05, clamp(1 - (HIGH / a - .25) / .75, 0, 1)), lo = clamp((LOW / a - .25) / .75, 0, 1);
+    return { hi, lo: Math.min(lo, 1 - hi) };
+  }
+  // 방류어: 입질이 활발한 약 1시간은 활성이 높고, 이후 보통으로 내려갑니다.
+  const freshLevel = (rel) => (rel.hours >= 0 && rel.hours <= 1 ? "high" : "mid");
+  // 방류어 흐름에 자극받는 기존 송어의 비율: 방류 지점에 가까울수록, 방류 직후일수록 큽니다.
+  const stirChance = (st, rel, metres) => (st.stock === 0 && rel.hours >= 0 && rel.hours <= 1 ? .35 * Math.exp(-rel.hours / .7) * Math.exp(-metres / (rel.sigma + 10)) : 0);
+  const distCache = new Map();
+  function dist(st) {
+    const key = [st.s, st.h, st.f, st.stock, st.crowd, st.k, st.cruise, st.note, st.rain, st.release, st.relH, st.total, st.stockN, st.wheels].join();
+    let r = distCache.get(key);
+    if (r) return r;
+    if (distCache.size > 800) distCache.clear();
+    const evals = westCells.map((c) => cellEval(c, st)), rel = releaseState(st), pt = RELEASE[st.release];
+    let sum = 0, Tm = 0, dm = 0, relSum = 0;
+    const relW = westCells.map((c) => { const m = Math.hypot(c.x - pt[0], c.y - pt[1]) * M, v = Math.exp(-m * m / (2 * rel.sigma * rel.sigma)); relSum += v; return v; });
+    evals.forEach((e) => { sum += e.w; Tm += e.w * e.T; dm += e.w * e.layer; });
+    Tm /= sum; dm /= sum;
+    const act = .35 + .65 * clamp((Tm - 2) / 6, 0, 1), eff = st.cruise * act;   // 차가울수록 도는 무리도 머뭅니다.
+    const n = westCells.length, w = new Float64Array(n), free = new Float64Array(n), lay = new Float64Array(n), bite = new Float64Array(n), hiW = new Float64Array(n), stir = new Float64Array(n), freshP = new Float64Array(n);
+    // 중앙 가두리 곁과 아래에 늘 머무는 송어 (부교 가두리 주변에는 없음)
+    const pop = rel.share ? st.total + st.stockN : st.total;
+    const resident = cageSeason(st) ? Math.min(.35, RESIDENT_FISH / pop) : 0;
+    let resSum = 0;
+    const resW = westCells.map((c) => { const v = c.cage <= 4.5 ? 1 : 0; resSum += v; return v; });
+    const shallow = clamp(.4 + .3 * Math.max(0, rel.hours), .4, 3);   // 방류어는 얕은 층에서 시작해 서서히 내려갑니다.
+    westCells.forEach((c, i) => {
+      const base = (1 - rel.share) * evals[i].w / sum, fresh = rel.share * relW[i] / relSum;
+      free[i] = base + fresh;
+      const res = resident * resW[i] / (resSum || 1), moving = (1 - resident) * ((1 - eff) * free[i] + eff * c.ring / ringSum);
+      w[i] = moving + res;
+      lay[i] = ((base * evals[i].layer + fresh * Math.min(evals[i].layer, shallow)) / (free[i] || 1) * moving + Math.min(c.d * .7, 1.3) * res) / (w[i] || 1);
+      // 이 칸의 반응성
+      const a = activity(evals[i].T, st.h), sh = reactShares(a);
+      stir[i] = stirChance(st, rel, Math.hypot(c.x - pt[0], c.y - pt[1]) * M);
+      const pHi = sh.hi + stir[i] * (1 - sh.hi), pLo = sh.lo * (1 - stir[i]), pMid = Math.max(0, 1 - pHi - pLo);
+      const bE = pHi * BITE.high + pMid * BITE.mid + pLo * BITE.low;
+      const fl = freshLevel(rel), Fs = free[i] ? fresh / free[i] : 0;
+      freshP[i] = Fs;
+      const shRes = reactShares(a * .7);
+      const bR = shRes.hi * BITE.high + (1 - shRes.hi - shRes.lo) * BITE.mid + shRes.lo * BITE.low;
+      bite[i] = moving * (Fs * BITE[fl] + (1 - Fs) * bE) + res * bR;
+      hiW[i] = moving * (Fs * (fl === "high" ? 1 : 0) + (1 - Fs) * pHi) + res * shRes.hi;
+    });
+    r = { evals, w, free, lay, eff, act, Tm, depth: dm, rel, resident, pop, bite, hiW, stir, freshP };
+    distCache.set(key, r);
+    return r;
+  }
+  // 공략 노트의 시간대별 자리
+  function notePrior(key, st) {
+    const h = st.h;
+    // 공략법의 '부교'는 긴 부교입니다. 좌측 입구는 서쪽 못을 볼 때 왼쪽인 남쪽으로 봅니다.
+    const P = h <= 7 ? { cwS: 1.5, cwMS: 1.4 } : h <= 11 ? { cwS: 1.4, cwMS: 1.3, cwN: 1.4 } : h <= 14 ? { sE: 1.5, sM: 1.4 } : h === 15 ? { sW: 1.4, sM: 1.3 } : h === 16 ? { sW: 1.5, wS: 1.4 } : { wS: 1.6, sW: 1.3 };
+    let v = P[key] || 1;
+    // 방류 직후: 부교 방류는 방류 위치 좌우, 가두리 방류는 가두리 정면
+    if (st.stock === 0 && h >= st.relH && h <= st.relH + 2) {
+      const R = st.release === "bridge" ? { cwMS: 1.5, cwMN: 1.5 } : { cwMS: 1.5 };
+      v = Math.max(v, R[key] || 1);
+    }
+    return v;
+  }
+  function noteTip(h, worm) {
+    const T = h < 8 ? ["해 뜨기 전 피딩: 부교 좌측 입구 3~5번째(수차 1 우측 1~3번), 정면 가두리 왼쪽 1~2칸에서 바닥권.", "형광 센코, 또는 카키웜 스위밍."]
+      : h <= 10 ? ["해 뜬 뒤: 바닥을 벗어납니다. 냉수대가 없으면 부교 앞치기. 부교 우측 입구 첫 수차(수차 3) 왼쪽 두 자리는 정면으로 회유하고, 부교 정면 4m 권을 염두에 둡니다. 해가 강할수록 흰색, 오렌지.", "FT 미노우 미드스트롤링과 스테이, 가벼운 트라우트웜 폴링."]
+      : h === 11 ? ["방류 입질이 가라앉을 때입니다.", "흰색 트라우트웜 3m 앞 커브폴링, 가두리 앞 3m 안 스테이."]
+      : h <= 14 ? ["소나무 아래로 이동. 점심에 가까울수록 소나무 아래가 좋고, 지날수록 상류 쪽이 좋습니다. 상류부터 네 번째 앞은 밑걸림이 있습니다.", ""]
+      : h === 15 ? ["상류 2번째 팔레트.", "연두 센코나 고구마웜 롱캐스팅 뒤 스테이, 슬로우 드래깅. 물골 너머까지 던져 바닥을 끕니다."]
+      : h === 16 ? ["상류 첫 번째 팔레트에서 소나무 쪽으로 던집니다.", "FT웜 미드스트롤링."]
+      : ["새물유입구 바로 옆 팔레트.", "연두 형광 센코 스테이, 분홍 센코 스플릿샷으로 물골 너머 드래깅."];
+    return worm && T[1] ? `${T[0]} ${T[1]}` : T[0];
+  }
+  function ranks(st) {
+    const r = dist(st), reach = reachFor(st);
+    return stands.flatMap((s, k) => {
+      let sum = 0, t = 0, o = 0, dep = 0, cl = 0, bt = 0, hi = 0; const zw = {};
+      reach[k].forEach((c) => { const e = r.evals[c.wi], w = r.w[c.wi]; sum += w; t += w * e.T; o += w * e.O; dep += w * r.lay[c.wi]; cl += w * c.clean; bt += r.bite[c.wi]; hi += r.hiW[c.wi]; zw[c.z] = (zw[c.z] || 0) + w; });
+      const n = reach[k].length || 1, zone = Object.keys(zw).sort((a, b) => zw[b] - zw[a])[0];
+      return [{ key: s.key, name: s.name, short: s.short, x: s.x, y: s.y, nx: s.nx, ny: s.ny, fx: s.fx, fy: s.fy, a: s.a, b: s.b, share: sum, hiShare: hi, clean: cl / (sum || 1), score: bt / n * (st.note ? notePrior(s.key, st) : 1), t: t / (sum || 1), o: o / (sum || 1), dep: dep / (sum || 1), zone: zone || "D" }];
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  // ---------- 장면 ----------
+  const view = $("view"), renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  view.append(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue("--sky").trim());
+  const camera = new THREE.PerspectiveCamera(45, 1, .3, 2000);
+  const HOME = [0, 235, 245];
+  camera.position.set(...HOME);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = .08; controls.minDistance = 6; controls.maxDistance = 900;
+  controls.maxPolarAngle = Math.PI * .62; controls.autoRotateSpeed = .8;
+  scene.add(new THREE.AmbientLight(0xffffff, .62));
+  const sun = new THREE.DirectionalLight(0xfff4dc, .62); scene.add(sun);
+  const sunBall = new THREE.Mesh(new THREE.SphereGeometry(9, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd25e, fog: false })); scene.add(sunBall);
+  const skyColor = scene.background.clone(), waterColor = new THREE.Color(0x174f63);
+  scene.fog = new THREE.FogExp2(waterColor, 0);
+
+  const nv = G.nx * G.ny, pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3);
+  for (let j = 0; j < G.ny; j++) for (let i = 0; i < G.nx; i++) {
+    const n = j * G.nx + i;
+    pos[n * 3] = wx(D.crop[0] + i * G.step); pos[n * 3 + 2] = wz(D.crop[1] + j * G.step);
+    uv[n * 2] = i / (G.nx - 1); uv[n * 2 + 1] = 1 - j / (G.ny - 1);
+  }
+  const landIdx = [], botIdx = [];
+  for (let j = 0; j < G.ny - 1; j++) for (let i = 0; i < G.nx - 1; i++) {
+    const a = j * G.nx + i, b = a + 1, c = a + G.nx, d = c + 1, wet = G.depth[a] || G.depth[b] || G.depth[c] || G.depth[d];
+    (wet ? botIdx : landIdx).push(a, c, b, b, c, d);
+  }
+  const makeGeo = (idx) => { const g = new THREE.BufferGeometry(); g.setAttribute("position", posAttr); g.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.setIndex(idx); return g; };
+  const posAttr = new THREE.BufferAttribute(pos, 3);
+  // 위성사진은 이 PC(베타)에서만 씁니다. 공개판은 직접 그린 지면을 씁니다.
+  function drawnGround() {
+    const cv = document.createElement("canvas"), w = D.crop[2] - D.crop[0], h = D.crop[3] - D.crop[1], ctx = cv.getContext("2d"), r = rng(7);
+    cv.width = w; cv.height = h;
+    ctx.fillStyle = "#68774f"; ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2400; i++) {
+      ctx.fillStyle = ["rgba(60,80,48,.3)", "rgba(112,124,78,.3)", "rgba(48,66,44,.28)"][Math.floor(r() * 3)];
+      ctx.beginPath(); ctx.arc(r() * w, r() * h, 3 + r() * 16, 0, 6.3); ctx.fill();
+    }
+    ctx.strokeStyle = "#b9ad8a"; ctx.lineWidth = 16; ctx.lineJoin = "round"; ctx.beginPath();
+    D.shore.forEach((p, i) => ctx[i ? "lineTo" : "moveTo"](p[0] - D.crop[0], p[1] - D.crop[1]));
+    ctx.closePath(); ctx.stroke();
+    return new THREE.CanvasTexture(cv);
+  }
+  const tex = ["localhost", "127.0.0.1"].includes(location.hostname) ? new THREE.TextureLoader().load("../private/deokbong_ground.jpg") : drawnGround();
+  tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+  const landGeo = makeGeo(landIdx), botGeo = makeGeo(botIdx);
+  scene.add(new THREE.Mesh(landGeo, new THREE.MeshLambertMaterial({ map: tex })));
+  const botMesh = new THREE.Mesh(botGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  scene.add(botMesh);
+
+  // 수면
+  const shape = new THREE.Shape(D.shore.map((p) => new THREE.Vector2(wx(p[0]), -wz(p[1]))));
+  const water = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshPhongMaterial({ color: 0x2f7fa3, transparent: true, opacity: .3, shininess: 90, side: THREE.DoubleSide, depthWrite: false }));
+  water.rotation.x = -Math.PI / 2; water.renderOrder = 2; scene.add(water);
+
+  // 시설
+  const fac = new THREE.Group(); scene.add(fac);
+  function bar(a, b, width, height, color, y = .25) {
+    const ax = wx(a[0]), az = wz(a[1]), bx = wx(b[0]), bz = wz(b[1]), len = Math.hypot(bx - ax, bz - az);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(len, height, width), new THREE.MeshLambertMaterial({ color }));
+    m.position.set((ax + bx) / 2, y, (az + bz) / 2); m.rotation.y = -Math.atan2(bz - az, bx - ax); fac.add(m); return m;
+  }
+  bar(...D.causeway, 3.6, .5, 0x8c8f78);
+  bar(...D.northPier, 4.5, .5, 0xcfd0c4);
+  bar(...D.southPier, 3.6, .5, 0xa8b0b5);
+  bar([670, 312], [738, 306], 8, 2.6, 0x4a4239, 1.3);          // 수상 건물
+  const whiteBars = {};
+  whites.forEach((s) => { whiteBars[s.key] = bar(s.a, s.b, 2.6, .4, 0xffffff, .4); }); // 낚시 자리
+  const netWall = bar(...D.causeway, .25, 1, 0xffffff, 0);
+  netWall.material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .28, depthWrite: false, side: THREE.DoubleSide });
+  const cageParts = [];
+  cageList.forEach((c) => {
+    const size = 7, h = 1.3, g = new THREE.Group();
+    const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size, 1, size)), new THREE.LineBasicMaterial({ color: 0xffffff }));
+    const net = new THREE.Mesh(new THREE.BoxGeometry(size, 1, size), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .13, depthWrite: false }));
+    g.add(frame, net); g.position.set(wx(c[0]), 0, wz(c[1])); g.rotation.y = .4; g.userData.h = h; fac.add(g); cageParts.push(g);
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(size + .7, .3, size + .7), new THREE.MeshBasicMaterial({ color: 0xf1f1ea, wireframe: true })); rim.position.set(wx(c[0]), .2, wz(c[1])); rim.rotation.y = .4; fac.add(rim);
+  });
+  const inflowArrow = new THREE.Mesh(new THREE.ConeGeometry(2.4, 7, 12), new THREE.MeshLambertMaterial({ color: 0x35c7e8 }));
+  inflowArrow.rotation.z = -Math.PI / 2; inflowArrow.position.set(wx(D.inflow[0]) + 1, 1, wz(D.inflow[1])); fac.add(inflowArrow);
+
+  // 이름
+  const texts = new THREE.Group(); scene.add(texts);
+  // 지도 글자: 배경 없이 네온 테두리만 둡니다. 색은 무리별로 고를 수 있습니다.
+  const NEON_DEFAULT = { fac: "#39e6ff", note: "#e6f0d6", rec: "#ffd84a" };
+  const NEON = { ...NEON_DEFAULT };
+  try { Object.assign(NEON, JSON.parse(localStorage.getItem("deokbongNeon") || "{}")); } catch (e) { /* 저장을 못 읽으면 기본색 */ }
+  const neonSprites = [];
+  function paintLabel(sp) {
+    const { cv, text, neon, weight, pad, fs } = sp.userData, ctx = cv.getContext("2d"), color = NEON[neon] || neon, ty = cv.height / 2 + 1;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.font = `${weight} ${fs}px "Malgun Gothic", sans-serif`; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+    if (weight < 700) {   // 공략법 글자: 네온 없이 글자색만
+      ctx.fillStyle = color; ctx.fillText(text, pad, ty);
+    } else {
+      ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.shadowColor = color;
+      [20, 10, 4].forEach((b) => { ctx.shadowBlur = b; ctx.strokeText(text, pad, ty); });
+      ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,.96)"; ctx.fillText(text, pad, ty);
+    }
+    sp.material.map.needsUpdate = true;
+  }
+  function label(text, x, y, z, neon = "fac", size = .021, weight = 700) {
+    const cv = document.createElement("canvas"), ctx = cv.getContext("2d"), fs = 40, pad = 22;
+    ctx.font = `${weight} ${fs}px "Malgun Gothic", sans-serif`;
+    cv.width = Math.ceil(ctx.measureText(text).width) + pad * 2; cv.height = fs + pad * 2;
+    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false }));
+    sp.userData = { cv, text, neon, weight, pad, fs };
+    paintLabel(sp);
+    const h = size * cv.height / 62; sp.scale.set(h * cv.width / cv.height, h, 1); sp.position.set(x, y, z); sp.renderOrder = 9;
+    if (neon !== "rec") neonSprites.push(sp);
+    return sp;
+  }
+  const mid = (s) => [(s[0][0] + s[1][0]) / 2, (s[0][1] + s[1][1]) / 2];
+  [["부교 (그물)", D.causeway[0][0] - 22, D.causeway[0][1] + 45], ["북쪽 잔교", ...mid(D.northPier)], ["남쪽 잔교", ...mid(D.southPier)], ["새물유입구", ...D.inflow], ["중앙 가두리", ...D.cages.west], ["부교 가두리", ...D.cages.east], ["수상 건물", 704, 300], ["제방", 760, 470]].forEach((l) => texts.add(label(l[0], wx(l[1]), 6, wz(l[2]))));
+
+  // 송어
+  function troutGeometry() {
+    const pos = [], col = [], idx = [], N = 12, SIDES = 10;
+    const BACK = [.28, .36, .22], STRIPE = [.88, .45, .47], BELLY = [.93, .92, .85];
+    const paint = (v) => (v > .3 ? BACK : v > -.15 ? STRIPE : BELLY);
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, x = -1 + 2 * t, r = .03 + .24 * Math.pow(Math.sin(Math.PI * (.06 + t * .9)), .75);
+      for (let j = 0; j < SIDES; j++) {
+        const a = 2 * Math.PI * j / SIDES, v = Math.sin(a);
+        pos.push(x, v * r, Math.cos(a) * r * .5); col.push(...paint(v));
+        if (i < N) { const n = i * SIDES + j, m = i * SIDES + (j + 1) % SIDES; idx.push(n, n + SIDES, m, m, n + SIDES, m + SIDES); }
+      }
+    }
+    const fin = (a, b, c) => { const n = pos.length / 3; pos.push(...a, ...b, ...c); col.push(...BACK, ...BACK, ...BACK); idx.push(n, n + 1, n + 2); };
+    fin([-.94, 0, 0], [-1.42, .34, 0], [-1.22, 0, 0]);   // 꼬리
+    fin([-.94, 0, 0], [-1.22, 0, 0], [-1.42, -.34, 0]);
+    fin([-.12, .24, 0], [.22, .25, 0], [-.18, .5, 0]);   // 등지느러미
+    fin([-.62, .13, 0], [-.48, .15, 0], [-.66, .26, 0]); // 기름지느러미
+    fin([-.6, -.13, 0], [-.32, -.19, 0], [-.66, -.36, 0]); // 뒷지느러미
+    fin([.42, -.15, .06], [.58, -.14, .06], [.3, -.36, .14]);  // 가슴지느러미
+    fin([.42, -.15, -.06], [.58, -.14, -.06], [.3, -.36, -.14]);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+  const FISH = 3300, fishGeo = troutGeometry();
+  const fish = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), FISH);
+  fish.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(FISH * 3).fill(1), 3);
+  fish.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fish.frustumCulled = false; scene.add(fish);
+  const fishCur = [], fishTo = [];
+  const dummy = new THREE.Object3D();
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  const relMarks = {};
+  Object.keys(RELEASE).forEach((k) => {
+    const p = RELEASE[k], g = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.RingGeometry(3, 4, 32), new THREE.MeshBasicMaterial({ color: 0xff7a1a, side: THREE.DoubleSide, transparent: true, opacity: .95, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.set(wx(p[0]), .4, wz(p[1])); g.add(ring, label("방류 위치", wx(p[0]), 9, wz(p[1]), "#ff9a2e", .022));
+    g.visible = false; relMarks[k] = g; scene.add(g);
+  });
+  // 수차
+  const wheelMeshes = [], wheelRings = [];
+  function refreshWheels() {
+    const on = D.wheels.map((_, i) => wheelOn(i));
+    wheelMask = on.map((v) => (v ? 1 : 0)).join("");
+    wheelsAllOn = on.every(Boolean);
+    wheelShare = on.filter(Boolean).length / on.length;
+    Object.keys(D.zoneNames).forEach((z) => { shareByZone[z] = zoneShare(z); });
+    cells.forEach((c) => { c.wheel = wheelAt(c.x, c.y); });
+    cutCols.forEach((c) => { c.wheel = wheelAt(c.x, c.y); });
+    wheelMeshes.forEach((m, i) => m.material.color.setHex(on[i] ? 0xe8862e : 0x6d7278));
+    wheelRings.forEach((m, i) => { m.visible = on[i]; });
+  }
+  D.wheels.forEach((p, i) => {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2.2, 16), new THREE.MeshLambertMaterial({ color: 0xe8862e }));
+    wheel.rotation.z = Math.PI / 2; wheel.position.set(wx(p[0]), .7, wz(p[1])); fac.add(wheel); wheelMeshes.push(wheel);
+    const reach = new THREE.Mesh(new THREE.RingGeometry(WHEEL_RADIUS - .25, WHEEL_RADIUS, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .6, side: THREE.DoubleSide, depthWrite: false }));
+    reach.rotation.x = -Math.PI / 2; reach.position.set(wx(p[0]), .3, wz(p[1])); fac.add(reach); wheelRings.push(reach);
+    texts.add(label(`수차 ${i + 1}`, wx(p[0]), 4.5, wz(p[1])));
+  });
+  // 부교 동쪽 못의 얼음
+  const eastPoly = [[415, 348], [515, 322], [650, 300], [740, 282], [788, 282], [800, 300], [792, 400], [772, 500], [748, 620], [722, 728], [700, 742], [620, 716], [515, 696], [430, 660], [352, 628], [326, 622], [410, 362]];
+  const iceSheet = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(eastPoly.map((p) => new THREE.Vector2(wx(p[0]), -wz(p[1]))))), new THREE.MeshLambertMaterial({ color: 0xe9f3f7, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  iceSheet.rotation.x = -Math.PI / 2; iceSheet.position.y = .2; iceSheet.renderOrder = 3; scene.add(iceSheet);
+  const iceLabel = label("동쪽 못 얼음", wx(600), 5, wz(480)); scene.add(iceLabel);
+  const iceAt = (st, h = st.h) => (D.iceCm[st.f][st.s] || {})[h] || 0;
+  const westPoly = [[275, 378], [340, 362], [410, 362], [326, 622], [270, 640], [200, 642], [150, 622], [120, 590], [114, 560], [130, 520], [165, 455], [215, 398]];
+  const iceWest = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(westPoly.map((p) => new THREE.Vector2(wx(p[0]), -wz(p[1]))))), new THREE.MeshLambertMaterial({ color: 0xe9f3f7, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  iceWest.rotation.x = -Math.PI / 2; iceWest.position.y = .2; iceWest.renderOrder = 3; scene.add(iceWest);
+  const iceWestAt = (st) => ((D.simsOff.westIce[st.f][st.s] || {})[st.h] || 0) * (1 - wheelShare);
+  function drawIce(st) {
+    const cm = iceAt(st);
+    iceSheet.visible = iceLabel.visible = cm >= .3;
+    iceSheet.material.opacity = clamp(.3 + cm / 16, .3, .88);
+    const west = iceWestAt(st);
+    iceWest.visible = west >= .3;
+    iceWest.material.opacity = clamp(.3 + west / 16, .3, .88);
+  }
+  // 내 공략 지도: 물골, 공략 지점, 밑걸림
+  const mapLayer = new THREE.Group(); scene.add(mapLayer);
+  D.channels.forEach((p) => {
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(p.map((a) => new THREE.Vector3(wx(a[0]), .3, wz(a[1])))), new THREE.LineDashedMaterial({ color: 0xffe100, dashSize: 2, gapSize: 1.2 }));
+    line.computeLineDistances(); mapLayer.add(line);
+  });
+  const wormLayer = new THREE.Group(); mapLayer.add(wormLayer);
+  const addDisc = (px, py, r, color, op, parent = mapLayer) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(wx(px), .25, wz(py)); parent.add(m); };
+  D.mapSpots.forEach((s) => { addDisc(s[0], s[1], 2.6, 0xc8d84a, .55, wormLayer); });
+  addDisc(D.snag[0], D.snag[1], 2.4, 0xb3261e, .85);
+
+  // 수온 단면: 두 가두리를 지나 부교를 가로지르는 세로면
+  const cutCols = [], ROWS = 9;
+  for (let t = 0; t <= 1; t += 1 / 80) {
+    const x = 150 + 410 * t, y = 538 - 92 * t, n = Math.round((y - D.crop[1]) / G.step) * G.nx + Math.round((x - D.crop[0]) / G.step), d = G.depth[n];
+    if (d) cutCols.push({ x, y, d, z: G.zones[n], clean: cleanAt(x, y), rainF: rainAt(x, y), wheel: wheelAt(x, y) });
+  }
+  const cutPos = new Float32Array(cutCols.length * ROWS * 3), cutCol = new Float32Array(cutCols.length * ROWS * 3), cutIdx = [];
+  cutCols.forEach((c, i) => { for (let r = 0; r < ROWS; r++) {
+    const n = i * ROWS + r; cutPos[n * 3] = wx(c.x); cutPos[n * 3 + 2] = wz(c.y);
+    if (i < cutCols.length - 1 && r < ROWS - 1) cutIdx.push(n, n + 1, n + ROWS, n + 1, n + ROWS + 1, n + ROWS);
+  } });
+  const cutGeo = new THREE.BufferGeometry(); cutGeo.setAttribute("position", new THREE.BufferAttribute(cutPos, 3)); cutGeo.setAttribute("color", new THREE.BufferAttribute(cutCol, 3)); cutGeo.setIndex(cutIdx);
+  const curtain = new THREE.Mesh(cutGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: .8, depthWrite: false, fog: false }));
+  curtain.frustumCulled = false; curtain.renderOrder = 1; curtain.visible = false; scene.add(curtain);
+  function drawCurtain(st) {
+    const vals = []; let lo = 99, hi = -99;
+    cutCols.forEach((c) => { const v = vAt(zoneV(st, st.h, c.z), c.rainF, st); for (let r = 0; r < ROWS; r++) { const T = tempAt(v, c.d, Math.max(.05, c.d * r / (ROWS - 1)), st, kOf(c.clean, st), c.wheel); vals.push(T); lo = Math.min(lo, T); hi = Math.max(hi, T); } });
+    lo = Math.floor(lo * 2) / 2; hi = Math.max(lo + 1, Math.ceil(hi * 2) / 2);
+    vals.forEach((T, n) => { const rgb = lerpCol(RAMP.temp, (T - lo) / (hi - lo)); cutCol[n * 3] = rgb[0]; cutCol[n * 3 + 1] = rgb[1]; cutCol[n * 3 + 2] = rgb[2]; });
+    cutGeo.attributes.color.needsUpdate = true;
+    $("cutLegend").textContent = `단면 색: 파랑 ${lo.toFixed(1)}℃ ~ 빨강 ${hi.toFixed(1)}℃`;
+  }
+  function placeSun(st) {
+    const S = solar(st.h, D.weather[st.s].clear), f = clamp((st.h - 7.5) / 10, 0, 1), az = (125 + 110 * f) * Math.PI / 180, alt = Math.sin(Math.PI * f) * 31 * Math.PI / 180;
+    const p = new THREE.Vector3(Math.sin(az) * Math.cos(alt), Math.sin(alt), -Math.cos(az) * Math.cos(alt)).multiplyScalar(420);
+    sun.position.copy(p); sun.intensity = .12 + .75 * S / 530;
+    sunBall.position.copy(p); sunBall.visible = S > 0;
+    sunBall.material.color.setHex(D.weather[st.s].clear > .5 ? 0xffd25e : 0xcfd3d6);
+  }
+  // 부교와 가두리 사이 지점의 시간별, 수심별 수온
+  const probe = cells.reduce((b, c) => (Math.hypot(c.x - 316, c.y - 505) < Math.hypot(b.x - 316, b.y - 505) ? c : b), cells[0]);
+  function profile(st) {
+    const hours = [7, 9, 11, 13, 15, 17], depths = [.3, 1, 2, 3].filter((z) => z < probe.d);
+    const row = (z) => `<tr><th>${z}m</th>${hours.map((h) => `<td class="${h === st.h ? "on" : ""}">${tempAt(vAt(zoneV(st, h, probe.z), probe.rainF, st), probe.d, z, { ...st, h }, kOf(probe.clean, st), probe.wheel).toFixed(1)}</td>`).join("")}</tr>`;
+    const top = zoneV(st, st.h, probe.z)[0];
+    $("profile").innerHTML = `<table><tr><th>수심</th>${hours.map((h) => `<th>${h}시</th>`).join("")}</tr><tr><th>햇빛</th>${hours.map((h) => `<td>${Math.round(solar(h, D.weather[st.s].clear))}</td>`).join("")}</tr>${depths.map(row).join("")}</table>
+      <p class="note">햇빛은 W/㎡입니다. ${top < 3.5 ? "지금은 4℃ 아래라 데워진 물이 가라앉으면서 섞여, 표층의 따뜻한 층은 약합니다. 대신 얕은 곳이 바닥까지 먼저 데워집니다." : "4℃ 위에서는 데워진 물이 위에 머물러 바람이 약하면 표층이 먼저 따뜻해집니다."} 수차를 돌리면 차이는 더 작아집니다.</p>`;
+  }
+
+  // 추천
+  const recGroup = new THREE.Group(); scene.add(recGroup);
+
+  // ---------- 색 ----------
+  const lerpCol = (stops, v) => { v = clamp(v, 0, 1) * (stops.length - 1); const i = Math.min(Math.floor(v), stops.length - 2), f = v - i; return [0, 1, 2].map((k) => stops[i][k] + (stops[i + 1][k] - stops[i][k]) * f); };
+  const RAMP = {
+    depth: [[.72, .9, .86], [.25, .66, .72], [.1, .34, .55], [.05, .13, .34]],
+    temp: [[.15, .25, .75], [.15, .7, .85], [.95, .9, .4], [.9, .3, .15]],
+    do: [[.75, .2, .15], [.95, .75, .3], [.2, .7, .45], [.12, .35, .75]],
+    clean: [[.48, .36, .2], [.25, .55, .55], [.72, .95, 1]],
+    fish: [[.1, .13, .22], [.2, .4, .55], [.95, .8, .3], [.95, .35, .2]],
+  };
+  const LEG = { depth: ["수심", "얕음", "4.5m", "depth"], temp: ["윗층 수온", "0℃", "10℃", "temp"], tempb: ["바닥 쪽 수온", "0℃", "10℃", "temp"], do: ["바닥 쪽 산소", "6mg/L", "14mg/L", "do"], clean: ["맑은 물 영향", "탁함", "맑음", "clean"], fish: ["송어 예상 밀도 (상대값)", "낮음", "높음", "fish"], bite: ["반응 좋은 송어 밀도 (상대값)", "낮음", "높음", "fish"] };
+  function paint() {
+    const st = state(), mode = $("mode").value;
+    let maxW = 1e-9; const ev = {};
+    let tLo = 0, tHi = 10;
+    if (mode === "temp" || mode === "tempb") {
+      const ts = cells.map((c) => tempAt(vAt(zoneV(st, st.h, c.z), c.rainF, st), c.d, mode === "temp" ? .2 : c.d * .9, st, kOf(c.clean, st), c.wheel));
+      tLo = Math.floor(Math.min(...ts)); tHi = Math.max(tLo + 2, Math.ceil(Math.max(...ts)));
+    }
+    if (mode === "fish" || mode === "bite") { const r = dist(st); cells.forEach((c) => { const e = c.west ? (mode === "bite" ? r.hiW : r.w)[c.wi] : 0; ev[c.j * G.nx + c.i] = e; if (e > maxW) maxW = e; }); }
+    for (let n = 0; n < nv; n++) { col[n * 3] = .45; col[n * 3 + 1] = .4; col[n * 3 + 2] = .3; }
+    cells.forEach((c) => {
+      const n = c.j * G.nx + c.i, v = vAt(zoneV(st, st.h, c.z), c.rainF, st);
+      let rgb;
+      if (mode === "depth") rgb = lerpCol(RAMP.depth, c.d / 4.5);
+      else if (mode === "temp") rgb = lerpCol(RAMP.temp, (tempAt(v, c.d, .2, st, kOf(c.clean, st), c.wheel) - tLo) / (tHi - tLo));
+      else if (mode === "tempb") rgb = lerpCol(RAMP.temp, (tempAt(v, c.d, c.d * .9, st, kOf(c.clean, st), c.wheel) - tLo) / (tHi - tLo));
+      else if (mode === "clean") rgb = lerpCol(RAMP.clean, st.k === 2 ? c.clean : 1);
+      else if (mode === "do") rgb = lerpCol(RAMP.do, (v[3] - 6) / 8);
+      else rgb = lerpCol(RAMP.fish, Math.pow(ev[n] / maxW, .6));
+      col[n * 3] = rgb[0]; col[n * 3 + 1] = rgb[1]; col[n * 3 + 2] = rgb[2];
+    });
+    botGeo.attributes.color.needsUpdate = true;
+    const L = [...LEG[mode]];
+    if (L[3] === "temp") { L[1] = `${tLo}℃`; L[2] = `${tHi}℃`; }
+    const g = RAMP[L[3]].map((c) => `rgb(${c.map((x) => Math.round(x * 255)).join(",")})`).join(",");
+    $("legend").innerHTML = `${L[0]}<i style="background:linear-gradient(90deg,${g})"></i><span style="display:flex;justify-content:space-between"><span>${L[1]}</span><span>${L[2]}</span></span>`;
+  }
+  function applyVe() {
+    const ve = +$("ve").value;
+    for (let n = 0; n < nv; n++) { const d = G.depth[n]; pos[n * 3 + 1] = d ? -d * ve : 1; }
+    posAttr.needsUpdate = true; landGeo.computeVertexNormals(); botGeo.computeVertexNormals();
+    const netH = (D.zoneDepth.D || 2.6) * ve; netWall.scale.y = netH; netWall.position.y = -netH / 2;
+    cutCols.forEach((c, i) => { for (let r = 0; r < ROWS; r++) cutPos[(i * ROWS + r) * 3 + 1] = -c.d * ve * r / (ROWS - 1); });
+    cutGeo.attributes.position.needsUpdate = true;
+    cageParts.forEach((g) => { const h = g.userData.h * ve; g.children.forEach((m) => { m.scale.y = h; }); g.position.y = -h / 2 + .3; });
+    $("veLabel").textContent = `${ve}배`;
+    placeFish(false);
+  }
+
+  let nCruise = 0, cruiseDepth = 1, cruiseSpeed = 1, ringPhase = 0, lastT = 0;
+  const STAY_TINT = new THREE.Color(1, 1, 1), CRUISE_TINT = new THREE.Color(.6, .88, 1), CAGE_TINT = new THREE.Color(.62, .55, .5);
+  const REACT_TINT = { high: new THREE.Color(.3, .55, 1.5), mid: new THREE.Color(1.35, 1.05, .25), low: new THREE.Color(1.5, .28, .22) };
+  const DEPTH_TINT = [new THREE.Color(1.35, 1.2, .3), new THREE.Color(.35, 1.2, .55), new THREE.Color(.3, .7, 1.4), new THREE.Color(.95, .4, 1.3)];
+  const tintFor = (cruise, R, dep) => {
+    const kind = $("fishColor").value;
+    if (kind === "depth") return DEPTH_TINT[dep < 1 ? 0 : dep < 2 ? 1 : dep < 3 ? 2 : 3];
+    return kind === "react" ? REACT_TINT[levelOf(R)] : cruise ? CRUISE_TINT : STAY_TINT;
+  };
+  const CAGE_HALF = 3.5, CAGE_DEPTH = 1.3, CAGE_FISH = 75;   // 가두리 절반 폭 m, 깊이 m, 가두리당 마릿수(50~100의 중간)
+  const depthAt = (px, py) => G.depth[Math.round((py - D.crop[1]) / G.step) * G.nx + Math.round((px - D.crop[0]) / G.step)] || 1;
+  function placeFish(resample) {
+    if (!resample && fishTo.length) return;
+    const st = state(), info = dist(st), r = rng(42), inSeason = cageSeason(st);
+    const count = info.pop, cageN = inSeason ? CAGE_FISH * 2 : 0;
+    fish.count = count + cageN;
+    nCruise = Math.round(count * (1 - info.resident) * info.eff); cruiseDepth = Math.min(info.depth, 2); cruiseSpeed = .25 + .75 * info.act;
+    const nRes = Math.round(count * info.resident), cw = D.cages.west, cageBottom = depthAt(cw[0], cw[1]);
+    let total = 0; const cum = Array.from(info.free, (v) => (total += v));
+    const set = (k, g, tint) => {
+      fishTo[k] = g;
+      if (!fishCur[k]) fishCur[k] = { x: g.x, z: g.z, dep: g.dep, head: g.ph };
+      fish.setColorAt(k, tint);
+    };
+    for (let k = 0; k < fish.count; k++) {
+      const ph = r() * 6.28, u = (r() + k * .618) % 1, ox = (r() - .5) * 9, oz = (r() - .5) * 9, dd = (r() - .5) * .9;
+      if (k >= count) {   // 가두리 안
+        const c = k - count < CAGE_FISH ? D.cages.west : D.cages.east, a = r() * 6.28, m = Math.sqrt(r()) * 2.8;
+        set(k, { x: wx(c[0]) + Math.cos(a) * m, z: wz(c[1]) + Math.sin(a) * m, dep: .3 + r() * (CAGE_DEPTH - .45), ph, wob: .35 }, CAGE_TINT);
+      } else if (k >= nCruise && k < nCruise + nRes) {   // 중앙 가두리 곁과 아래
+        const a = r() * 6.28, under = cageBottom > CAGE_DEPTH + .2 && r() < .45;
+        const m = under ? Math.sqrt(r()) * CAGE_HALF : CAGE_HALF + r();
+        const dep = under ? CAGE_DEPTH + .1 + r() * (cageBottom - CAGE_DEPTH - .2) : .3 + r() * (CAGE_DEPTH - .3);
+        set(k, { x: wx(cw[0]) + Math.cos(a) * m, z: wz(cw[1]) + Math.sin(a) * m, dep, ph, wob: .3 }, tintFor(false, activity(info.Tm, st.h) * .7 * (.25 + .75 * r()), dep));
+      } else {
+        const pick = r() * total; let lo = 0, hi = cum.length - 1;
+        while (lo < hi) { const m = lo + hi >> 1; if (cum[m] < pick) lo = m + 1; else hi = m; }
+        const c = westCells[lo], cruise = k < nCruise;
+        let R = activity(info.evals[lo].T, st.h) * (.25 + .75 * r());
+        if (r() < .05 || r() < info.stir[lo]) R = 1;
+        if (r() < info.freshP[lo]) R = freshLevel(info.rel) === "high" ? 1 : .6;
+        const dep = clamp(info.lay[lo] + dd, .25, Math.max(.3, c.d - .15));
+        set(k, { cruise, x: wx(c.x + (r() - .5) * G.step * 2), z: wz(c.y + (r() - .5) * G.step * 2), dep, u, ox, oz, dd, ph, wob: 1.6 }, tintFor(cruise, R, cruise ? clamp(cruiseDepth + dd, .25, 3) : dep));
+      }
+    }
+    fish.instanceColor.needsUpdate = true;
+  }
+  function drawFish(t) {
+    const ve = +$("ve").value, dt = Math.min(.1, t - lastT); lastT = t;
+    ringPhase += cruiseSpeed * dt / ringLen;
+    for (let k = 0; k < fish.count; k++) {
+      const c = fishCur[k], g = fishTo[k];
+      let tx, tz, td, rate;
+      if (g.cruise) {
+        const p = ringAt(g.u + ringPhase);
+        tx = wx(p[0]) + g.ox; tz = wz(p[1]) + g.oz; rate = .05;
+        const n = Math.round((p[1] - D.crop[1]) / G.step) * G.nx + Math.round((p[0] - D.crop[0]) / G.step);
+        td = clamp(cruiseDepth + g.dd, .25, Math.max(.3, (G.depth[n] || 1) - .15));
+      } else {
+        tx = g.x + Math.sin(t * .3 + g.ph) * g.wob; tz = g.z + Math.cos(t * .27 + g.ph) * g.wob; td = g.dep; rate = .03;
+      }
+      const dx = (tx - c.x) * rate, dz = (tz - c.z) * rate;
+      c.x += dx; c.z += dz; c.dep += (td - c.dep) * rate;
+      if (Math.hypot(dx, dz) > 1e-4) { let a = Math.atan2(dz, dx) - c.head; a = Math.atan2(Math.sin(a), Math.cos(a)); c.head += a * .12; }
+      dummy.position.set(c.x, -c.dep * ve, c.z);
+      dummy.rotation.y = -c.head + Math.sin(t * 5 + g.ph) * .1;
+      dummy.updateMatrix(); fish.setMatrixAt(k, dummy.matrix);
+    }
+    fish.instanceMatrix.needsUpdate = true;
+  }
+
+  // ---------- 추천과 패널 ----------
+  const colorTip = () => $("clarity").value === "clear" ? "갈색, 다크그린, 검정, 금 먼저" : "핑크, 오렌지, 겨자처럼 반사 강한 색 먼저";
+  const NOTE_COLOR = "공략법 컬러: 스푼은 오렌지, 초록(뒷면 검정, 금)에 반응이 좋습니다. 해가 강할수록 흰색과 오렌지, 완전 바닥은 연두 형광이나 분홍입니다.";
+  // 추천 1~3위의 사거리 원 안에 있는 공략 지점. 겹치면 순위가 높은 자리에 붙입니다.
+  function nearSpots(list) {
+    const used = new Set(), items = [...($("worm").checked ? D.mapSpots.filter((s) => s[2]) : []), [D.snag[0], D.snag[1], "밑걸림", true]];
+    return list.slice(0, 3).map((r) => items.filter((s) => {
+      if (used.has(s) || !inCast(r, s[0], s[1], castInfo())) return false;
+      used.add(s); return true;
+    }));
+  }
+  function drawRecs(list) {
+    recGroup.traverse((o) => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry && !o.isSprite) o.geometry.dispose(); });
+    recGroup.clear();
+    if ($("note").checked) nearSpots(list).forEach((spots, i) => spots.forEach((p) => {
+      recGroup.add(label(`${i + 1}위 ${p[2]}`, wx(p[0]), 3.5, wz(p[1]), p[3] ? "#ff4d4d" : "note", .017, 400));
+      neonSprites.pop();   // 다시 그릴 때마다 새로 만드는 글자라 목록에 남기지 않습니다.
+    }));
+    const top = list[0].score || 1;
+    list.forEach((r) => { const b = whiteBars[r.key]; if (!b) return; const v = clamp((r.score / top - .4) / .6, 0, 1); b.material.color.setRGB(1, 1 - .62 * v, 1 - .9 * v); });
+    const colors = [0xffc53d, 0xd9dde2, 0xc98a4e];
+    list.slice(0, 3).forEach((r, i) => {
+      const x = wx(r.x), z = wz(r.y);
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, 12, 12), new THREE.MeshBasicMaterial({ color: colors[i] })); pin.position.set(x, 6, z);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(1.8, 16, 12), new THREE.MeshBasicMaterial({ color: colors[i] })); ball.position.set(x, 12.5, z);
+      const cast = castInfo(), front = cast.mode !== "circle";
+      const half = Math.atan(FAN_WIDTH / 2 / cast.R), fan = new THREE.Shape();
+      fan.moveTo(0, 0); fan.lineTo(cast.R * Math.cos(half), -cast.R * Math.sin(half)); fan.absarc(0, 0, cast.R, -half, half, false); fan.lineTo(0, 0);
+      const ring = new THREE.Mesh(front ? new THREE.ShapeGeometry(fan, 12) : new THREE.RingGeometry(cast.R - .7, cast.R, 64), new THREE.MeshBasicMaterial({ color: colors[i], side: THREE.DoubleSide, transparent: true, opacity: front ? (i ? .4 : .6) : (i ? .55 : .95), depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2;
+      if (front) { const [vx, vy] = castVec(r, cast); ring.rotation.z = Math.atan2(-vy, vx); ring.position.set(x, .35, z); } else ring.position.set(x, .35, z);
+      recGroup.add(pin, ball, ring, label(`${i + 1}위 ${r.short}`, x, 16.5, z, "rec", .025));
+    });
+  }
+  const nice = (s) => (/^\d\d-\d\d$/.test(s) ? `${+s.slice(0, 2)}월 ${+s.slice(3)}일` : s);
+  const dates = D.calDates || [];
+  const seasonYear = new Date().getMonth() >= 6 ? new Date().getFullYear() : new Date().getFullYear() - 1;   // 7월부터 다음 겨울을 보여 줍니다.
+  const MONTHS = [[seasonYear, 11], [seasonYear, 12], [seasonYear + 1, 1], [seasonYear + 1, 2], [seasonYear + 1, 3], [seasonYear + 1, 4]];
+  const pad = (n) => String(n).padStart(2, "0");
+  let calM = 0;
+  function calendar(st) {
+    if (!dates.length) return;
+    const [y, m] = MONTHS[calM], first = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate();
+    $("calMonth").textContent = `${y}년 ${m}월`;
+    $("calTitle").textContent = `${st.h}시 1순위, 지난 3년 평균 날씨`;
+    const tds = Array(first).fill("<td></td>");
+    for (let d = 1; d <= days; d++) {
+      const key = `${pad(m)}-${pad(d)}`;
+      if (!dates.includes(key)) { tds.push("<td></td>"); continue; }   // 윤일은 자료가 없습니다.
+      const top = ranks({ ...st, s: key })[0], rgb = lerpCol(RAMP.temp, top.t / 18).map((v) => Math.round(v * 255));
+      tds.push(`<td class="day ${key === st.s ? "on" : ""}" data-date="${key}" style="background:rgba(${rgb.join(",")},.3)"><b>${d}${iceAt({ f: st.f, s: key }, st.h) >= .3 ? " ❄" : ""}</b>${top.short.replace("데크 ", " ")}<i>${top.t.toFixed(1)}℃</i></td>`);
+    }
+    let html = "<table class='caltable'><tr>" + "일월화수목금토".split("").map((w) => `<th>${w}</th>`).join("") + "</tr>";
+    for (let i = 0; i < tds.length; i += 7) html += `<tr>${tds.slice(i, i + 7).join("")}</tr>`;
+    $("cal").innerHTML = html + "</table>";
+    const W = D.weather[st.s];
+    $("dayInfo").textContent = W.years ? `${nice(st.s)}: 3년 평균 기온 ${W.lo}~${W.hi}℃ (가장 낮을 때 ${W.cold}℃, 높을 때 ${W.warm}℃), 평균 바람 ${W.wind}m/s. 칸 색은 추천 자리 수온, ❄는 동쪽 못 얼음입니다.` : `날짜를 누르면 지난 3년 평균 날씨로 계산합니다. 칸 색은 추천 자리 수온입니다.`;
+  }
+  function dayHours(st) {
+    const hours = [7, 9, 11, 13, 15, 17], tops = hours.map((h) => ranks({ ...st, h })[0]);
+    $("dayHours").innerHTML = `<table><tr><th>${nice(st.s)}</th>${hours.map((h) => `<th>${h}시</th>`).join("")}</tr><tr><th>자리</th>${tops.map((r, i) => `<td class="cell ${hours[i] === st.h ? "on" : ""}" data-h="${hours[i]}">${r.short}</td>`).join("")}</tr><tr><th>수온</th>${tops.map((r) => `<td>${r.t.toFixed(1)}</td>`).join("")}</tr><tr><th>층</th>${tops.map((r) => `<td>${r.dep.toFixed(1)}m</td>`).join("")}</tr></table>`;
+  }
+  $("cal").addEventListener("click", (e) => { const td = e.target.closest("td.day"); if (td) { calDate = td.dataset.date; $("scenario").value = "cal"; panel(); } });
+  $("dayHours").addEventListener("click", (e) => { const td = e.target.closest("td.cell"); if (td) { $("hour").value = td.dataset.h; panel(); } });
+  $("calPrev").onclick = () => { calM = (calM + MONTHS.length - 1) % MONTHS.length; calendar(state()); };
+  $("calNext").onclick = () => { calM = (calM + 1) % MONTHS.length; calendar(state()); };
+  function panel() {
+    const st = state(), list = ranks(st), best = list[0].score || 1;
+    $("hourLabel").textContent = `${String(st.h).padStart(2, "0")}:00`;
+    $("recTitle").textContent = `${nice(st.s)} ${st.h}시 추천 자리`;
+    const info = dist(st);
+    mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
+    drawIce(st);
+    water.material.color.setHex(st.k === 2 ? 0x8f7c52 : 0x2f7fa3);
+    Object.keys(relMarks).forEach((k) => { relMarks[k].visible = st.stock !== 2 && k === st.release; });
+    $("relH").disabled = st.stock !== 0;
+    $("stockN").disabled = st.stock === 2;
+    $("castLabel").textContent = `${st.castR}m`;
+    $("stockLabel").textContent = `${st.stockN}마리`;
+    $("totalLabel").textContent = `${(+$("total").value).toLocaleString()}마리`;
+    $("cruiseLabel").textContent = `${Math.round(st.cruise * 100)}%`;
+    $("cruiseNote").textContent = `지금 물 온도에서 실제로 도는 송어는 약 ${Math.round(info.eff * 100)}%입니다.`;
+    $("fishKey").innerHTML = $("fishColor").value === "depth" ? '<b style="color:#d9b400">■</b> 1m 안 <b style="color:#35b86a">■</b> 1~2m <b style="color:#3f8fe0">■</b> 2~3m <b style="color:#b45fd6">■</b> 3m 아래 <b style="color:#8a7f73">■</b> 가두리 안' : $("fishColor").value === "react" ? '<b style="color:#2f6fe0">■</b> 반응 좋음 <b style="color:#d9a400">■</b> 보통 <b style="color:#e5392c">■</b> 낮음 <b style="color:#8a7f73">■</b> 가두리 안' : '<b style="color:#5fb6e6">■</b> 도는 송어 <b style="color:#b9b4a6">■</b> 머무는 송어 <b style="color:#8a7f73">■</b> 가두리 안';
+    const relName = st.release === "center" ? "중앙 가두리" : "부교 가두리";
+    const near = nearSpots(list);
+    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. ${info.rel.hours <= 1 ? "방류어는 움직이는 루어에 빠르게 반응하고, 주변 기존 송어 일부도 자극받아 반응이 올라갑니다." : "활발한 입질은 약 1시간으로 봅니다."}${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
+    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `부채꼴은 중앙 가두리 쪽으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : castInfo().mode === "front" ? `부채꼴은 자리별로 정한 정면 방향으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
+    const sim = Object.fromEntries(Object.keys(D.zoneNames).map((k) => [k, zoneV(st, st.h, k)]));
+    const alerts = [], ks = Object.keys(sim);
+    const offCount = D.wheels.filter((_, i) => !wheelOn(i)).length, westNow = iceWestAt(st);
+    if (offCount) alerts.push(`수차 ${offCount}대가 꺼져 있습니다${westNow >= .3 ? `. 서쪽 못 얼음 약 ${westNow.toFixed(1)}cm` : ""}. 일부만 끈 경우는 근사값입니다.`);
+    const tops = ks.map((k) => sim[k][0]), maxT = Math.max(...ks.map((k) => Math.max(sim[k][0], sim[k][2]))), iced = ks.filter((k) => sim[k][4]), minO = Math.min(...ks.map((k) => sim[k][3]));
+    if (maxT < 1.5) alerts.push("전체가 0℃에 가까워 자리 차이가 작게 계산됩니다. 순위보다 덜 찬 곳을 고르는 정도로 보세요.");
+    else if (maxT < 5) alerts.push("대부분 5℃ 미만이라 먹는 양이 적은 구간으로 봅니다. 작은 스푼을 느리게 시험할 만합니다.");
+    const iceNow = iceAt(st), icePrev = iceAt(st, Math.max(6, st.h - 3));
+    if (iceNow >= .3) alerts.push(`부교 동쪽 못 얼음 약 ${iceNow.toFixed(1)}cm (${iceNow > icePrev + .05 ? "어는 중" : iceNow < icePrev - .05 ? "녹는 중" : "유지"}). 얼음 아래로는 바람과 산소가 들어가지 못하고, 녹은 0℃ 물은 그물을 지나 서쪽 못과 섞입니다.`);
+    if (st.rain) { const [T, O] = rainWater(st); alerts.push(`비 온 다음날: ${nice(st.s)} 평균 기온 ${D.weather[st.s].air}℃에 맞춰 약 ${T.toFixed(1)}℃, 산소 약 ${O.toFixed(1)}mg/L의 물이 유입구에서 물골을 따라 퍼진다고 계산합니다. 구역별 표에는 넣지 않았습니다.`); }
+    if (minO < 7) alerts.push("바닥 쪽 산소가 7mg/L 아래로 계산됩니다. 깊은 곳을 피해 보세요.");
+    if (st.f === "stream" && ["wS", "sW"].includes(list[0].key)) alerts.push("찬 물이 바로 닿는 유입구 앞은 피하고, 좌대에서 얕은 둘레 쪽으로 던지는 경우의 계산입니다.");
+    const others = ks.filter((k) => k !== "A").map((k) => sim[k][0]);
+    if (st.rain) { /* 새물 안내는 아래에 따로 표시합니다. */ }
+    else if (sim.A[0] > Math.max(...others)) alerts.push("유입구 앞이 가장 따뜻하게 계산됩니다. 새물 온도는 재기 전까지 가정입니다.");
+    else if (sim.A[0] < Math.min(...others)) alerts.push("유입구 앞이 가장 차갑게 계산됩니다. 새물 온도는 재기 전까지 가정입니다.");
+    alerts.push(st.note ? ($("worm").checked ? NOTE_COLOR : "공략법 컬러: 스푼은 오렌지, 초록(뒷면 검정, 금)에 반응이 좋습니다.") : `컬러: ${colorTip()}. 15℃ 이상 낚시터 실험이라 겨울 적용은 확인이 필요합니다.`);
+    $("alerts").innerHTML = alerts.map((a) => `<p class="warn">${a}</p>`).join("");
+    $("zones").innerHTML = `<table><tr><th>구역</th><th>윗층</th><th>바닥 쪽</th><th>산소</th></tr>${ks.map((k) => `<tr><td>${D.zoneNames[k]}</td><td>${sim[k][0].toFixed(1)}℃</td><td>${sim[k][2].toFixed(1)}℃</td><td>${sim[k][3].toFixed(1)}</td></tr>`).join("")}</table>`;
+    drawRecs(list); placeFish(true); paint(); matrix(st); drawCurtain(st); placeSun(st); profile(st); calendar(st); dayHours(st);
+  }
+  const TIMES = [7, 9, 12, 15, 17];
+  let matrixKey = "", matrixTop = {};
+  function matrix(st) {
+    const key = [st.f, st.stock, st.crowd, st.cruise, st.note, st.rain, st.k, st.release, st.relH, st.total, st.stockN, st.wheels, st.castMode, st.castR].join();
+    if (key !== matrixKey) {
+      matrixKey = key; matrixTop = {};
+      D.scenarios.forEach((s) => TIMES.forEach((h) => { matrixTop[s + h] = ranks({ ...st, s, h })[0].short; }));
+    }
+    $("matrix").innerHTML = `<table><tr><th></th>${TIMES.map((h) => `<th>${h}시</th>`).join("")}</tr>${D.scenarios.map((s) => `<tr><th>${s}</th>${TIMES.map((h) => `<td class="cell ${s === st.s && h === st.h ? "on" : ""}" data-s="${s}" data-h="${h}">${matrixTop[s + h]}</td>`).join("")}</tr>`).join("")}</table>`;
+  }
+  $("matrix").addEventListener("click", (e) => { const td = e.target.closest("td.cell"); if (!td) return; $("scenario").value = td.dataset.s; $("hour").value = td.dataset.h; panel(); });
+
+  // ---------- 조작 ----------
+  const NEON_INPUTS = { neonFac: "fac", neonNote: "note", neonRec: "rec" };
+  function applyNeon() {
+    Object.keys(NEON_INPUTS).forEach((id) => { $(id).value = NEON[NEON_INPUTS[id]]; });
+    document.documentElement.style.setProperty("--neon", NEON.fac);
+    neonSprites.forEach(paintLabel);
+  }
+  const saveNeon = () => { try { localStorage.setItem("deokbongNeon", JSON.stringify(NEON)); } catch (e) { /* 저장 못 해도 이번 화면에는 적용 */ } };
+  Object.keys(NEON_INPUTS).forEach((id) => $(id).addEventListener("input", (e) => {
+    NEON[NEON_INPUTS[id]] = e.target.value; applyNeon(); saveNeon();
+    if (id !== "neonFac") panel();
+  }));
+  $("neonReset").onclick = () => { Object.assign(NEON, NEON_DEFAULT); try { localStorage.removeItem("deokbongNeon"); } catch (e) { /* 무시 */ } applyNeon(); panel(); };
+  applyNeon();
+  const ray = new THREE.Raycaster();
+  D.scenarios.forEach((s) => $("scenario").add(new Option(s, s)));
+  const now = new Date(), today = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  if (dates.length) { $("scenario").add(new Option("달력에서 고른 날짜", "cal"), 0); calDate = dates.includes(today) ? today : dates[0]; }
+  $("scenario").value = dates.includes(today) ? "cal" : "맑은 겨울날";
+  $("hour").value = clamp(now.getHours(), 6, 19);   // 창을 여는 시점의 날짜와 시각으로 시작합니다.
+  const curM = MONTHS.findIndex((m) => m[1] === now.getMonth() + 1);
+  if (curM >= 0) calM = curM;
+  $("summary").textContent = `수면 약 ${(D.area / 10000).toFixed(1)}ha, 부피 약 ${(D.volume / 10000).toFixed(1)}만㎥, 평균 수심 약 ${(D.volume / D.area).toFixed(1)}m (사진에서 측정, 동쪽 수심은 추정)`;
+  ["scenario", "hour", "inflow", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH", "fishColor", "castMode", "castR"].forEach((id) => $(id).addEventListener("input", panel));
+  $("mode").addEventListener("input", paint);
+  $("ve").addEventListener("input", applyVe);
+  $("spin").addEventListener("input", (e) => { controls.autoRotate = e.target.checked; });
+  const vis = { lWater: water, lFish: fish, lRec: recGroup, lFac: fac, lText: texts, lCut: curtain };
+  $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
+  Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
+  let playing = null;
+  $("play").addEventListener("click", () => {
+    if (playing) { clearInterval(playing); playing = null; $("play").textContent = "재생"; return; }
+    $("play").textContent = "정지";
+    playing = setInterval(() => { const h = $("hour"); h.value = +h.value >= 19 ? 6 : +h.value + 1; panel(); }, 1100);
+  });
+  const zoomBy = (f) => { const d = camera.position.clone().sub(controls.target); const len = clamp(d.length() * f, 6, 900); camera.position.copy(controls.target).add(d.setLength(len)); };
+  $("zIn").onclick = () => zoomBy(.82); $("zOut").onclick = () => zoomBy(1.22);
+  const fit = () => { const s = Math.max(1, 1.08 / (view.clientWidth / view.clientHeight)); camera.position.set(HOME[0] * s, HOME[1] * s, HOME[2] * s); controls.target.set(0, 0, 0); };
+  // 시점
+  let anim = null;
+  const at = (x, y, h) => new THREE.Vector3(wx(x), h, wz(y));
+  const aspectScale = () => Math.max(1, 1.1 / (view.clientWidth / view.clientHeight));
+  const go = (pos, tgt, now) => { if (now) { camera.position.copy(pos); controls.target.copy(tgt); } else anim = { pos, tgt, n: 0 }; };
+  const views = {
+    focus(now) { const t = at(321, 500, -3), k = aspectScale(); go(t.clone().add(new THREE.Vector3(-20 * k, 52 * k, 62 * k)), t, now); },
+    west() { const t = at(240, 510, -2), k = aspectScale(); go(t.clone().add(new THREE.Vector3(0, 82 * k, 88 * k)), t); },
+    cage() { const t = at(256, 514, -3), k = aspectScale(); go(t.clone().add(new THREE.Vector3(-8 * k, 12 * k, 20 * k)), t); },
+    top() { $("spin").checked = false; controls.autoRotate = false; const k = aspectScale(); go(new THREE.Vector3(0, 300 * k, 1), new THREE.Vector3(0, 0, 0)); },
+    under() { const ve = +$("ve").value; go(at(235, 525, -ve * .8), at(345, 490, -ve * 1.6)); },
+    all() { const k = Math.max(1, 1.08 / (view.clientWidth / view.clientHeight)); go(new THREE.Vector3(HOME[0] * k, HOME[1] * k, HOME[2] * k), new THREE.Vector3()); },
+  };
+  document.querySelector(".views").addEventListener("click", (e) => { const k = e.target.dataset.view; if (k) views[k](); });
+  $("home").onclick = () => views.focus();
+  renderer.domElement.addEventListener("pointerdown", () => { anim = null; });
+  // Ctrl 없이 굴리면 페이지가 내려가도록 3D 조작으로 넘기지 않습니다.
+  view.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) e.stopPropagation(); }, { capture: true });
+  renderer.domElement.addEventListener("dblclick", (e) => {
+    const r = renderer.domElement.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1), camera);
+    const hit = ray.intersectObject(water)[0];
+    if (!hit) return;
+    const off = camera.position.clone().sub(controls.target); off.multiplyScalar(.5);
+    go(hit.point.clone().add(off), hit.point.clone());
+  });
+
+  // 지점 읽기
+  const mouse = new THREE.Vector2(); let down = null;
+  renderer.domElement.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
+  renderer.domElement.addEventListener("pointerup", (e) => {
+    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+    ray.setFromCamera(mouse, camera);
+    const hit = ray.intersectObject(water)[0];
+    if (!hit) return;
+    const px = hit.point.x / M + CX, py = hit.point.z / M + CY;
+    let c = null, b = 1e9; cells.forEach((k) => { const d = Math.hypot(k.x - px, k.y - py); if (d < b) { b = d; c = k; } });
+    if (!c) return;
+    const st = state(), e2 = cellEval(c, st);
+    $("readout").textContent = `${D.zoneNames[c.z]} · 수심 약 ${c.d.toFixed(1)}m${c.west ? "" : " (추정)"} · 윗층 ${e2.top.toFixed(1)}℃ · 바닥 쪽 ${e2.bot.toFixed(1)}℃ · 산소 ${e2.botO.toFixed(1)}mg/L`;
+  });
+
+  function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  new ResizeObserver(resize).observe(view); resize(); views.focus(true);
+  // 마지막 옵션과 시점을 다시 열 때 그대로 보여 줍니다.
+  const DEFAULT_VIEW = {
+    cam: [-49.08, 57.74, -92.7], tgt: [-52, -14.37, 14.32],
+    inflow: "stream", stock: "0", stockN: "75", release: "center", relH: "10", clarity: "turbid", fishColor: "react",
+    note: true, worm: true, crowd: true, spin: true, total: "600", cruise: "40", mode: "depth", ve: "4", waterOp: "0.3",
+    lCut: true, lWater: true, lFish: true, lRec: true, lFac: true, lText: true,
+  };
+  const KEEP = ["castMode", "castR", "wheel1", "wheel2", "wheel3", "wheel4", "wheel5", "wheel6", "wheel7", "inflow", "stock", "stockN", "release", "relH", "clarity", "fishColor", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText"];
+  const saveSettings = () => {
+    const o = { cam: camera.position.toArray(), tgt: controls.target.toArray() };
+    KEEP.forEach((id) => { const e = $(id); o[id] = e.type === "checkbox" ? e.checked : e.value; });
+    try { localStorage.setItem("deokbongSettings", JSON.stringify(o)); } catch (e) { /* 저장 못 해도 화면은 그대로 */ }
+  };
+  const applySettings = (o) => {
+    KEEP.forEach((id) => { if (o[id] === undefined) return; const e = $(id); if (e.type === "checkbox") e.checked = o[id]; else e.value = o[id]; });
+    if (o.cam) { camera.position.fromArray(o.cam); controls.target.fromArray(o.tgt); }
+    Object.keys(vis).forEach((id) => { vis[id].visible = $(id).checked; });
+    water.material.opacity = +$("waterOp").value;
+    controls.autoRotate = $("spin").checked;
+  };
+  applySettings(DEFAULT_VIEW);
+  try {
+    const o = JSON.parse(localStorage.getItem("deokbongSettings") || "null");
+    if (o) applySettings(o);
+  } catch (e) { /* 저장값이 깨졌으면 기본값 */ }
+  $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; go(new THREE.Vector3(...DEFAULT_VIEW.cam), new THREE.Vector3(...DEFAULT_VIEW.tgt)); };
+  document.querySelector(".side").addEventListener("input", saveSettings);
+  controls.addEventListener("end", saveSettings);
+  $("settingsSave").onclick = () => { saveSettings(); $("settingsSave").textContent = "저장했습니다"; setTimeout(() => { $("settingsSave").textContent = "설정 현재상태로"; }, 1500); };
+  $("settingsReset").onclick = () => { try { localStorage.removeItem("deokbongSettings"); } catch (e) { /* 무시 */ } document.querySelector(".side").removeEventListener("input", saveSettings); controls.removeEventListener("end", saveSettings); location.reload(); };
+  document.querySelectorAll(".wheel-sw").forEach((e) => e.addEventListener("input", () => { refreshWheels(); panel(); }));
+  const setAllWheels = (v) => { document.querySelectorAll(".wheel-sw").forEach((e) => { e.checked = v; }); $("wheel1").dispatchEvent(new Event("input", { bubbles: true })); };
+  $("wheelsOn").onclick = () => setAllWheels(true);
+  $("wheelsOff").onclick = () => setAllWheels(false);
+  refreshWheels();
+  applyVe(); panel();
+  const clock = new THREE.Clock();
+  (function loop() { requestAnimationFrame(loop);
+    if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }
+    controls.update();
+    const under = camera.position.y < 0;
+    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; drawFish(clock.getElapsedTime()); renderer.render(scene, camera); })();
+  window.__model = { ranks, state, cells: cells.length };
+})();
+</script>
+</body>
+</html>

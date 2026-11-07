@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.67", date: "2026-11-07", title: "덕봉 3D 공개",
+    changes: [
+      "덕봉 3D를 공개 자료로 옮겨 일반 상태에서도 표시 (공개판 지면은 직접 그린 그림)",
+    ],
+  },
+  {
     version: "1.66", date: "2026-11-07", title: "덕봉 정리 문구 바로잡기",
     changes: [
       "덕봉 정리의 옛 이름과 기본값, 얼음 시기, 표의 계산 조건 문구 수정",

@@ -1056,7 +1056,7 @@
   try { IS_BETA = localStorage.getItem("fishBeta") === "2"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [...(IS_BETA ? [["study", "카페 자료"], ["model", "덕봉 3D"]] : []), ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
+    const tabs = [...(IS_BETA ? [["study", "카페 자료"]] : []), ["model", "덕봉 3D"], ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -1090,8 +1090,8 @@
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
       ${notesTabs()}
-      <div class="panel"><p class="sub">저수지 구조를 돌려 보며 날씨와 시각에 따른 추천 자리와 송어 예상 분포를 봅니다. 값은 모두 가설입니다. <a href="private/deokbong3d.html" target="_blank" rel="noopener noreferrer">새 창으로 크게 보기</a></p>
-        <iframe class="model-frame" src="private/deokbong3d.html" title="덕봉저수지 3D 모델"></iframe>
+      <div class="panel"><p class="sub">저수지 구조를 돌려 보며 날씨와 시각에 따른 추천 자리와 송어 예상 분포를 봅니다. 값은 모두 가설입니다. <a href="research/deokbong3d.html" target="_blank" rel="noopener noreferrer">새 창으로 크게 보기</a></p>
+        <iframe class="model-frame" src="research/deokbong3d.html" title="덕봉저수지 3D 모델"></iframe>
       </div>`;
   }
 
@@ -1109,9 +1109,9 @@
   }
 
   function renderNotes() {
-    if (!IS_BETA && ["study", "model", "book", "versions"].includes(state.notes.tab)) state.notes.tab = "summary";
+    if (!IS_BETA && ["study", "book", "versions"].includes(state.notes.tab)) state.notes.tab = "summary";
     if (state.notes.tab === "versions") { notesFrame(`<h2 class="ver-title">버전 기록 <button class="ver-public" data-to-public>공개전환</button></h2><p class="sub">현재 v${esc(window.FISH_VERSIONS[0].version)} 베타 · 자료 빌드 ${esc(window.FISH.built)}</p>${versionListHtml()}`); return; }
-    const missing = { study: !window.FISH_NOTES, model: !CAN_LOAD_PRIVATE, book: !window.FISH_BOOK_GUIDE }[state.notes.tab];
+    const missing = { study: !window.FISH_NOTES, book: !window.FISH_BOOK_GUIDE }[state.notes.tab];
     if (missing) { notesFrame('<h2>이 PC에서만 열리는 자료입니다</h2><p class="sub">이 자료는 공개 사이트에 올리지 않았습니다. 자료가 있는 PC에서 열어 주세요.</p>'); return; }
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
     if (window.FISH_BOOK_GUIDE && state.notes.tab === "book") { renderChapterGuide(window.FISH_BOOK_GUIDE); return; }
