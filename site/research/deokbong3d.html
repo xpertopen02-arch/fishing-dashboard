@@ -106,6 +106,7 @@
   /* 지도 아래 세 상자(수심, 날씨 글, 날씨 그림)는 같은 높이로 맞춥니다. 날씨 글은 다섯 줄입니다. */
   .stage { --boxH:70px; }
   .legend, .cond { height:var(--boxH); }
+  .readout { bottom:calc(var(--boxH) + 13px); }   /* 조작 안내는 아래 상자 바로 위에 붙입니다. */
   .legend { display:flex; flex-direction:column; justify-content:space-between; font-size:11px; line-height:1.2; }
   .legend i { height:12px; margin:0; }
   .cond .ctext, .cond .cicon { height:100%; }
