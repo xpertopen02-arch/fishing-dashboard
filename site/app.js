@@ -1110,7 +1110,7 @@
 
   function renderNotes() {
     if (!IS_BETA && ["study", "video", "book", "versions"].includes(state.notes.tab)) state.notes.tab = "model";
-    if (state.notes.tab === "versions") { notesFrame(`<h2>버전 기록</h2><p class="sub">현재 v${esc(window.FISH_VERSIONS[0].version)} 베타 · 자료 빌드 ${esc(window.FISH.built)}</p>${versionListHtml()}`); return; }
+    if (state.notes.tab === "versions") { notesFrame(`<h2 class="ver-title">버전 기록 <button class="ver-public" data-to-public>공개전환</button></h2><p class="sub">현재 v${esc(window.FISH_VERSIONS[0].version)} 베타 · 자료 빌드 ${esc(window.FISH.built)}</p>${versionListHtml()}`); return; }
     const missing = { study: !window.FISH_NOTES, video: !window.FISH_VIDEO_GUIDE, book: !window.FISH_BOOK_GUIDE }[state.notes.tab];
     if (missing) { notesFrame('<h2>이 PC에서만 열리는 자료입니다</h2><p class="sub">이 자료는 공개 사이트에 올리지 않았습니다. 자료가 있는 PC에서 열어 주세요.</p>'); return; }
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
@@ -1271,7 +1271,7 @@
     openId = "versions";
     const dr = $("#drawer");
     const list = window.FISH_VERSIONS;
-    dr.innerHTML = `<div class="drawer-head"><div><h2>버전 기록</h2><p>현재 v${esc(list[0].version)}${IS_BETA ? " 베타" : ""} · 자료 빌드 ${esc(window.FISH.built)}</p></div><button class="icon-btn" data-close aria-label="닫기">✕</button></div>
+    dr.innerHTML = `<div class="drawer-head"><div><h2 class="ver-title">버전 기록 <button class="ver-public" data-to-public>공개전환</button></h2><p>현재 v${esc(list[0].version)}${IS_BETA ? " 베타" : ""} · 자료 빌드 ${esc(window.FISH.built)}</p></div><button class="icon-btn" data-close aria-label="닫기">✕</button></div>
       <div class="drawer-body">${versionListHtml()}</div>`;
     dr.classList.add("open");
     dr.setAttribute("aria-hidden", "false");
@@ -1443,7 +1443,9 @@
       return;
     }
     eggTimes.length = 0;
-    const next = !IS_BETA;
+    setBeta(!IS_BETA);
+  });
+  function setBeta(next) {
     try {
       if (next) { localStorage.setItem("fishBeta", "1"); localStorage.setItem("fishBetaOpen", "1"); } else localStorage.removeItem("fishBeta");
     } catch (e) { return; }
@@ -1451,8 +1453,9 @@
     toast.className = "egg-toast";
     toast.textContent = next ? "베타를 켭니다" : "일반 상태로 돌아갑니다";
     document.body.append(toast);
-    setTimeout(() => location.reload(), 1600);
-  });
+    setTimeout(() => location.reload(), next ? 1600 : 800);
+  }
+  document.addEventListener("click", (e) => { if (e.target.closest("[data-to-public]")) setBeta(false); });
   $("#themeBtn").addEventListener("click", () => {
     const next = isDark() ? "light" : "dark";
     document.documentElement.dataset.theme = next;
