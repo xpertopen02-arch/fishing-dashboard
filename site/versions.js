@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.65", date: "2026-11-07", title: "베타 암호 추가",
+    changes: [
+      "베타로 전환할 때 숫자 네 자리 암호 입력 추가",
+    ],
+  },
+  {
     version: "1.64", date: "2026-11-07", title: "공개 범위 조정",
     changes: [
       "덕봉 정리·문헌과 영상 가이드를 공개하고 덕봉 3D는 베타로 이동",

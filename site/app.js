@@ -1053,7 +1053,7 @@
   // 베타는 테마 버튼을 빠르게 12번 눌러 켭니다. PC 전용 파일은 이 PC에서 열 때만 불러옵니다.
   const CAN_LOAD_PRIVATE = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
   let IS_BETA = false;
-  try { IS_BETA = localStorage.getItem("fishBeta") === "1"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
+  try { IS_BETA = localStorage.getItem("fishBeta") === "2"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
     const tabs = [...(IS_BETA ? [["study", "카페 자료"], ["model", "덕봉 3D"]] : []), ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
@@ -1446,11 +1446,36 @@
       return;
     }
     eggTimes.length = 0;
-    setBeta(!IS_BETA);
+    if (IS_BETA) setBeta(false); else askBetaCode();
   });
+  // 베타 암호: 숫자 네 자리. 화면을 가리는 용도이며 비공개 자료의 보호 수단은 아닙니다.
+  const BETA_CODE = 68969863;
+  const codeOf = (text) => {
+    let x = 2166136261;
+    for (const ch of "fish-beta:" + text) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619); }
+    return x >>> 0;
+  };
+  function askBetaCode() {
+    const box = document.createElement("dialog");
+    box.className = "code-dialog";
+    box.innerHTML = '<h2>베타 암호</h2><input id="betaCode" type="text" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="베타 암호 숫자 네 자리"><p id="betaCodeMsg">숫자 네 자리를 넣어 주세요.</p><button type="button" id="betaCodeCancel">취소</button>';
+    document.body.append(box);
+    const input = $("#betaCode", box);
+    box.addEventListener("close", () => box.remove());
+    $("#betaCodeCancel", box).addEventListener("click", () => box.close());
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/\D/g, "").slice(0, 4);
+      if (input.value.length < 4) return;
+      if (codeOf(input.value) === BETA_CODE) { box.close(); setBeta(true); return; }
+      $("#betaCodeMsg", box).textContent = "암호가 맞지 않습니다.";
+      input.value = "";
+    });
+    box.showModal();
+    input.focus();
+  }
   function setBeta(next) {
     try {
-      if (next) { localStorage.setItem("fishBeta", "1"); localStorage.setItem("fishBetaOpen", "1"); } else localStorage.removeItem("fishBeta");
+      if (next) { localStorage.setItem("fishBeta", "2"); localStorage.setItem("fishBetaOpen", "1"); } else localStorage.removeItem("fishBeta");
     } catch (e) { return; }
     const toast = document.createElement("div");
     toast.className = "egg-toast";
