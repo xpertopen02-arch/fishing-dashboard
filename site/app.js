@@ -1056,7 +1056,7 @@
   try { IS_BETA = localStorage.getItem("fishBeta") === "2"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [...(IS_BETA ? [["study", "카페 자료"]] : []), ["model", "덕봉 3D"], ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
+    const tabs = [...(IS_BETA ? [["study", "수집 자료"]] : []), ["model", "덕봉 3D"], ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -1147,7 +1147,7 @@
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
       ${notesTabs()}
       <div class="notes-grid">
-        <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">카페 회원이 직접 잰 값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
+        <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">수집한 실측값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
           <div class="month-legend">${places.map((p) => `<span><i class="dot" style="background:${colorOf(p)}"></i> ${esc(p)}</span>`).join("")}</div>
           <div class="month-legend"><span>● 표층</span><span>■ 바닥</span>${trips.length ? "<span>▲ 내 출조</span>" : ""}${fit ? "<span>━ 표층 곡선</span><span>╍ 바닥 곡선</span>" : ""}</div>
           ${tempChart(rows, trips, colorOf, fit, fitColor)}

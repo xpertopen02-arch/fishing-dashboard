@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.68", date: "2026-11-07", title: "수집 자료로 이름 변경",
+    changes: [
+      "연구 노트 탭 이름을 수집 자료로 바꾸고 관련 문구 정리",
+    ],
+  },
+  {
     version: "1.67", date: "2026-11-07", title: "덕봉 3D 공개",
     changes: [
       "덕봉 3D를 공개 자료로 옮겨 일반 상태에서도 표시 (공개판 지면은 직접 그린 그림)",
@@ -41,7 +47,7 @@ window.FISH_VERSIONS = [
     version: "1.61", date: "2026-11-07", title: "이스터에그 탭과 조건 변경",
     changes: [
       "테마 버튼 5초 안에 12번으로 베타와 일반 상태 전환",
-      "베타에서 버전 기록 탭을 열고 카페 자료, 영상 가이드, 북가이드 탭 표시",
+      "베타에서 버전 기록 탭을 열고 수집 자료, 영상 가이드, 북가이드 탭 표시",
     ],
   },
   {
@@ -192,7 +198,7 @@ window.FISH_VERSIONS = [
   {
     version: "1.35", date: "2026-11-07", title: "연구 노트에 문헌조사 탭 추가",
     changes: [
-      "카페 자료 옆에 문헌조사 탭을 추가하고 3D 모델과 문헌 정리를 표시 (이 PC에서만 표시)",
+      "수집 자료 옆에 문헌조사 탭을 추가하고 3D 모델과 문헌 정리를 표시 (이 PC에서만 표시)",
     ],
   },
   {
