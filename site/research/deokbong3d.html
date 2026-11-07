@@ -1240,6 +1240,16 @@
   let playing = null;
   // 재생 속도: 10분이 지나가는 데 걸리는 시간(ms). 기본은 0.5초(한 시간 3초)입니다.
   const SPEEDS = [1500, 1000, 700, 500, 350, 200, 120];
+  // 속도 막대: 칸이 높아질수록 초록에서 빨강으로 바뀝니다. 켜진 칸까지만 색을 칠합니다.
+  function paintBar(bar, on) {
+    const n = bar.children.length;
+    [...bar.children].forEach((e, k) => {
+      const f = n > 1 ? k / (n - 1) : 0;
+      e.style.height = `${30 + f * 70}%`;
+      e.classList.toggle("on", k <= on);
+      e.style.background = k <= on ? `hsl(${Math.round(125 - 125 * f)} 72% 46%)` : "";
+    });
+  }
   let spdI = 3;
   const tick = () => { const h = $("hour"); h.value = +h.value >= 1140 ? 360 : +h.value + 10; panel(); };
   function setSpeed(d) {
@@ -1247,7 +1257,7 @@
     const sec = SPEEDS[spdI] * 6 / 1000, txt = `한 시간 ${sec % 1 ? sec.toFixed(1) : sec}초`;
     $("spdUp").title = `재생 빠르게 (지금 ${txt})`; $("spdDown").title = `재생 느리게 (지금 ${txt})`;
     $("spdUp").disabled = spdI === SPEEDS.length - 1; $("spdDown").disabled = spdI === 0;
-    [...$("spdBar").children].forEach((e, i) => { e.style.height = `${30 + i * 70 / (SPEEDS.length - 1)}%`; e.classList.toggle("on", i <= spdI); });
+    paintBar($("spdBar"), spdI);
     $("spdBar").setAttribute("aria-valuenow", spdI + 1); $("spdBar").title = `재생 속도 ${spdI + 1}/${SPEEDS.length} (${txt})`;
     if (playing) { clearInterval(playing); playing = setInterval(tick, SPEEDS[spdI]); }
   }
@@ -1260,7 +1270,7 @@
       const i = clamp(Math.round(+input.value) || 0, 0, steps.length - 1), t = describe(steps[i]);
       up.disabled = i === steps.length - 1; dn.disabled = i === 0;
       up.title = `${name} 빠르게 (지금 ${t})`; dn.title = `${name} 느리게 (지금 ${t})`;
-      [...bar.children].forEach((e, k) => { e.style.height = `${30 + k * 70 / (steps.length - 1)}%`; e.classList.toggle("on", k <= i); });
+      paintBar(bar, i);
       bar.setAttribute("aria-valuenow", i + 1); bar.title = `${name} ${i + 1}/${steps.length} (${t})`;
       apply(steps[i]);
     };

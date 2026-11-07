@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.85", date: "2026-11-07", title: "속도 막대 색",
+    changes: [
+      "재생, 회전, 송어 속도 막대의 칸이 높아질수록 초록에서 빨강으로 바뀌도록 색을 입힘",
+    ],
+  },
+  {
     version: "1.84", date: "2026-11-07", title: "송어 기본 속도",
     changes: [
       "송어 움직임을 전체적으로 1.4배 빠르게 함 (송어 속도 단계는 그대로)",
