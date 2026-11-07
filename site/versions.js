@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.82", date: "2026-11-07", title: "재생 속도 조절과 설정 초기화 수정",
+    changes: [
+      "재생 시각 오른쪽에 속도를 올리고 내리는 위아래 화살표 추가 (7단계, 한 시간 0.7~9초)",
+      "화살표 옆에 현재 재생 속도를 보여 주는 막대 추가",
+      "설정 처음으로 그림 버튼이 동작하지 않던 오류 수정: 한 번 누르면 그 자리에서 처음 옵션과 시점으로 돌아감",
+    ],
+  },
+  {
     version: "1.81", date: "2026-11-07", title: "덕봉 수심 5.0m와 아래 상자 정리",
     changes: [
       "가장 깊은 곳을 4.5m에서 5.0m로, 전체 수심을 같은 비율(약 1.11배)로 깊게 하고 수온, 산소, 얼음 계산을 다시 함 (평균 수심 2.8m → 3.1m)",

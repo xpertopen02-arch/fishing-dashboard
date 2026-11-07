@@ -26,6 +26,13 @@
   button { white-space:nowrap; flex:none; font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:2px 9px; cursor:pointer; }
   button:hover { border-color:var(--accent); }
   .time { display:flex; gap:8px; align-items:center; }
+  .time .spd { display:flex; flex-direction:column; align-self:stretch; flex:none; }   /* 재생 속도: 위아래로 나눈 화살표 */
+  .time .spd button { flex:1; width:20px; padding:0; font-size:8px; line-height:1; }
+  .time .spd button:first-child { border-radius:5px 5px 0 0; border-bottom-width:0; }
+  .time .spd button:last-child { border-radius:0 0 5px 5px; }
+  .time .spdbar { display:flex; align-items:flex-end; gap:2px; align-self:stretch; padding:2px 0; flex:none; }   /* 속도 막대: 빠를수록 높은 칸까지 채웁니다. */
+  .time .spdbar i { width:3px; background:var(--line); border-radius:1px; }
+  .time .spdbar i.on { background:var(--accent); }
   .time b { min-width:44px; font-variant-numeric:tabular-nums; }
   .rec { border:1px solid var(--line); border-radius:8px; padding:7px 9px; margin:6px 0; }
   .rec b { display:block; }
@@ -139,7 +146,7 @@
       <p class="note" id="dayInfo"></p>
       <div id="dayHours"></div>
     </div>
-    <div class="time"><button id="play" aria-label="재생">재생</button><input id="hour" type="range" min="360" max="1140" step="10" value="780" aria-label="시각"><b id="hourLabel"></b></div>
+    <div class="time"><button id="play" aria-label="재생">재생</button><input id="hour" type="range" min="360" max="1140" step="10" value="780" aria-label="시각"><b id="hourLabel"></b><span class="spd"><button id="spdUp" aria-label="재생 빠르게" title="재생 빠르게">▲</button><button id="spdDown" aria-label="재생 느리게" title="재생 느리게">▼</button></span><span class="spdbar" id="spdBar" role="meter" aria-label="재생 속도" aria-valuemin="1" aria-valuemax="7"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
     <label class="f">새물 유입 성격 <select id="inflow"><option value="ground">지하수형 (10℃ 가정)</option><option value="stream">계곡수, 눈 녹은 물 (1.5℃ 가정)</option><option value="rain">비 온 다음날 (그날 기온 연동)</option></select></label>
     <label class="f">방류 뒤 경과 <select id="stock"><option value="2">1주 이상</option><option value="1">1~3일</option><option value="0">방류 당일</option></select></label>
     <label class="f">방류량 <span id="stockLabel"></span><input id="stockN" type="range" min="50" max="100" step="5" value="75" aria-label="방류 마릿수"></label>
@@ -1225,10 +1232,24 @@
   $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
   Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
   let playing = null;
+  // 재생 속도: 10분이 지나가는 데 걸리는 시간(ms). 기본은 0.5초(한 시간 3초)입니다.
+  const SPEEDS = [1500, 1000, 700, 500, 350, 200, 120];
+  let spdI = 3;
+  const tick = () => { const h = $("hour"); h.value = +h.value >= 1140 ? 360 : +h.value + 10; panel(); };
+  function setSpeed(d) {
+    spdI = clamp(spdI + d, 0, SPEEDS.length - 1);
+    const sec = SPEEDS[spdI] * 6 / 1000, txt = `한 시간 ${sec % 1 ? sec.toFixed(1) : sec}초`;
+    $("spdUp").title = `재생 빠르게 (지금 ${txt})`; $("spdDown").title = `재생 느리게 (지금 ${txt})`;
+    $("spdUp").disabled = spdI === SPEEDS.length - 1; $("spdDown").disabled = spdI === 0;
+    [...$("spdBar").children].forEach((e, i) => { e.style.height = `${30 + i * 70 / (SPEEDS.length - 1)}%`; e.classList.toggle("on", i <= spdI); });
+    $("spdBar").setAttribute("aria-valuenow", spdI + 1); $("spdBar").title = `재생 속도 ${spdI + 1}/${SPEEDS.length} (${txt})`;
+    if (playing) { clearInterval(playing); playing = setInterval(tick, SPEEDS[spdI]); }
+  }
+  $("spdUp").onclick = () => setSpeed(1); $("spdDown").onclick = () => setSpeed(-1); setSpeed(0);
   $("play").addEventListener("click", () => {
     if (playing) { clearInterval(playing); playing = null; $("play").textContent = "재생"; return; }
     $("play").textContent = "정지";
-    playing = setInterval(() => { const h = $("hour"); h.value = +h.value >= 1140 ? 360 : +h.value + 10; panel(); }, 500);   // 10분씩, 한 시간에 3초
+    playing = setInterval(tick, SPEEDS[spdI]);
   });
   const zoomBy = (f) => { const d = camera.position.clone().sub(controls.target); const len = clamp(d.length() * f, 6, 900); camera.position.copy(controls.target).add(d.setLength(len)); };
   $("zIn").onclick = () => zoomBy(.82); $("zOut").onclick = () => zoomBy(1.22);
@@ -1299,6 +1320,7 @@
     water.material.opacity = +$("waterOp").value;
     controls.autoRotate = $("spin").checked;
   };
+  const INIT = Object.fromEntries(KEEP.map((id) => { const e = $(id); return [id, e.type === "checkbox" ? e.checked : e.value]; }));   // 페이지에 적힌 처음 값
   applySettings(DEFAULT_VIEW);
   try {
     const o = JSON.parse(localStorage.getItem("deokbongSettings") || "null");
@@ -1307,16 +1329,16 @@
   $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; go(new THREE.Vector3(...DEFAULT_VIEW.cam), new THREE.Vector3(...DEFAULT_VIEW.tgt)); };
   document.querySelector(".side").addEventListener("input", saveSettings);
   controls.addEventListener("end", saveSettings);
-  // 그림 버튼은 실수로 눌리지 않게 3초 안에 한 번 더 눌러야 실행합니다. (확인 창은 액자 안에서 막힐 수 있어 쓰지 않습니다.)
-  let resetArmed = null;
-  $("resetIcon").onclick = () => {
-    const b = $("resetIcon");
-    if (resetArmed) { clearTimeout(resetArmed); resetArmed = null; $("settingsReset").click(); return; }
-    b.classList.add("armed"); b.title = "한 번 더 누르면 설정이 처음으로 돌아갑니다";
-    resetArmed = setTimeout(() => { resetArmed = null; b.classList.remove("armed"); b.title = "설정 처음으로"; }, 3000);
-  };
+  // 설정 처음으로: 저장값을 지우고 그 자리에서 처음 옵션과 시점으로 돌립니다. (그림 버튼과 아래 버튼이 같은 동작)
+  function resetSettings() {
+    try { localStorage.removeItem("deokbongSettings"); } catch (e) { /* 무시 */ }
+    applySettings({ ...INIT, ...DEFAULT_VIEW });
+    refreshWheels(); applyVe(); panel();
+    const b = $("resetIcon"); b.classList.add("armed"); setTimeout(() => b.classList.remove("armed"), 600);   // 눌렸다는 표시
+  }
+  $("resetIcon").onclick = resetSettings;
   $("settingsSave").onclick = () => { saveSettings(); $("settingsSave").textContent = "저장했습니다"; setTimeout(() => { $("settingsSave").textContent = "설정 현재상태로"; }, 1500); };
-  $("settingsReset").onclick = () => { try { localStorage.removeItem("deokbongSettings"); } catch (e) { /* 무시 */ } document.querySelector(".side").removeEventListener("input", saveSettings); controls.removeEventListener("end", saveSettings); location.reload(); };
+  $("settingsReset").onclick = resetSettings;
   document.querySelectorAll(".wheel-sw").forEach((e) => e.addEventListener("input", () => { refreshWheels(); panel(); }));
   const setAllWheels = (v) => { document.querySelectorAll(".wheel-sw").forEach((e) => { e.checked = v; }); $("wheel1").dispatchEvent(new Event("input", { bubbles: true })); };
   $("wheelsOn").onclick = () => setAllWheels(true);
