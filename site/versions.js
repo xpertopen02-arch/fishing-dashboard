@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.69", date: "2026-11-07", title: "수집 자료 공개판 추가",
+    changes: [
+      "직접 쓴 기록과 공개 영상만 담은 수집 자료를 공개 탭으로 추가",
+    ],
+  },
+  {
     version: "1.68", date: "2026-11-07", title: "수집 자료로 이름 변경",
     changes: [
       "연구 노트 탭 이름을 수집 자료로 바꾸고 관련 문구 정리",
