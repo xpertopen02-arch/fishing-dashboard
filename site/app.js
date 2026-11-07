@@ -1056,7 +1056,7 @@
   try { IS_BETA = localStorage.getItem("fishBeta") === "1"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [...(window.FISH_NOTES ? [["study", "카페 자료"]] : []), ...(window.FISH_DEOKBONG_GUIDE ? [["model", "덕봉 3D"], ["summary", "덕봉 정리·문헌"]] : []), ...(window.FISH_VIDEO_GUIDE ? [["video", "영상 가이드"]] : []), ...(window.FISH_BOOK_GUIDE ? [["book", "북가이드"]] : [])];
+    const tabs = [...(IS_BETA ? [["study", "카페 자료"]] : []), ...(window.FISH_DEOKBONG_GUIDE ? [["model", "덕봉 3D"], ["summary", "덕봉 정리·문헌"]] : []), ...(IS_BETA ? [["video", "영상 가이드"], ["book", "북가이드"], ["versions", "버전 기록"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -1077,7 +1077,14 @@
 
   const YOUTUBE_ICON = '<svg class="yt-icon" viewBox="0 0 28 20" aria-hidden="true"><rect width="28" height="20" rx="5" fill="#f00"/><path d="M11 5.5v9l8-4.5z" fill="#fff"/></svg>';
 
-  const notesTag = () => (["model", "summary"].includes(state.notes.tab) ? "공개 자료" : "베타 · 이 PC에서만 표시");
+  const notesTag = () => (IS_BETA ? "비공개 자료 포함" : "공개 자료");
+
+  function notesFrame(body) {
+    $("#view-notes").innerHTML = `
+      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
+      ${notesTabs()}
+      <div class="panel">${body}</div>`;
+  }
 
   function renderModel() {
     $("#view-notes").innerHTML = `
@@ -1102,7 +1109,10 @@
   }
 
   function renderNotes() {
-    if (!window.FISH_NOTES && state.notes.tab === "study") state.notes.tab = "model";
+    if (!IS_BETA && ["study", "video", "book", "versions"].includes(state.notes.tab)) state.notes.tab = "model";
+    if (state.notes.tab === "versions") { notesFrame(`<h2>버전 기록</h2><p class="sub">현재 v${esc(window.FISH_VERSIONS[0].version)} 베타 · 자료 빌드 ${esc(window.FISH.built)}</p>${versionListHtml()}`); return; }
+    const missing = { study: !window.FISH_NOTES, video: !window.FISH_VIDEO_GUIDE, book: !window.FISH_BOOK_GUIDE }[state.notes.tab];
+    if (missing) { notesFrame('<h2>이 PC에서만 열리는 자료입니다</h2><p class="sub">이 자료는 공개 사이트에 올리지 않았습니다. 자료가 있는 PC에서 열어 주세요.</p>'); return; }
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
     if (window.FISH_BOOK_GUIDE && state.notes.tab === "book") { renderChapterGuide(window.FISH_BOOK_GUIDE); return; }
     if (state.notes.tab === "model") { renderModel(); return; }
@@ -1134,7 +1144,7 @@
     const jangwangTrips = placeById["장광"].trips.filter((t) => parseISO(t.trip.date).getMonth() + 1 === month.month);
 
     $("#view-notes").innerHTML = `
-      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">베타 · 이 PC에서만 표시</span></div></div>
+      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
       ${notesTabs()}
       <div class="notes-grid">
         <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">카페 회원이 직접 잰 값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
@@ -1219,7 +1229,10 @@
       if (window.FISH_NOTES || window.FISH_RESEARCH_GUIDE) {
         $('.tabs [data-go="notes"]').hidden = false;
         moveInk();
-        if (initialView === "notes") go("notes", false);
+        let openHistory = false;
+        try { openHistory = IS_BETA && localStorage.getItem("fishBetaOpen") === "1"; localStorage.removeItem("fishBetaOpen"); } catch (e) { /* 저장을 못 읽으면 그대로 */ }
+        if (openHistory) { state.notes.tab = "versions"; go("notes", false); }
+        else if (initialView === "notes") go("notes", false);
       }
       if (IS_BETA && CAN_LOAD_PRIVATE) ["video_guide", "book_guide"].forEach((name) => load(`private/${name}.js`).then(refresh));
     })();
@@ -1251,14 +1264,15 @@
       $(".drawer-body", dr).innerHTML = '<p class="notice">본문 파일을 불러오지 못했습니다. site 폴더 안의 data 폴더를 확인해 주세요.</p>';
     }
   }
+  const versionListHtml = () => `<div class="ver-list">${window.FISH_VERSIONS.map((v, i) => `<div class="ver-item ${i === 0 ? "current" : ""}" style="--i:${i}">
+        <div class="ver-head"><b>v${esc(v.version)}</b><span>${esc(v.date)}${i === 0 ? " · 현재 버전" : ""}</span></div>
+        <h3>${esc(v.title)}</h3><ul>${v.changes.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div>`).join("")}</div>`;
   function openVersions() {
     openId = "versions";
     const dr = $("#drawer");
     const list = window.FISH_VERSIONS;
     dr.innerHTML = `<div class="drawer-head"><div><h2>버전 기록</h2><p>현재 v${esc(list[0].version)}${IS_BETA ? " 베타" : ""} · 자료 빌드 ${esc(window.FISH.built)}</p></div><button class="icon-btn" data-close aria-label="닫기">✕</button></div>
-      <div class="drawer-body"><div class="ver-list">${list.map((v, i) => `<div class="ver-item ${i === 0 ? "current" : ""}" style="--i:${i}">
-        <div class="ver-head"><b>v${esc(v.version)}</b><span>${esc(v.date)}${i === 0 ? " · 현재 버전" : ""}</span></div>
-        <h3>${esc(v.title)}</h3><ul>${v.changes.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div>`).join("")}</div></div>`;
+      <div class="drawer-body">${versionListHtml()}</div>`;
     dr.classList.add("open");
     dr.setAttribute("aria-hidden", "false");
     dr.setAttribute("aria-label", "버전 기록");
@@ -1416,18 +1430,21 @@
   else { $("#verBtn").disabled = true; $("#verBtn").removeAttribute("title"); $("#verBtn").classList.add("ver-plain"); }
   $("#searchClose").addEventListener("click", () => { $("#searchLayer").hidden = true; });
   $("#searchInput").addEventListener("input", runSearch);
-  let eggCount = 0, eggLast = 0;
+  // 이스터에그: 테마 버튼을 5초 안에 12번 누르면 베타와 일반 상태가 바뀝니다.
+  const eggTimes = [];
   $("#themeBtn").addEventListener("click", () => {
     const now = Date.now();
-    eggCount = now - eggLast < 450 ? eggCount + 1 : 1;
-    eggLast = now;
-    if (eggCount < 12) return;
-    eggCount = 0;
+    eggTimes.push(now);
+    if (eggTimes.length > 12) eggTimes.shift();
+    if (eggTimes.length < 12 || now - eggTimes[0] > 5000) return;
+    eggTimes.length = 0;
     const next = !IS_BETA;
-    try { if (next) localStorage.setItem("fishBeta", "1"); else localStorage.removeItem("fishBeta"); } catch (e) { return; }
+    try {
+      if (next) { localStorage.setItem("fishBeta", "1"); localStorage.setItem("fishBetaOpen", "1"); } else localStorage.removeItem("fishBeta");
+    } catch (e) { return; }
     const toast = document.createElement("div");
     toast.className = "egg-toast";
-    toast.textContent = !next ? "공개판으로 돌아갑니다" : CAN_LOAD_PRIVATE ? "베타를 켭니다" : "베타 표시를 켭니다. PC 전용 자료는 이 PC에서 열 때만 보입니다";
+    toast.textContent = next ? "베타를 켭니다" : "일반 상태로 돌아갑니다";
     document.body.append(toast);
     setTimeout(() => location.reload(), 1600);
   });
