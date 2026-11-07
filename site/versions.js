@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.4", date: "2026-11-07", title: "버전 번호를 1.4로 변경",
+    changes: [
+      "연구 노트 확장(문헌조사, 덕봉 정리 탭 등)까지 묶어 버전 번호를 1.4로 변경",
+    ],
+  },
+  {
     version: "1.36", date: "2026-11-07", title: "연구 노트에 덕봉 정리 탭 추가",
     changes: [
       "문헌조사 옆에 덕봉 정리 탭을 추가 (이 PC에서만 표시)",
