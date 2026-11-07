@@ -600,9 +600,9 @@
   const netWall = bar(...D.causeway, .25, 1, 0xffffff, 0);
   netWall.material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .28, depthWrite: false, side: THREE.DoubleSide });
   const cageParts = [];
-  // 가두리 사각형의 방향: 부교 가두리는 부교(그물선)와 나란하게, 중앙 가두리는 그대로 둡니다.
+  // 가두리 사각형의 방향: 두 가두리 모두 부교(그물선)와 나란하게 맞춥니다.
   const CAUSEWAY_TURN = Math.atan2(D.causeway[1][0] - D.causeway[0][0], D.causeway[1][1] - D.causeway[0][1]);
-  const cageTurn = (c) => (c === D.cages.east ? CAUSEWAY_TURN : .4);
+  const cageTurn = () => CAUSEWAY_TURN;
   cageList.forEach((c) => {
     const size = 7, h = 1.3, g = new THREE.Group();
     const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size, 1, size)), new THREE.LineBasicMaterial({ color: 0xffffff }));
