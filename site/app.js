@@ -1050,8 +1050,11 @@
     return `<svg viewBox="0 0 ${W} ${H}" class="temp-chart" role="img" aria-label="계절별 수온 실측값">${grid}${axis}${curves}${dots}${marks}</svg>`;
   }
 
+  // 이 PC에서 열면 베타: 공개판에 PC 전용 자료를 더해 보여 줍니다.
+  const IS_BETA = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+
   function notesTabs() {
-    const tabs = [["study", "카페 자료"], ...(window.FISH_RESEARCH_GUIDE ? [["research", "문헌조사"]] : []), ...(window.FISH_DEOKBONG_GUIDE ? [["deokbong", "덕봉 정리"]] : []), ...(window.FISH_VIDEO_GUIDE ? [["video", "영상 가이드"]] : []), ...(window.FISH_BOOK_GUIDE ? [["book", "북가이드"]] : [])];
+    const tabs = [...(window.FISH_NOTES ? [["study", "카페 자료"]] : []), ...(window.FISH_RESEARCH_GUIDE ? [["research", "문헌조사"]] : []), ...(window.FISH_DEOKBONG_GUIDE ? [["deokbong", "덕봉 정리"]] : []), ...(window.FISH_VIDEO_GUIDE ? [["video", "영상 가이드"]] : []), ...(window.FISH_BOOK_GUIDE ? [["book", "북가이드"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -1077,7 +1080,7 @@
     const chip = (x) => `<button class="chip ${x === c ? "on" : ""}" data-guide-chapter="${g.chapters.indexOf(x)}"${x.icon ? ` aria-label="${esc(x.short)}" title="${esc(x.short)}"` : ""}>${x.icon === "youtube" ? YOUTUBE_ICON : esc(x.short || x.title.split(".")[0])}</button>`;
     const groups = [...new Set(g.chapters.map((x) => x.group))];
     $("#view-notes").innerHTML = `
-      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">이 PC에서만 표시</span></div></div>
+      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${["research", "deokbong"].includes(state.notes.tab) ? "공개 자료" : "베타 · 이 PC에서만 표시"}</span></div></div>
       ${notesTabs()}
       <div class="panel"><h2>${esc(g.title)}</h2><p class="sub">${esc(g.sub)}</p>
         ${groups.map((name) => `<div class="filter-row guide-chapters">${name ? `<span class="guide-group">${esc(name)}</span>` : ""}${g.chapters.filter((x) => x.group === name).map(chip).join("")}</div>`).join("")}
@@ -1086,6 +1089,7 @@
   }
 
   function renderNotes() {
+    if (!window.FISH_NOTES && state.notes.tab === "study") state.notes.tab = "research";
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
     if (window.FISH_BOOK_GUIDE && state.notes.tab === "book") { renderChapterGuide(window.FISH_BOOK_GUIDE); return; }
     if (window.FISH_RESEARCH_GUIDE && state.notes.tab === "research") { renderChapterGuide(window.FISH_RESEARCH_GUIDE); return; }
@@ -1113,7 +1117,7 @@
     const jangwangTrips = placeById["장광"].trips.filter((t) => parseISO(t.trip.date).getMonth() + 1 === month.month);
 
     $("#view-notes").innerHTML = `
-      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">이 PC에서만 표시</span></div></div>
+      <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">베타 · 이 PC에서만 표시</span></div></div>
       ${notesTabs()}
       <div class="notes-grid">
         <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">카페 회원이 직접 잰 값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
@@ -1181,25 +1185,27 @@
       </div>`;
   }
 
-  // Only tried locally, so the public site never even asks for the file.
+  // Public guides load everywhere. Private files are only tried in the beta (this PC),
+  // so the public site never even asks for them.
   function loadNotes(initialView) {
-    if (location.protocol !== "file:" && !["localhost", "127.0.0.1"].includes(location.hostname)) return;
-    const s = document.createElement("script");
-    s.src = "private/notes.js";
-    s.onload = () => {
-      if (!window.FISH_NOTES) return;
-      $('.tabs [data-go="notes"]').hidden = false;
-      moveInk();
-      renderBrief();
-      if (initialView === "notes") go("notes", false);
-      ["research_guide", "deokbong_guide", "video_guide", "book_guide"].forEach((name) => {
-        const g = document.createElement("script");
-        g.src = `private/${name}.js`;
-        g.onload = () => { if (!$("#view-notes").hidden) renderNotes(); };
-        document.head.append(g);
-      });
-    };
-    document.head.append(s);
+    const load = (src) => new Promise((done) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = () => done(true);
+      s.onerror = () => done(false);
+      document.head.append(s);
+    });
+    const refresh = () => { if (!$("#view-notes").hidden) renderNotes(); };
+    (async () => {
+      if (IS_BETA && await load("private/notes.js") && window.FISH_NOTES) renderBrief();
+      await Promise.all(["research_guide", "deokbong_guide"].map((name) => load(`research/${name}.js`)));
+      if (window.FISH_NOTES || window.FISH_RESEARCH_GUIDE) {
+        $('.tabs [data-go="notes"]').hidden = false;
+        moveInk();
+        if (initialView === "notes") go("notes", false);
+      }
+      if (IS_BETA) ["video_guide", "book_guide"].forEach((name) => load(`private/${name}.js`).then(refresh));
+    })();
   }
 
   /* ---------- reader ---------- */
@@ -1232,7 +1238,7 @@
     openId = "versions";
     const dr = $("#drawer");
     const list = window.FISH_VERSIONS;
-    dr.innerHTML = `<div class="drawer-head"><div><h2>버전 기록</h2><p>현재 v${esc(list[0].version)} · 자료 빌드 ${esc(window.FISH.built)}</p></div><button class="icon-btn" data-close aria-label="닫기">✕</button></div>
+    dr.innerHTML = `<div class="drawer-head"><div><h2>버전 기록</h2><p>현재 v${esc(list[0].version)}${IS_BETA ? " 베타" : ""} · 자료 빌드 ${esc(window.FISH.built)}</p></div><button class="icon-btn" data-close aria-label="닫기">✕</button></div>
       <div class="drawer-body"><div class="ver-list">${list.map((v, i) => `<div class="ver-item ${i === 0 ? "current" : ""}" style="--i:${i}">
         <div class="ver-head"><b>v${esc(v.version)}</b><span>${esc(v.date)}${i === 0 ? " · 현재 버전" : ""}</span></div>
         <h3>${esc(v.title)}</h3><ul>${v.changes.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div>`).join("")}</div></div>`;
@@ -1299,7 +1305,7 @@
     if (on) { ink.style.left = `${on.offsetLeft}px`; ink.style.width = `${on.offsetWidth}px`; }
   }
   function go(view, push = true) {
-    const views = ["plan", "log", "library", ...(window.FISH_NOTES ? ["notes"] : [])];
+    const views = ["plan", "log", "library", ...(window.FISH_NOTES || window.FISH_RESEARCH_GUIDE ? ["notes"] : [])];
     if (!views.includes(view)) view = "plan";
     state.view = view;
     ["plan", "log", "library", "notes"].forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
@@ -1387,7 +1393,7 @@
   $("#toTop").addEventListener("click", () => window.scrollTo({ top: 0, behavior: REDUCED ? "auto" : "smooth" }));
   addEventListener("scroll", () => $("#toTop").classList.toggle("show", window.scrollY > 400), { passive: true });
   $("#searchOpen").addEventListener("click", openSearch);
-  $("#verBtn").innerHTML = `<span class="ver-long">Version </span><span class="ver-short">v</span>${esc(window.FISH_VERSIONS[0].version)}`;
+  $("#verBtn").innerHTML = `<span class="ver-long">Version </span><span class="ver-short">v</span>${esc(window.FISH_VERSIONS[0].version)}${IS_BETA ? " Beta" : ""}`;
   $("#verBtn").addEventListener("click", openVersions);
   $("#searchClose").addEventListener("click", () => { $("#searchLayer").hidden = true; });
   $("#searchInput").addEventListener("input", runSearch);
