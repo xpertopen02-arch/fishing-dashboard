@@ -67,7 +67,7 @@
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
     sources: [],
-    notes: { month: new Date().getMonth() + 1, tab: "study", chapters: {}, fitTarget: null, fitDate: null },
+    notes: { month: new Date().getMonth() + 1, tab: "model", chapters: {}, fitTarget: null, fitDate: null },
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 

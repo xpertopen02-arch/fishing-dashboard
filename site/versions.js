@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.48", date: "2026-11-07", title: "가두리와 최대 수심, 기본 화면 조정",
+    changes: [
+      "가두리 깊이를 1.3m, 가장 깊은 곳을 4.5m로 변경",
+      "덕봉 3D의 기본 시점과 옵션을 변경하고 날짜와 시각은 여는 시점으로 유지",
+      "송어 색에 수심 구분 추가",
+    ],
+  },
+  {
     version: "1.47", date: "2026-11-07", title: "모델 근거와 한계를 덕봉 정리로 이동",
     changes: [
       "덕봉 3D 화면의 근거와 한계를 덕봉 정리 탭으로 옮겨 근거별로 정리",
