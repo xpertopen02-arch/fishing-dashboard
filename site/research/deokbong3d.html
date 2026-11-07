@@ -57,7 +57,7 @@
   .legend { position:absolute; left:10px; bottom:10px; z-index:3; color:#fff; font-size:12px; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
   .cond { position:absolute; left:206px; bottom:10px; right:10px; z-index:3; pointer-events:none; color:#fff; font-size:11px; line-height:1.35; text-shadow:0 0 2px #000, 0 0 5px #000; }
   .cond { display:flex; align-items:flex-start; gap:8px; }
-  .cond { align-items:stretch; }
+  .cond { align-items:stretch; justify-content:flex-end; }   /* 날씨 상자는 지도 오른쪽 끝에 붙입니다. */
   /* 지도 아래 글 상자: 탭처럼 묶고, 테마의 패널 색을 반투명으로 씁니다. */
   .cond .ctext, .cond .cicon, .legend { background:color-mix(in srgb, var(--panel) 72%, transparent); border:1px solid color-mix(in srgb, var(--line) 85%, transparent); border-radius:7px; padding:4px 8px; color:var(--ink); text-shadow:none; -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
   .cond { color:var(--ink); text-shadow:none; }
@@ -124,7 +124,7 @@
     .cond .cicon { padding:2px 4px; }
   }
   /* LED 디지털 시계: 테두리 없이 시점 버튼 아래에 7분할 숫자로 보여 줍니다. 꺼진 칸은 희미하게 남습니다. */
-  .clock { position:absolute; left:44px; top:40px; z-index:3; pointer-events:none; line-height:0; }
+  .clock { position:absolute; right:10px; top:8px; z-index:3; pointer-events:none; line-height:0; }   /* 지도 오른쪽 위 */
   .clock svg { height:40px; width:auto; overflow:visible; }
   .clock .on { fill:#ffd93b; filter:drop-shadow(0 0 1.5px #39ff6a) drop-shadow(0 0 4px rgba(57,255,106,.85)) drop-shadow(0 0 9px rgba(57,255,106,.5)); }   /* 노란 숫자 + 초록 네온 */
   .clock .off { fill:rgba(255,217,59,.12); }
@@ -1306,9 +1306,11 @@ attribute vec2 aSwim;`)
     }
     return `<svg viewBox="-1 -1 ${x + 1} 42" aria-label="${text}" role="img">${out}</svg>`;
   }
-  function placeClock() {   // 시점 버튼(부교·가두리 줄) 바로 아래, 버튼과 같은 왼쪽 선에 둡니다.
-    const c = $("clock"), v = document.querySelector(".views"), stage = document.querySelector(".stage").getBoundingClientRect(), vr = v.getBoundingClientRect();
-    c.style.left = `${vr.left - stage.left}px`; c.style.top = `${vr.bottom - stage.top + 6}px`;
+  function placeClock() {   // 지도 오른쪽 위에 붙이고, 좁은 화면에서 시점 버튼과 겹치면 버튼 줄 바로 아래로 내립니다.
+    const c = $("clock"), v = document.querySelector(".views"), stage = document.querySelector(".stage").getBoundingClientRect();
+    c.style.top = "8px";
+    const cr = c.getBoundingClientRect(), hit = [...v.children].some((b) => { const r = b.getBoundingClientRect(); return r.right > cr.left - 4 && r.bottom > cr.top && r.top < cr.bottom; });
+    if (hit) c.style.top = `${v.getBoundingClientRect().bottom - stage.top + 6}px`;
   }
   addEventListener("resize", placeClock);
   // 재생 속도: 10분이 지나가는 데 걸리는 시간(ms). 기본은 0.5초(한 시간 3초)입니다.

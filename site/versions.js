@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.92", date: "2026-11-08", title: "날씨 상자와 시계 위치",
+    changes: [
+      "지도 아래 날씨 글 상자와 날씨 그림 상자를 지도 오른쪽 끝에 붙임",
+      "디지털 시계를 지도 오른쪽 위로 옮김 (좁은 화면에서 시점 버튼과 겹치면 버튼 줄 바로 아래)",
+    ],
+  },
+  {
     version: "1.91", date: "2026-11-07", title: "LED 시계 색",
     changes: [
       "디지털 시계 숫자를 노란색으로 하고 초록 네온 빛을 더함",
