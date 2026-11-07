@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.55", date: "2026-11-07", title: "대포형 수차 확산 범위 반영",
+    changes: [
+      "수차의 확산 범위를 반경 4~5m로 줄이고 3D에 범위 표시",
+    ],
+  },
+  {
     version: "1.54", date: "2026-11-07", title: "구역별 추정값 접기",
     changes: [
       "구역별 추정값도 평소에 접어 두고 이름을 누르면 펼치도록 변경",

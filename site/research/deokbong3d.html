@@ -235,7 +235,6 @@
     const [T, O] = rainWater(st);
     return [v[0] + (T - v[0]) * f, v[1] + (O - v[1]) * f, v[2] + (T - v[2]) * f * .5, v[3] + (O - v[3]) * f * .5, v[4]];
   }
-  // 수차 주변: 약 10m 규모로 물이 섞이고 산소가 늘어납니다.
   // 수차 1~7은 따로 켜고 끕니다. 일부만 끄면 전부 켠 계산과 전부 끈 계산을 구역별 가동 비율로 섞습니다.
   const wheelOn = (i) => $("wheel" + (i + 1)).checked;
   let wheelMask = "", wheelsAllOn = true, wheelShare = 1;
@@ -250,7 +249,9 @@
     const b = D.simsOff[st.f][st.s][h][z], f = shareByZone[z];
     return [0, 1, 2, 3].map((i) => a[i] * f + b[i] * (1 - f)).concat(f >= .5 ? a[4] : b[4]);
   }
-  const wheelAt = (x, y) => Math.max(0, ...D.wheels.flatMap((w, i) => (wheelOn(i) ? [Math.exp(-(((Math.hypot(x - w[0], y - w[1]) * M) / 10) ** 2) / 2)] : [])));
+  // 대포형 수차: 물이 섞이고 산소가 늘어나는 범위는 반경 4~5m입니다. 쏘는 방향은 아직 모릅니다.
+  const WHEEL_RADIUS = 4.5;
+  const wheelAt = (x, y) => Math.max(0, ...D.wheels.flatMap((w, i) => (wheelOn(i) ? [Math.exp(-(((Math.hypot(x - w[0], y - w[1]) * M) / WHEEL_RADIUS) ** 2))] : [])));
   const kOf = (clean, st) => (st.k === 2 ? 2 - 1.2 * (st.rain ? 0 : clean) : st.k);   // 탁함 2/m, 맑은 물에 가까울수록 0.8/m
   cells.forEach((c) => { c.clean = cleanAt(c.x, c.y); c.rainF = rainAt(c.x, c.y); c.wheel = wheelAt(c.x, c.y); });
   const chanDist = (x, y) => Math.min(...D.channels.flatMap((p) => p.slice(0, -1).map((a, i) => segDist(x, y, a, p[i + 1])))) * M;
@@ -564,7 +565,7 @@
     g.visible = false; relMarks[k] = g; scene.add(g);
   });
   // 수차
-  const wheelMeshes = [];
+  const wheelMeshes = [], wheelRings = [];
   function refreshWheels() {
     const on = D.wheels.map((_, i) => wheelOn(i));
     wheelMask = on.map((v) => (v ? 1 : 0)).join("");
@@ -574,10 +575,13 @@
     cells.forEach((c) => { c.wheel = wheelAt(c.x, c.y); });
     cutCols.forEach((c) => { c.wheel = wheelAt(c.x, c.y); });
     wheelMeshes.forEach((m, i) => m.material.color.setHex(on[i] ? 0xe8862e : 0x6d7278));
+    wheelRings.forEach((m, i) => { m.visible = on[i]; });
   }
   D.wheels.forEach((p, i) => {
     const wheel = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2.2, 16), new THREE.MeshLambertMaterial({ color: 0xe8862e }));
     wheel.rotation.z = Math.PI / 2; wheel.position.set(wx(p[0]), .7, wz(p[1])); fac.add(wheel); wheelMeshes.push(wheel);
+    const reach = new THREE.Mesh(new THREE.RingGeometry(WHEEL_RADIUS - .25, WHEEL_RADIUS, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .6, side: THREE.DoubleSide, depthWrite: false }));
+    reach.rotation.x = -Math.PI / 2; reach.position.set(wx(p[0]), .3, wz(p[1])); fac.add(reach); wheelRings.push(reach);
     texts.add(label(`수차 ${i + 1}`, wx(p[0]), 4.5, wz(p[1])));
   });
   // 부교 동쪽 못의 얼음
