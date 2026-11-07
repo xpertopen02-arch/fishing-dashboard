@@ -927,6 +927,7 @@ attribute vec2 aSwim;`)
     placeFish(false);
   }
 
+  const NET_GAP = 1;   // 회유 송어가 부교 그물과 두는 최소 거리(m)
   let nCruise = 0, cruiseDepth = 1, cruiseSpeed = 1, ringPhase = 0, lastT = 0, fishMul = 1, fishT = 0;
   const STAY_TINT = new THREE.Color(1, 1, 1), CRUISE_TINT = new THREE.Color(.6, .88, 1), CAGE_TINT = new THREE.Color(.62, .55, .5);
   const REACT_TINT = { high: new THREE.Color(.3, .55, 1.5), mid: new THREE.Color(1.35, 1.05, .25), low: new THREE.Color(1.5, .28, .22) };
@@ -1015,6 +1016,9 @@ attribute vec2 aSwim;`)
       if (g.cruise) {
         const p = ringAt(g.u + ringPhase);
         tx = wx(p[0]) + g.ox; tz = wz(p[1]) + g.oz; rate = .05;
+        // 부교 그물 밖으로 나가지 않게: 그물선에서 1m 안쪽보다 동쪽이면 그물선 1m 안쪽으로 당깁니다.
+        const py = tz / M + CY, lim = wx(xLine(py)) - NET_GAP;
+        if (tx > lim) tx = lim;
         const n = Math.round((p[1] - D.crop[1]) / G.step) * G.nx + Math.round((p[0] - D.crop[0]) / G.step);
         td = clamp(cruiseDepth + g.dd, .25, Math.max(.3, (G.depth[n] || 1) - .15));
       } else {
@@ -1459,7 +1463,7 @@ attribute vec2 aSwim;`)
     controls.update();
     const under = camera.position.y < 0;
     scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); window.__lastT = now; fishT += Math.min(.1, now - (window.__fishPrev ?? now)) * fishMul; window.__fishPrev = now; drawFish(fishT); renderer.render(scene, camera); })();
-  window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }) };
+  window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }), xLine, M };
 })();
 </script>
 </body>
