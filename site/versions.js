@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.93", date: "2026-11-08", title: "부교 가두리 방향",
+    changes: [
+      "부교 가두리 사각형을 돌려 부교(그물선) 방향과 나란하게 맞춤",
+    ],
+  },
+  {
     version: "1.92", date: "2026-11-08", title: "날씨 상자와 시계 위치",
     changes: [
       "지도 아래 날씨 글 상자와 날씨 그림 상자를 지도 오른쪽 끝에 붙임",

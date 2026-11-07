@@ -600,12 +600,15 @@
   const netWall = bar(...D.causeway, .25, 1, 0xffffff, 0);
   netWall.material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .28, depthWrite: false, side: THREE.DoubleSide });
   const cageParts = [];
+  // 가두리 사각형의 방향: 부교 가두리는 부교(그물선)와 나란하게, 중앙 가두리는 그대로 둡니다.
+  const CAUSEWAY_TURN = Math.atan2(D.causeway[1][0] - D.causeway[0][0], D.causeway[1][1] - D.causeway[0][1]);
+  const cageTurn = (c) => (c === D.cages.east ? CAUSEWAY_TURN : .4);
   cageList.forEach((c) => {
     const size = 7, h = 1.3, g = new THREE.Group();
     const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size, 1, size)), new THREE.LineBasicMaterial({ color: 0xffffff }));
     const net = new THREE.Mesh(new THREE.BoxGeometry(size, 1, size), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .13, depthWrite: false }));
-    g.add(frame, net); g.position.set(wx(c[0]), 0, wz(c[1])); g.rotation.y = .4; g.userData.h = h; fac.add(g); cageParts.push(g);
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(size + .7, .3, size + .7), new THREE.MeshBasicMaterial({ color: 0xf1f1ea, wireframe: true })); rim.position.set(wx(c[0]), .2, wz(c[1])); rim.rotation.y = .4; fac.add(rim);
+    g.add(frame, net); g.position.set(wx(c[0]), 0, wz(c[1])); g.rotation.y = cageTurn(c); g.userData.h = h; fac.add(g); cageParts.push(g);
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(size + .7, .3, size + .7), new THREE.MeshBasicMaterial({ color: 0xf1f1ea, wireframe: true })); rim.position.set(wx(c[0]), .2, wz(c[1])); rim.rotation.y = cageTurn(c); fac.add(rim);
   });
   const inflowArrow = new THREE.Mesh(new THREE.ConeGeometry(2.4, 7, 12), new THREE.MeshLambertMaterial({ color: 0x35c7e8 }));
   inflowArrow.rotation.z = -Math.PI / 2; inflowArrow.position.set(wx(D.inflow[0]) + 1, 1, wz(D.inflow[1])); fac.add(inflowArrow);
