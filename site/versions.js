@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.46", date: "2026-11-07", title: "송어 반응성을 색으로 구분",
+    changes: [
+      "송어를 반응성별 색으로 표시하고 추천 순위를 반응 좋은 송어 기준으로 변경",
+      "방류어와 자극받은 기존 송어의 활성을 반영",
+    ],
+  },
+  {
     version: "1.45", date: "2026-11-07", title: "방류량을 마릿수로 반영",
     changes: [
       "방류량을 50~100마리로 조절하도록 변경 (기본 75마리)",
