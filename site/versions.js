@@ -1,6 +1,15 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.83", date: "2026-11-07", title: "회전 속도와 송어 속도 조절",
+    changes: [
+      "자동 회전 옆에 시점 회전 속도 조절 화살표와 막대 추가 (0.25~3.25배, 7단계)",
+      "송어 속도 옵션을 새로 만들고 같은 화살표와 막대로 조절 (0.25~3배, 7단계)",
+      "두 속도는 다른 옵션처럼 이 브라우저에 저장되고, 설정 처음으로를 누르면 1배로 돌아감",
+      "캐스팅 거리 기본값을 30m에서 15m로 변경",
+    ],
+  },
+  {
     version: "1.82", date: "2026-11-07", title: "재생 속도 조절과 설정 초기화 수정",
     changes: [
       "재생 시각 오른쪽에 속도를 올리고 내리는 위아래 화살표 추가 (7단계, 한 시간 0.7~9초)",
