@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.99", date: "2026-11-08", title: "휴대폰 영상 가이드 표",
+    changes: [
+      "휴대폰에서 영상 가이드의 Y-tube 자료 표가 한 글자씩 줄바꿈되던 문제 수정: '관련 장' 버튼을 한 줄에 두 개씩 놓고 표 여백을 줄임 (가장 긴 칸 3줄 이내)",
+    ],
+  },
+  {
     version: "1.98", date: "2026-11-08", title: "남서쪽 물골 없앰",
     changes: [
       "새물유입구 쪽 물골만 남기고 남서쪽 물가에서 올라오던 물골 두 개를 없앰. 그 자리는 주변 바닥과 같은 깊이가 되고 수온, 산소, 얼음 계산을 다시 함",

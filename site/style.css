@@ -484,3 +484,11 @@ details.table-view summary { cursor: pointer; font-size: 13px; color: var(--ink-
 .temp-fold > summary { cursor: pointer; }
 .temp-fold > summary h2 { display: inline; margin: 0; }
 .temp-fold[open] > summary { margin-bottom: 10px; }
+
+/* 휴대폰: 표의 '관련 장' 버튼이 한 줄로 늘어서 앞 칸이 한 글자씩 줄바꿈되지 않도록, 버튼은 세로로 쌓고 여백을 줄입니다. */
+@media (max-width: 640px) {
+  .ch-links { white-space: normal; width: 74px; min-width: 74px; }   /* 장 버튼은 한 줄에 두 개씩 */
+  .ch-links .ch-link { margin: 0 2px 3px 0; padding: 0 5px; white-space: nowrap; }
+  .notes-table { font-size: 13px; }
+  .notes-table th, .notes-table td { padding: 5px 5px; }
+}
