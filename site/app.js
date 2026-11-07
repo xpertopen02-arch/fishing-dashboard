@@ -475,8 +475,10 @@
       $("#map").innerHTML = '<p class="state-msg">지도 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요. 노트 자료는 그대로 볼 수 있습니다.</p>';
       return;
     }
-    map = L.map("map", { zoomControl: true, attributionControl: true, scrollWheelZoom: true }).setView([36.9, 127], 9);
+    // The page scrolls past the map: the wheel zooms only with Ctrl, and on a phone one finger scrolls the page.
+    map = L.map("map", { zoomControl: true, attributionControl: true, scrollWheelZoom: false, dragging: !L.Browser.mobile }).setView([36.9, 127], 9);
     map.zoomControl.setPosition("topleft");
+    guardMapScroll();
     setTiles();
     PLACES.filter(hasPin).forEach(addMarker);
     fitAll();
@@ -567,6 +569,31 @@
   document.addEventListener("visibilitychange", () => { if (!document.hidden && !raf && !REDUCED && field.length) raf = requestAnimationFrame(tick); });
 
   /* ---------- plan view ---------- */
+  function guardMapScroll() {
+    const box = map.getContainer();
+    const hint = document.createElement("div");
+    hint.className = "map-hint";
+    hint.setAttribute("aria-hidden", "true");
+    box.append(hint);
+    let hinted = false, lastZoom = 0;
+    const showHint = (text) => {
+      if (hinted) return;
+      hinted = true;
+      hint.textContent = text;
+      hint.classList.add("on");
+      setTimeout(() => hint.classList.remove("on"), 1800);
+    };
+    box.addEventListener("wheel", (e) => {
+      if (!e.ctrlKey && !e.metaKey) { showHint("확대와 축소는 Ctrl을 누른 채 스크롤하세요"); return; }
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastZoom < 180 || !e.deltaY) return;
+      lastZoom = now;
+      map.setZoomAround(map.mouseEventToContainerPoint(e), map.getZoom() + (e.deltaY < 0 ? 1 : -1));
+    }, { passive: false, capture: true });
+    if (L.Browser.mobile) box.addEventListener("touchmove", (e) => { if (e.touches.length === 1) showHint("지도를 움직이려면 두 손가락을 쓰세요"); }, { passive: true });
+  }
+
   function renderPlaceChips() {
     $("#placeChips").innerHTML = TYPES.map((t) => `<div class="place-row"><b><i class="dot ${t}"></i>${t}</b>` +
       PLACES.filter((p) => placeTypes(p).includes(t)).sort((a, b) => b.trips.length - a.trips.length).map((p) =>
