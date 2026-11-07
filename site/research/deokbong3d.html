@@ -1270,8 +1270,9 @@
     return draw;
   }
   const SPIN_SPEEDS = [.2, .4, .6, .8, 1.2, 1.8, 2.6], FISH_SPEEDS = [.25, .5, .75, 1, 1.5, 2, 3];
+  const FISH_BASE = 1.4;   // 송어 기본 움직임을 전체적으로 1.4배 빠르게 (1배 = 이 속도)
   const spinDraw = speedControl($("spinCtl"), $("spinSpd"), SPIN_SPEEDS, "회전 속도", (v) => `${+(v / .8).toFixed(2)}배`, (v) => { controls.autoRotateSpeed = v; });
-  const fishDraw = speedControl($("fishCtl"), $("fishSpd"), FISH_SPEEDS, "송어 속도", (v) => `${v}배`, (v) => { fishMul = v; });
+  const fishDraw = speedControl($("fishCtl"), $("fishSpd"), FISH_SPEEDS, "송어 속도", (v) => `${v}배`, (v) => { fishMul = v * FISH_BASE; });
   $("play").addEventListener("click", () => {
     if (playing) { clearInterval(playing); playing = null; $("play").textContent = "재생"; return; }
     $("play").textContent = "정지";

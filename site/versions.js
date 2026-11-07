@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.84", date: "2026-11-07", title: "송어 기본 속도",
+    changes: [
+      "송어 움직임을 전체적으로 1.4배 빠르게 함 (송어 속도 단계는 그대로)",
+    ],
+  },
+  {
     version: "1.83", date: "2026-11-07", title: "회전 속도와 송어 속도 조절",
     changes: [
       "자동 회전 옆에 시점 회전 속도 조절 화살표와 막대 추가 (0.25~3.25배, 7단계)",
