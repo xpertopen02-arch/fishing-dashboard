@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.96", date: "2026-11-08", title: "반응 좋은 송어 수심",
+    changes: [
+      "디지털 시계 아래에 반응 좋은 송어의 주요 공략 수심(가운데 절반 구간)과 카운트를 시계 절반 크기로 표시",
+      "시계 숫자를 지도 오른쪽 끝에 맞춰 정렬",
+    ],
+  },
+  {
     version: "1.95", date: "2026-11-08", title: "공략법 글자",
     changes: [
       "지도 위 공략법 글자를 휴대폰에서 약 1.5배 크게 표시",

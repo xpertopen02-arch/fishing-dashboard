@@ -125,12 +125,15 @@
   }
   /* LED 디지털 시계: 테두리 없이 시점 버튼 아래에 7분할 숫자로 보여 줍니다. 꺼진 칸은 희미하게 남습니다. */
   .clock { position:absolute; right:10px; top:8px; z-index:3; pointer-events:none; line-height:0; }   /* 지도 오른쪽 위 */
-  .clock svg { height:40px; width:auto; overflow:visible; }
+  .clock svg { display:block; margin-left:auto; height:40px; width:auto; overflow:visible; }
   .clock .on { fill:#ffd93b; filter:drop-shadow(0 0 1.5px #39ff6a) drop-shadow(0 0 4px rgba(57,255,106,.85)) drop-shadow(0 0 9px rgba(57,255,106,.5)); }   /* 노란 숫자 + 초록 네온 */
   .clock .off { fill:rgba(255,217,59,.12); }
   .clock.play .colon { animation:clockBlink 1s steps(1) infinite; }
   @keyframes clockBlink { 50% { opacity:.15; } }
-  @media (max-width: 760px) { .clock svg { height:30px; } }
+  .clock .clockSub { margin-top:4px; text-align:right; white-space:nowrap; line-height:1.15; font:700 20px/1.15 "Malgun Gothic", sans-serif; color:#ffd93b;
+    text-shadow:0 0 2px #39ff6a, 0 0 6px rgba(57,255,106,.75), 0 0 1px #000; }   /* 시계의 절반 크기, 같은 노란 글자 + 초록 네온 */
+  .clock .clockSub small { font-size:.7em; }
+  @media (max-width: 760px) { .clock svg { height:30px; } .clock .clockSub { font-size:15px; } }
 </style>
 </head>
 <body>
@@ -1217,11 +1220,12 @@ attribute vec2 aSwim;`)
   function panel() {
     const st = state(), list = ranks(st), best = list[0].score || 1;
     $("hourLabel").textContent = fmtH(st.h);
-    $("clock").innerHTML = ledSVG(fmtH(st.h));
     $("recTitle").textContent = `${nice(st.s)} ${fmtH(st.h)} 추천 자리`;
     setWind(st); condBox(st, list[0]);
     const info = dist(st);
     setRelease(st, info.rel);
+    const hd = hotDepth(info);
+    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `반응 좋은 송어 ${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "반응 좋은 송어 적음"}</div>`;
     mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
     drawIce(st);
     water.material.color.setHex(st.k === 2 ? 0x8f7c52 : 0x2f7fa3);
@@ -1315,10 +1319,19 @@ attribute vec2 aSwim;`)
     }
     return `<svg viewBox="-1 -1 ${x + 1} 42" aria-label="${text}" role="img">${out}</svg>`;
   }
+  // 반응 좋은 송어의 주요 수심: 칸마다 반응 좋은 송어 수(hiW)로 무게를 준 머무는 층의 25~75% 구간
+  function hotDepth(info) {
+    const arr = []; let tot = 0;
+    info.hiW.forEach((w, i) => { if (w > 0) { arr.push([info.lay[i], w]); tot += w; } });
+    if (!(tot > 0)) return null;
+    arr.sort((a, b) => a[0] - b[0]);
+    const q = (p) => { let c = 0; for (const [d, w] of arr) { c += w; if (c >= p * tot) return d; } return arr[arr.length - 1][0]; };
+    return [Math.round(q(.25) * 10) / 10, Math.round(q(.75) * 10) / 10];
+  }
   function placeClock() {   // 지도 오른쪽 위에 붙이고, 좁은 화면에서 시점 버튼과 겹치면 버튼 줄 바로 아래로 내립니다.
     const c = $("clock"), v = document.querySelector(".views"), stage = document.querySelector(".stage").getBoundingClientRect();
     c.style.top = "8px";
-    const cr = c.getBoundingClientRect(), hit = [...v.children].some((b) => { const r = b.getBoundingClientRect(); return r.right > cr.left - 4 && r.bottom > cr.top && r.top < cr.bottom; });
+    const cr = (c.querySelector("svg") || c).getBoundingClientRect(), hit = [...v.children].some((b) => { const r = b.getBoundingClientRect(); return r.right > cr.left - 4 && r.bottom > cr.top && r.top < cr.bottom; });
     if (hit) c.style.top = `${v.getBoundingClientRect().bottom - stage.top + 6}px`;
   }
   addEventListener("resize", placeClock);
