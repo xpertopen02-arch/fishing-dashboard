@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.64", date: "2026-11-07", title: "공개 범위 조정",
+    changes: [
+      "덕봉 정리·문헌과 영상 가이드를 공개하고 덕봉 3D는 베타로 이동",
+      "자료 탐색과 자료 검색을 베타에서만 표시",
+    ],
+  },
+  {
     version: "1.63", date: "2026-11-07", title: "공개전환 버튼 추가",
     changes: [
       "베타의 버전 기록 옆에 일반 상태로 돌아가는 공개전환 버튼 추가",

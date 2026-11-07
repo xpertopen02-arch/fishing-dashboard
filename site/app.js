@@ -67,7 +67,7 @@
     log: { type: null, place: null, month: null },
     shelf: PAGES[0].section,
     sources: [],
-    notes: { month: new Date().getMonth() + 1, tab: "model", chapters: {}, fitTarget: null, fitDate: null },
+    notes: { month: new Date().getMonth() + 1, tab: "summary", chapters: {}, fitTarget: null, fitDate: null },
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 
@@ -1056,7 +1056,7 @@
   try { IS_BETA = localStorage.getItem("fishBeta") === "1"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [...(IS_BETA ? [["study", "카페 자료"]] : []), ...(window.FISH_DEOKBONG_GUIDE ? [["model", "덕봉 3D"], ["summary", "덕봉 정리·문헌"]] : []), ...(IS_BETA ? [["video", "영상 가이드"], ["book", "북가이드"], ["versions", "버전 기록"]] : [])];
+    const tabs = [...(IS_BETA ? [["study", "카페 자료"], ["model", "덕봉 3D"]] : []), ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -1090,8 +1090,8 @@
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
       ${notesTabs()}
-      <div class="panel"><p class="sub">저수지 구조를 돌려 보며 날씨와 시각에 따른 추천 자리와 송어 예상 분포를 봅니다. 값은 모두 가설입니다. <a href="research/deokbong3d.html" target="_blank" rel="noopener noreferrer">새 창으로 크게 보기</a></p>
-        <iframe class="model-frame" src="research/deokbong3d.html" title="덕봉저수지 3D 모델"></iframe>
+      <div class="panel"><p class="sub">저수지 구조를 돌려 보며 날씨와 시각에 따른 추천 자리와 송어 예상 분포를 봅니다. 값은 모두 가설입니다. <a href="private/deokbong3d.html" target="_blank" rel="noopener noreferrer">새 창으로 크게 보기</a></p>
+        <iframe class="model-frame" src="private/deokbong3d.html" title="덕봉저수지 3D 모델"></iframe>
       </div>`;
   }
 
@@ -1109,9 +1109,9 @@
   }
 
   function renderNotes() {
-    if (!IS_BETA && ["study", "video", "book", "versions"].includes(state.notes.tab)) state.notes.tab = "model";
+    if (!IS_BETA && ["study", "model", "book", "versions"].includes(state.notes.tab)) state.notes.tab = "summary";
     if (state.notes.tab === "versions") { notesFrame(`<h2 class="ver-title">버전 기록 <button class="ver-public" data-to-public>공개전환</button></h2><p class="sub">현재 v${esc(window.FISH_VERSIONS[0].version)} 베타 · 자료 빌드 ${esc(window.FISH.built)}</p>${versionListHtml()}`); return; }
-    const missing = { study: !window.FISH_NOTES, video: !window.FISH_VIDEO_GUIDE, book: !window.FISH_BOOK_GUIDE }[state.notes.tab];
+    const missing = { study: !window.FISH_NOTES, model: !CAN_LOAD_PRIVATE, book: !window.FISH_BOOK_GUIDE }[state.notes.tab];
     if (missing) { notesFrame('<h2>이 PC에서만 열리는 자료입니다</h2><p class="sub">이 자료는 공개 사이트에 올리지 않았습니다. 자료가 있는 PC에서 열어 주세요.</p>'); return; }
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
     if (window.FISH_BOOK_GUIDE && state.notes.tab === "book") { renderChapterGuide(window.FISH_BOOK_GUIDE); return; }
@@ -1225,7 +1225,7 @@
     const refresh = () => { if (!$("#view-notes").hidden) renderNotes(); };
     (async () => {
       if (IS_BETA && CAN_LOAD_PRIVATE && await load("private/notes.js") && window.FISH_NOTES) renderBrief();
-      await Promise.all(["research_guide", "deokbong_guide"].map((name) => load(`research/${name}.js`)));
+      await Promise.all(["research_guide", "deokbong_guide", "video_guide"].map((name) => load(`research/${name}.js`)));
       if (window.FISH_NOTES || window.FISH_RESEARCH_GUIDE) {
         $('.tabs [data-go="notes"]').hidden = false;
         moveInk();
@@ -1234,7 +1234,7 @@
         if (openHistory) { state.notes.tab = "versions"; go("notes", false); }
         else if (initialView === "notes") go("notes", false);
       }
-      if (IS_BETA && CAN_LOAD_PRIVATE) ["video_guide", "book_guide"].forEach((name) => load(`private/${name}.js`).then(refresh));
+      if (IS_BETA && CAN_LOAD_PRIVATE) load("private/book_guide.js").then(refresh);
     })();
   }
 
@@ -1336,7 +1336,8 @@
     if (on) { ink.style.left = `${on.offsetLeft}px`; ink.style.width = `${on.offsetWidth}px`; }
   }
   function go(view, push = true) {
-    const views = ["plan", "log", "library", ...(window.FISH_NOTES || window.FISH_RESEARCH_GUIDE ? ["notes"] : [])];
+    if (view === "library" && !IS_BETA) view = "plan";   // 자료 탐색은 베타에서만 엽니다.
+    const views = ["plan", "log", ...(IS_BETA ? ["library"] : []), ...(window.FISH_NOTES || window.FISH_RESEARCH_GUIDE ? ["notes"] : [])];
     if (!views.includes(view)) view = "plan";
     state.view = view;
     ["plan", "log", "library", "notes"].forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
@@ -1424,6 +1425,8 @@
   $("#toTop").addEventListener("click", () => window.scrollTo({ top: 0, behavior: REDUCED ? "auto" : "smooth" }));
   addEventListener("scroll", () => $("#toTop").classList.toggle("show", window.scrollY > 400), { passive: true });
   $("#searchOpen").addEventListener("click", openSearch);
+  // 일반 상태에서는 자료 탐색과 자료 검색을 보여 주지 않습니다.
+  if (!IS_BETA) { $('.tabs [data-go="library"]').hidden = true; $("#searchOpen").hidden = true; }
   $("#verBtn").innerHTML = `<span class="ver-long">Version </span><span class="ver-short">v</span>${esc(window.FISH_VERSIONS[0].version)}${IS_BETA ? " Beta" : ""}`;
   // 일반 상태의 버전 버튼은 숫자만 보여 줍니다. 베타에서는 한 번 누르면 기록이 열립니다.
   if (!IS_BETA) { $("#verBtn").removeAttribute("title"); $("#verBtn").classList.add("ver-plain"); }
@@ -1463,7 +1466,7 @@
     if (state.view === "plan") renderCharts();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); openSearch(); }
+    if (IS_BETA && e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); openSearch(); }
     if (e.key === "Escape") {
       if (!$("#lightbox").hidden) $("#lightbox").hidden = true;
       else if (!$("#searchLayer").hidden) $("#searchLayer").hidden = true;
