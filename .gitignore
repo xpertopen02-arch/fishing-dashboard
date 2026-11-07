@@ -9,3 +9,6 @@ __pycache__/
 *.pdf
 source파일/카페/
 site/private/
+
+# Local backups of files kept out of Git (private notes, research scripts, originals)
+백업/
