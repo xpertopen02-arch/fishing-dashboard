@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.33", date: "2026-11-07", title: "예상 수온을 날씨 옆으로 이동",
+    changes: [
+      "예상 수온을 아래 칸에서 낚시터 이름과 날씨가 있는 칸의 날씨 옆으로 이동",
+      "최고 기온부터 최대 돌풍까지 네 칸은 다시 넓게 표시",
+    ],
+  },
+  {
     version: "1.32", date: "2026-11-07", title: "스크롤할 때 지도에 걸리지 않게 수정",
     changes: [
       "지도 위에서 스크롤하면 페이지가 그대로 내려가도록 변경 (확대와 축소는 Ctrl+스크롤 또는 +/- 버튼)",

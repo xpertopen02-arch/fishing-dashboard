@@ -632,10 +632,13 @@
     const w = state.weather?.data[p.id];
     // the most severe code of the day, which is how the daily cards above are coded too
     const dayWx = w?.code && fin(w.code).length ? WX(Math.max(...fin(w.code))) : null;
+    const water = waterEstimate(p, state.date);
+    const waterTip = water ? `${water.own ? "이 낚시터의 수온 곡선" : "전체 측정값의 수온 곡선"}으로 계산했습니다.${water.outside ? " 측정 기간 밖이라 곡선을 연장한 값입니다." : ""} 자세한 내용은 연구 노트를 보세요.` : "";
+    const waterBox = water ? `<div class="brief-water" title="${esc(waterTip)}"><b class="brief-wx-date">예상 수온</b><div class="brief-water-values"><span>표층 <strong>${num(water.surface)}</strong>°C</span><span>바닥 <strong>${num(water.bottom)}</strong>°C</span></div><small>${water.own && !water.outside ? "추정" : "참고값"}</small></div>` : "";
     const head = `<div class="card brief-head"><div class="brief-main"><h2>${esc(p.name)}</h2><p>${esc(p.address)}</p>
       <p class="pin-fix">위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
       <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}</div>
-      ${w ? `<span class="source-tag">${fmtDate(state.date)} · ${MODE_LABEL[state.weather.mode](state.date)}</span>` : ""}</div>${dayWx ? `<div class="brief-wx" title="${dayWx[1]}"><b class="brief-wx-date">${state.date.slice(0, 4) === TODAY.slice(0, 4) ? "" : `${state.date.slice(0, 4)}. `}${fmtShort(state.date)}</b><i aria-hidden="true">${dayWx[0]}</i><span>${dayWx[1]}</span></div>` : ""}</div>`;
+      ${w ? `<span class="source-tag">${fmtDate(state.date)} · ${MODE_LABEL[state.weather.mode](state.date)}</span>` : ""}</div>${dayWx ? `<div class="brief-wx" title="${dayWx[1]}"><b class="brief-wx-date">${state.date.slice(0, 4) === TODAY.slice(0, 4) ? "" : `${state.date.slice(0, 4)}. `}${fmtShort(state.date)}</b><i aria-hidden="true">${dayWx[0]}</i><span>${dayWx[1]}</span></div>` : ""}${waterBox}</div>`;
     if (!hasPin(p)) {
       $("#brief").innerHTML = head + `<div class="card notice">이 낚시터의 주소를 찾지 못해 날씨를 조회할 수 없습니다. 지도에서 낚시터 위치를 클릭하면 저장되고 날씨가 바로 나옵니다.</div>`;
       return;
@@ -651,15 +654,13 @@
     const temps = fin(w.temp), winds = fin(w.wind), gusts = fin(w.gust);
     const rain = fin(w.precip).reduce((a, b) => a + b, 0);
     const maxProb = w.prob ? Math.max(...fin(w.prob)) : null;
-    const tile = (i, label, val, d, unit, extra = "", tip = "") => `<div class="tile" style="--i:${i}"${tip ? ` title="${esc(tip)}"` : ""}><span>${label}</span><strong data-to="${val}" data-d="${d}">${Number(val).toFixed(d)}</strong><small>${unit}</small>${extra ? `<span>${extra}</span>` : ""}</div>`;
+    const tile = (i, label, val, d, unit, extra = "") => `<div class="tile" style="--i:${i}"><span>${label}</span><strong data-to="${val}" data-d="${d}">${Number(val).toFixed(d)}</strong><small>${unit}</small>${extra ? `<span>${extra}</span>` : ""}</div>`;
     const maxWindIdx = w.wind.indexOf(Math.max(...winds));
-    const water = waterEstimate(p, state.date);
     $("#brief").innerHTML = head + `<div class="tiles">
       ${tile(0, "최고 기온", Math.max(...temps), 0, "°C", `최저 ${Math.round(Math.min(...temps))}°C`)}
       ${tile(1, "최대 풍속", Math.max(...winds), 1, "m/s", `${pad(maxWindIdx)}시 · ${compass(w.dir[maxWindIdx] ?? 0)}풍`)}
       ${tile(2, "강수 합계", rain, 1, "mm", maxProb != null ? `최대 확률 ${maxProb}%` : "확률 자료 없음")}
       ${tile(3, "최대 돌풍", Math.max(...gusts), 1, "m/s", w.sunrise ? `일출 ${w.sunrise} · 일몰 ${w.sunset}` : "")}
-      ${water ? tile(4, "예상 수온(표층)", water.surface, 1, "°C", `바닥 ${num(water.bottom)}°C · ${water.own && !water.outside ? "추정" : "참고값"}`, `${water.own ? "이 낚시터의 수온 곡선" : "전체 측정값의 수온 곡선"}으로 계산했습니다.${water.outside ? " 측정 기간 밖이라 곡선을 연장한 값입니다." : ""} 자세한 내용은 연구 노트를 보세요.`) : ""}
     </div>
     ${state.weather.savedAt ? `<div class="card notice climate-note"><b>인터넷에 연결되어 있지 않습니다.</b> ${new Date(state.weather.savedAt).toLocaleString("ko-KR")}에 저장된 날씨입니다. 최신 예보와 다를 수 있습니다.</div>` : ""}
     ${state.weather.mode === "climate" ? `<div class="card notice climate-note"><b>예보 범위 밖 날짜입니다.</b> ${fmtDate(state.date)}의 예보는 아직 없어, ${state.weather.years.join("·")}년 같은 날짜의 평균을 보여줍니다. 실제 날씨와 다를 수 있으며, 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 제공됩니다.</div>` : ""}
