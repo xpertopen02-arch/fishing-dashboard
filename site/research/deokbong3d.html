@@ -43,6 +43,9 @@
   .views { position:absolute; left:50px; top:10px; right:10px; z-index:3; display:flex; flex-wrap:wrap; gap:4px; }
   .legend { position:absolute; left:10px; bottom:10px; z-index:3; color:#fff; font-size:12px; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
   .legend i { display:block; width:170px; height:9px; border-radius:3px; margin:3px 0; }
+  .fold { margin:12px 0; }
+  .fold summary { cursor:pointer; font-size:14px; font-weight:700; }
+  .fold[open] summary { margin-bottom:6px; }
   .wheelbox { margin:7px 0; font-size:13px; color:var(--ink2); }
   .caltable { table-layout:fixed; }
   .caltable td.day { white-space:nowrap; overflow:hidden; font-size:9.5px; line-height:1.15; text-align:center; padding:2px 0; cursor:pointer; border:1px solid var(--line); }
@@ -105,12 +108,9 @@
     <div id="recs"></div>
     <div id="alerts"></div>
 
-    <h2>가두리와 부교 사이 수심별 수온</h2>
-    <div id="profile"></div>
+    <details class="fold"><summary>가두리와 부교 사이 수심별 수온</summary><div id="profile"></div></details>
 
-    <h2>시간대별 1순위</h2>
-    <div id="matrix"></div>
-    <p class="note">칸을 누르면 그 날씨와 시각으로 이동합니다.</p>
+    <details class="fold"><summary>시간대별 1순위</summary><div id="matrix"></div><p class="note">칸을 누르면 그 날씨와 시각으로 이동합니다.</p></details>
 
     <h2>화면</h2>
     <label class="f">표시 <select id="mode"><option value="depth">수심</option><option value="fish">송어 예상 밀도</option><option value="bite">반응 좋은 송어 밀도</option><option value="temp">수온 (윗층)</option><option value="tempb">수온 (바닥 쪽)</option><option value="do">용존산소 (바닥 쪽)</option><option value="clean">맑은 물 범위 (탁한 날)</option></select></label>
