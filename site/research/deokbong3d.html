@@ -39,19 +39,27 @@
   td.cell:hover, td.on { background:color-mix(in srgb, var(--accent) 18%, transparent); font-weight:600; }
   .tools { position:absolute; left:10px; top:10px; display:flex; flex-direction:column; gap:4px; z-index:3; }
   .tools button { width:26px; height:26px; padding:0; font-size:13px; line-height:1; }
-  .readout { position:absolute; left:10px; bottom:90px; max-width:calc(100% - 20px); z-index:3; pointer-events:none; font-size:11px; color:#fff; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
+  .tools button.armed { background:#d9534f; color:#fff; border-color:#d9534f; }
+  .readout { position:absolute; left:10px; bottom:116px; max-width:calc(100% - 20px); z-index:3; pointer-events:none; font-size:11px; color:#fff; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
   .views { position:absolute; left:44px; top:10px; right:10px; z-index:3; display:flex; flex-wrap:wrap; gap:4px; }
   .views button { font-size:11px; padding:3px 7px; line-height:1.2; }
   .legend { position:absolute; left:10px; bottom:10px; z-index:3; color:#fff; font-size:12px; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
-  .cond { position:absolute; left:192px; bottom:10px; right:10px; z-index:3; pointer-events:none; color:#fff; font-size:11px; line-height:1.35; text-shadow:0 0 2px #000, 0 0 5px #000; }
+  .cond { position:absolute; left:206px; bottom:10px; right:10px; z-index:3; pointer-events:none; color:#fff; font-size:11px; line-height:1.35; text-shadow:0 0 2px #000, 0 0 5px #000; }
   .cond { display:flex; align-items:flex-start; gap:8px; }
+  .cond { align-items:stretch; }
+  /* 지도 아래 글 상자: 탭처럼 묶고, 테마의 패널 색을 반투명으로 씁니다. */
+  .cond .ctext, .cond .cicon, .legend { background:color-mix(in srgb, var(--panel) 72%, transparent); border:1px solid color-mix(in srgb, var(--line) 85%, transparent); border-radius:7px; padding:4px 8px; color:var(--ink); text-shadow:none; -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
+  .cond { color:var(--ink); text-shadow:none; }
+  .legend { padding:4px 8px 3px; }
   .cond .ctext { min-width:0; }
-  .cond .cicon { flex:none; filter:drop-shadow(0 0 2px rgba(0,0,0,.7)); }
+  .cond .cicon { flex:none; display:flex; flex-direction:column; justify-content:center; padding:4px 6px; }
+  .cond .cicon svg { filter:drop-shadow(0 0 1.5px rgba(0,0,0,.45)); }
   .cond .cicon svg { display:block; height:5.4em; width:auto; margin:0 auto; }
   .cond .cwind { text-align:center; white-space:nowrap; font-weight:700; }
   .cond .cwind .arrow { font-size:1.25em; margin-right:2px; }   /* 글 네 줄 높이 (줄 높이 1.35em × 4) */
   .cond span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .cond .windy { color:#ff6b6b; font-weight:700; }
+  .cond .windy { color:#d63a32; font-weight:700; }
+  @media (prefers-color-scheme: dark) { .cond .windy { color:#ff7b72; } }
   .cond b { font-weight:700; }
   .cond .arrow { display:inline-block; line-height:1; }
   .legend i { display:block; width:170px; height:9px; border-radius:3px; margin:3px 0; }
@@ -80,8 +88,11 @@
     .wrap { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(240px,46vh) minmax(0,1fr); grid-template-rows:minmax(240px,46dvh) minmax(0,1fr); height:100vh; height:100dvh; }
     .stage { min-height:0; }
     .readout { display:none; }
-    .legend i { width:110px; }
-    .cond { left:130px; font-size:10.5px; gap:5px; }
+    .legend i { width:78px; }
+    .cond { left:108px; right:6px; font-size:10.5px; gap:3px; }
+    .legend { left:6px; padding:3px 6px 2px; font-size:11px; }
+    .cond .ctext { padding:3px 5px; }
+    .cond .cicon { padding:3px 4px; }
 
     .side { border-left:0; border-top:1px solid var(--line); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
   }
@@ -394,9 +405,16 @@
     return { hi, lo: Math.min(lo, 1 - hi) };
   }
   // 방류어: 입질이 활발한 약 1시간은 활성이 높고, 이후 보통으로 내려갑니다.
-  const freshLevel = (rel) => (rel.hours >= 0 && rel.hours <= 1 ? "high" : "mid");
+  const freshLevel = (rel) => (rel.hours >= 0 ? "high" : "mid");   // 방류어는 방류 뒤 활성도가 높습니다.
   // 방류어 흐름에 자극받는 기존 송어의 비율: 방류 지점에 가까울수록, 방류 직후일수록 큽니다.
-  const stirChance = (st, rel, metres) => (st.stock === 0 && rel.hours >= 0 && rel.hours <= 1 ? .35 * Math.exp(-rel.hours / .7) * Math.exp(-metres / (rel.sigma + 10)) : 0);
+  // 방류어가 퍼져 나가며 지나간 곳의 송어는 지나간 뒤 약 1시간 동안 반응이 살아납니다.
+  // 방류어 무리의 끝은 10m에서 시작해 1시간에 15m씩, 최대 60m까지 퍼집니다(releaseState의 퍼짐과 같음).
+  const STIR_HOURS = 1;
+  const stirChance = (st, rel, metres) => {
+    if (st.stock !== 0 || rel.hours < 0 || metres > 60) return 0;
+    const passed = rel.hours - Math.max(0, (metres - 10) / 15);   // 무리 끝이 이 자리를 지난 뒤 흐른 시간
+    return passed < 0 || passed > STIR_HOURS ? 0 : .5 * (1 - passed / STIR_HOURS);
+  };
   const distCache = new Map();
   function dist(st) {
     const key = [st.s, st.h, st.f, st.stock, st.crowd, st.k, st.cruise, st.note, st.rain, st.release, st.relH, st.total, st.stockN, st.wheels].join();
@@ -888,7 +906,8 @@
         const under = cageBottom > CAGE_DEPTH + .2 && S.under < .45;
         const m = under ? Math.sqrt(S.m) * CAGE_HALF : CAGE_HALF + S.m;
         const dep = under ? CAGE_DEPTH + .1 + S.dr * (cageBottom - CAGE_DEPTH - .2) : .3 + S.dr * (CAGE_DEPTH - .3);
-        set(k, { x: wx(cw[0]) + Math.cos(S.a) * m, z: wz(cw[1]) + Math.sin(S.a) * m, dep, ph: S.ph, wob: .3 }, tintFor(false, activity(info.Tm, st.h) * .7 * (.25 + .75 * S.t0), dep));
+        const Rr = j >= st.total && info.rel.share ? 1 : activity(info.Tm, st.h) * .7 * (.25 + .75 * S.t0);
+        set(k, { x: wx(cw[0]) + Math.cos(S.a) * m, z: wz(cw[1]) + Math.sin(S.a) * m, dep, ph: S.ph, wob: .3, fast: Rr >= HIGH }, tintFor(false, Rr, dep));
       } else {
         // 머무는 칸: 처음엔 분포대로 고르고, 이후에는 분포가 줄어든 칸의 송어만 늘어난 칸 중 가까운 곳으로 옮깁니다.
         let ci = fishCell[k];
@@ -901,9 +920,10 @@
         if (cruise) nCruise++;
         let R = activity(info.evals[ci].T, st.h) * (.25 + .75 * S.t0);
         if (S.t1 < .05 || S.t2 < info.stir[ci]) R = 1;
-        if (S.t3 < info.freshP[ci]) R = freshLevel(info.rel) === "high" ? 1 : .6;
+        if (j >= st.total && info.rel.share) R = 1;   // 방류어
+        else if (S.t3 < info.freshP[ci]) R = freshLevel(info.rel) === "high" ? 1 : .6;
         const dep = clamp(info.lay[ci] + S.dd, .25, Math.max(.3, c.d - .15));
-        set(k, { cruise, x: wx(c.x + S.jx * G.step * 2), z: wz(c.y + S.jy * G.step * 2), dep, u: S.u, ox: S.ox, oz: S.oz, dd: S.dd, ph: S.ph, wob: 1.6 }, tintFor(cruise, R, cruise ? clamp(cruiseDepth + S.dd, .25, 3) : dep), j >= st.total ? freshStart : null);
+        set(k, { cruise, x: wx(c.x + S.jx * G.step * 2), z: wz(c.y + S.jy * G.step * 2), dep, u: S.u, ox: S.ox, oz: S.oz, dd: S.dd, ph: S.ph, wob: R >= HIGH ? 2.6 : 1.6, fast: R >= HIGH }, tintFor(cruise, R, cruise ? clamp(cruiseDepth + S.dd, .25, 3) : dep), j >= st.total ? freshStart : null);
       }
       fishRole[k] = role;
     }
@@ -922,15 +942,16 @@
         const n = Math.round((p[1] - D.crop[1]) / G.step) * G.nx + Math.round((p[0] - D.crop[0]) / G.step);
         td = clamp(cruiseDepth + g.dd, .25, Math.max(.3, (G.depth[n] || 1) - .15));
       } else {
-        tx = g.x + Math.sin(t * .3 + g.ph) * g.wob; tz = g.z + Math.cos(t * .27 + g.ph) * g.wob; td = g.dep; rate = .03;
+        const sp = g.fast ? 2.2 : 1;   // 활성이 높으면 더 넓고 빠르게 돕니다.
+        tx = g.x + Math.sin(t * .3 * sp + g.ph) * g.wob; tz = g.z + Math.cos(t * .27 * sp + g.ph) * g.wob; td = g.dep; rate = g.fast ? .06 : .03;
       }
       let dx = (tx - c.x) * rate, dz = (tz - c.z) * rate;
-      const step = Math.hypot(dx, dz), cap = SWIM * dt;   // 멀리 가야 해도 헤엄치는 속도로만 움직입니다.
+      const step = Math.hypot(dx, dz), cap = SWIM * (g.fast ? 2 : 1) * dt;   // 멀리 가야 해도 헤엄치는 속도로만 움직입니다.
       if (step > cap) { dx *= cap / step; dz *= cap / step; }
       c.x += dx; c.z += dz; c.dep += (td - c.dep) * rate;
       if (Math.hypot(dx, dz) > 1e-4) { let a = Math.atan2(dz, dx) - c.head; a = Math.atan2(Math.sin(a), Math.cos(a)); c.head += a * .12; }
       dummy.position.set(c.x, -c.dep * ve, c.z); dummy.scale.setScalar(g.hidden ? 0 : 1);
-      dummy.rotation.y = -c.head + Math.sin(t * 5 + g.ph) * .1;
+      dummy.rotation.y = -c.head + Math.sin(t * (g.fast ? 11 : 5) + g.ph) * (g.fast ? .16 : .1);   // 꼬리 흔들기
       dummy.updateMatrix(); fish.setMatrixAt(k, dummy.matrix);
     }
     fish.instanceMatrix.needsUpdate = true;
@@ -1120,7 +1141,7 @@
     $("fishKey").innerHTML = $("fishColor").value === "depth" ? '<b style="color:#d9b400">■</b> 1m 안 <b style="color:#35b86a">■</b> 1~2m <b style="color:#3f8fe0">■</b> 2~3m <b style="color:#b45fd6">■</b> 3m 아래 <b style="color:#8a7f73">■</b> 가두리 안' : $("fishColor").value === "react" ? '<b style="color:#2f6fe0">■</b> 반응 좋음 <b style="color:#d9a400">■</b> 보통 <b style="color:#e5392c">■</b> 낮음 <b style="color:#8a7f73">■</b> 가두리 안' : '<b style="color:#5fb6e6">■</b> 도는 송어 <b style="color:#b9b4a6">■</b> 머무는 송어 <b style="color:#8a7f73">■</b> 가두리 안';
     const relName = st.release === "center" ? "중앙 가두리" : "부교 가두리";
     const near = nearSpots(list);
-    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. ${info.rel.hours <= 1 ? "방류어는 움직이는 루어에 빠르게 반응하고, 주변 기존 송어 일부도 자극받아 반응이 올라갑니다." : "활발한 입질은 약 1시간으로 봅니다."}${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
+    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${(() => { const mm = Math.round(info.rel.hours * 60), hh = Math.floor(mm / 60); return mm < 60 ? `${mm}분` : `${hh}시간${mm % 60 ? ` ${mm % 60}분` : ""}`; })()} 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. 방류어는 활성도가 높아 움직이는 루어에 빠르게 반응합니다. 방류어 무리가 지나간 곳의 기존 송어도 지나간 뒤 약 1시간 동안 반응이 살아납니다.${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
     $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${hourOf(st.h)}시대</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `부채꼴은 중앙 가두리 쪽으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : castInfo().mode === "front" ? `부채꼴은 자리별로 정한 정면 방향으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
     const sim = Object.fromEntries(Object.keys(D.zoneNames).map((k) => [k, zoneV(st, st.h, k)]));
     const alerts = [], ks = Object.keys(sim);
@@ -1268,7 +1289,14 @@
   $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; go(new THREE.Vector3(...DEFAULT_VIEW.cam), new THREE.Vector3(...DEFAULT_VIEW.tgt)); };
   document.querySelector(".side").addEventListener("input", saveSettings);
   controls.addEventListener("end", saveSettings);
-  $("resetIcon").onclick = () => { if (confirm("옵션과 시점을 처음 설정으로 되돌릴까요?")) $("settingsReset").click(); };
+  // 그림 버튼은 실수로 눌리지 않게 3초 안에 한 번 더 눌러야 실행합니다. (확인 창은 액자 안에서 막힐 수 있어 쓰지 않습니다.)
+  let resetArmed = null;
+  $("resetIcon").onclick = () => {
+    const b = $("resetIcon");
+    if (resetArmed) { clearTimeout(resetArmed); resetArmed = null; $("settingsReset").click(); return; }
+    b.classList.add("armed"); b.title = "한 번 더 누르면 설정이 처음으로 돌아갑니다";
+    resetArmed = setTimeout(() => { resetArmed = null; b.classList.remove("armed"); b.title = "설정 처음으로"; }, 3000);
+  };
   $("settingsSave").onclick = () => { saveSettings(); $("settingsSave").textContent = "저장했습니다"; setTimeout(() => { $("settingsSave").textContent = "설정 현재상태로"; }, 1500); };
   $("settingsReset").onclick = () => { try { localStorage.removeItem("deokbongSettings"); } catch (e) { /* 무시 */ } document.querySelector(".side").removeEventListener("input", saveSettings); controls.removeEventListener("end", saveSettings); location.reload(); };
   document.querySelectorAll(".wheel-sw").forEach((e) => e.addEventListener("input", () => { refreshWheels(); panel(); }));
