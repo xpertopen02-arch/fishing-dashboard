@@ -88,6 +88,7 @@
     <div class="time"><button id="play" aria-label="재생">재생</button><input id="hour" type="range" min="6" max="19" value="13" aria-label="시각"><b id="hourLabel"></b></div>
     <label class="f">새물 유입 성격 <select id="inflow"><option value="ground">지하수형 (10℃ 가정)</option><option value="stream">계곡수, 눈 녹은 물 (1.5℃ 가정)</option><option value="rain">비 온 다음날 (그날 기온 연동)</option></select></label>
     <label class="f">방류 뒤 경과 <select id="stock"><option value="2">1주 이상</option><option value="1">1~3일</option><option value="0">방류 당일</option></select></label>
+    <label class="f">방류량 <span id="stockLabel"></span><input id="stockN" type="range" min="50" max="100" step="5" value="75" aria-label="방류 마릿수"></label>
     <label class="f">방류 위치 <select id="release"><option value="center">중앙 가두리</option><option value="bridge">부교 가두리</option></select></label>
     <label class="f">방류 시각 (당일) <select id="relH"><option value="6">6시</option><option value="7">7시</option><option value="8">8시</option><option value="9">9시</option><option value="10" selected>10시</option><option value="11">11시</option><option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option><option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option></select></label>
     <label class="f">물색 <select id="clarity"><option value="clear">맑음</option><option value="turbid">탁함</option></select></label>
@@ -140,7 +141,7 @@
       <li><b>도는 송어와 머무는 송어:</b> 전해 주신 관찰에 따라 두 무리로 나눴습니다. 비율은 근거 수치가 없어 조절할 수 있게 두었고, 물이 차가울수록 도는 무리가 머문다고 가정했습니다. 경로는 물가 안쪽 둘레로 잡았습니다.</li>
       <li><b>달력:</b> 2023~2026년 겨울 세 번(11~4월)의 시간별 기온, 바람, 일사량(Open-Meteo)으로 계산한 뒤 날짜별로 평균했습니다. 앞으로의 날씨 예보가 아닙니다. 평균이라 한파 같은 극단은 약해집니다.</li>
       <li><b>공략 노트:</b> 공략법 지도(2024-25년)의 물골, 공략 지점, 밑걸림을 넣었습니다. 물골은 양옆 바닥보다 약 0.65m 깊게 넣었고, 물골과 공략 지점 주변 송어 점수를 높였습니다. 시간대별 자리와 방류 직후 자리(부교 방류는 방류 위치 좌우, 가두리 방류는 정면)는 2026년 1월 공략법을 따라 점수에 곱했습니다. 그래서 모델만의 예측이 아닙니다. '공략법 켜기'를 끄면 지도, 설명, 점수 반영이 모두 빠집니다. 물골 깊이만 지형에 남습니다.</li>
-      <li><b>방류:</b> 방류어는 전체의 25%로 가정했습니다. 방류 뒤 시간당 약 15m씩 퍼지며(최대 60m) 얕은 층에서 서서히 내려간다고 계산합니다. 1~3일 뒤에는 방류 위치에서 약 45m 안에 남습니다. 부교 가두리는 그물 동쪽에 있어, 그 앞 부교 서쪽면으로 들어온다고 가정했습니다.</li>
+      <li><b>방류:</b> 방류량은 50~100마리이고 기본은 75마리입니다. 총 마릿수는 방류 전 기준이고 방류어는 여기에 더해집니다. 방류 뒤 시간당 약 15m씩 퍼지며(최대 60m) 얕은 층에서 서서히 내려간다고 계산합니다. 1~3일 뒤에는 방류 위치에서 약 45m 안에 남습니다. 부교 가두리는 그물 동쪽에 있어, 그 앞 부교 서쪽면으로 들어온다고 가정했습니다.</li>
       <li><b>탁한 날:</b> 상류 새물이 맑다고 보고, 유입구 주변 약 15m와 첫 물골을 따라 옅어지는 맑은 물 범위를 계산합니다(물골 약 60m마다 약 37%로 감소, 폭 약 6m). 그 안에서는 빛이 더 깊이 들고 송어가 더 모인다고(최대 1.6배) 가정했습니다. 수치는 측정값이 아닙니다. 비로 새물까지 탁해지면 맞지 않습니다.</li>
       <li><b>동쪽 못 얼음:</b> 부교 동쪽만 언다고 보고(서쪽은 수차 가동 가정), 기온, 바람, 일사량으로 두께를 날짜별로 계산합니다. 달력은 3년 평균이라 실제 얼음 유무와 다를 수 있습니다. 실측 보정은 없습니다.</li>
       <li><b>비 온 다음날:</b> 새물 유입 성격에서 고릅니다. 유입 수온은 선택한 날짜의 평균 기온을 따르고(0.5~15℃로 제한), 산소는 포화로 잡았습니다. 바탕 수온은 지하수형과 계곡수형의 평균입니다. 유입구 약 40m와 물골을 따라 약 120m 규모로 퍼진다고 가정했고 유입량 수치 계산은 아닙니다. 탁한 날이면 새물도 탁하다고 봅니다.</li>
@@ -259,7 +260,7 @@
 
   // ---------- 점수 ----------
   let calDate = "";
-  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: +$("hour").value, f: $("inflow").value, stock: +$("stock").value, crowd: $("crowd").checked, cruise: +$("cruise").value / 100, total: +$("total").value, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2 });
+  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: +$("hour").value, f: $("inflow").value, stock: +$("stock").value, crowd: $("crowd").checked, cruise: +$("cruise").value / 100, total: +$("total").value, stockN: +$("stockN").value, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2 });
   // 맑은 날 낮에 물이 받은 햇빛 (℃·m). 해가 진 뒤에는 빠르게 사라집니다.
   function sunEnergy(h, clear) {
     const S0 = 120 + 430 * clear, hh = clamp(h, 7.5, 17.5);
@@ -303,17 +304,17 @@
   const RESIDENT_FISH = 40;   // 중앙 가두리 곁과 아래에 머무는 마릿수 (가정)
   // 가두리 고기는 11월 초부터 3월 말까지 있습니다. 날씨 흐름 선택은 겨울로 봅니다.
   const cageSeason = (st) => !/^04-/.test(st.s);
-  const STOCK_SHARE = .25;   // 방류어가 전체에서 차지하는 비율 (가정)
   function releaseState(st) {
     if (st.stock === 2) return { share: 0, sigma: 1, hours: 99 };
-    if (st.stock === 1) return { share: STOCK_SHARE, sigma: 45, hours: 99 };
+    const share = st.stockN / (st.total + st.stockN);   // 방류어는 있던 송어에 더해집니다.
+    if (st.stock === 1) return { share, sigma: 45, hours: 99 };
     const hours = st.h - st.relH;
     if (hours < 0) return { share: 0, sigma: 1, hours, before: true };
-    return { share: STOCK_SHARE, sigma: Math.min(60, 10 + 15 * hours), hours };   // 시간이 갈수록 퍼집니다.
+    return { share, sigma: Math.min(60, 10 + 15 * hours), hours };   // 시간이 갈수록 퍼집니다.
   }
   const distCache = new Map();
   function dist(st) {
-    const key = [st.s, st.h, st.f, st.stock, st.crowd, st.k, st.cruise, st.note, st.rain, st.release, st.relH, st.total].join();
+    const key = [st.s, st.h, st.f, st.stock, st.crowd, st.k, st.cruise, st.note, st.rain, st.release, st.relH, st.total, st.stockN].join();
     let r = distCache.get(key);
     if (r) return r;
     if (distCache.size > 800) distCache.clear();
@@ -325,7 +326,8 @@
     const act = .35 + .65 * clamp((Tm - 2) / 6, 0, 1), eff = st.cruise * act;   // 차가울수록 도는 무리도 머뭅니다.
     const n = westCells.length, w = new Float64Array(n), free = new Float64Array(n), lay = new Float64Array(n);
     // 중앙 가두리 곁과 아래에 늘 머무는 송어 (부교 가두리 주변에는 없음)
-    const resident = cageSeason(st) ? Math.min(.35, RESIDENT_FISH / st.total) : 0;
+    const pop = rel.share ? st.total + st.stockN : st.total;
+    const resident = cageSeason(st) ? Math.min(.35, RESIDENT_FISH / pop) : 0;
     let resSum = 0;
     const resW = westCells.map((c) => { const v = c.cage <= 4.5 ? 1 : 0; resSum += v; return v; });
     const shallow = clamp(.4 + .3 * Math.max(0, rel.hours), .4, 3);   // 방류어는 얕은 층에서 시작해 서서히 내려갑니다.
@@ -336,7 +338,7 @@
       w[i] = moving + res;
       lay[i] = ((base * evals[i].layer + fresh * Math.min(evals[i].layer, shallow)) / (free[i] || 1) * moving + Math.min(c.d * .7, 2) * res) / (w[i] || 1);
     });
-    r = { evals, w, free, lay, eff, act, Tm, depth: dm, rel, resident };
+    r = { evals, w, free, lay, eff, act, Tm, depth: dm, rel, resident, pop };
     distCache.set(key, r);
     return r;
   }
@@ -519,7 +521,7 @@
     g.setIndex(idx); g.computeVertexNormals();
     return g;
   }
-  const FISH = 3200, fishGeo = troutGeometry();
+  const FISH = 3300, fishGeo = troutGeometry();
   const fish = new THREE.InstancedMesh(fishGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), FISH);
   fish.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(FISH * 3).fill(1), 3);
   fish.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fish.frustumCulled = false; scene.add(fish);
@@ -654,7 +656,7 @@
   function placeFish(resample) {
     if (!resample && fishTo.length) return;
     const st = state(), info = dist(st), r = rng(42), inSeason = cageSeason(st);
-    const count = st.total, cageN = inSeason ? CAGE_FISH * 2 : 0;
+    const count = info.pop, cageN = inSeason ? CAGE_FISH * 2 : 0;
     fish.count = count + cageN;
     nCruise = Math.round(count * (1 - info.resident) * info.eff); cruiseDepth = Math.min(info.depth, 2); cruiseSpeed = .25 + .75 * info.act;
     const nRes = Math.round(count * info.resident), cw = D.cages.west, cageBottom = depthAt(cw[0], cw[1]);
@@ -777,13 +779,15 @@
     water.material.color.setHex(st.k === 2 ? 0x8f7c52 : 0x2f7fa3);
     Object.keys(relMarks).forEach((k) => { relMarks[k].visible = st.stock !== 2 && k === st.release; });
     $("relH").disabled = st.stock !== 0;
+    $("stockN").disabled = st.stock === 2;
+    $("stockLabel").textContent = `${st.stockN}마리`;
     $("totalLabel").textContent = `${(+$("total").value).toLocaleString()}마리`;
     $("cruiseLabel").textContent = `${Math.round(st.cruise * 100)}%`;
     $("cruiseNote").textContent = `지금 물 온도에서 실제로 도는 송어는 약 ${Math.round(info.eff * 100)}%입니다. 푸른빛이 도는 쪽이 도는 송어입니다.`;
     const relName = st.release === "center" ? "중앙 가두리" : "부교 가두리";
     const near = nearSpots(list);
-    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에서 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다.${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
-    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * +$("total").value)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. 원은 약 30m 사거리입니다. 흰색 줄은 붉을수록 점수가 높습니다.</p>`;
+    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip"><b>방류 ${info.rel.hours}시간 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다.${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
+    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${st.h}시</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. 원은 약 30m 사거리입니다. 흰색 줄은 붉을수록 점수가 높습니다.</p>`;
     const alerts = [], sim = D.sims[st.f][st.s][st.h], ks = Object.keys(sim);
     const tops = ks.map((k) => sim[k][0]), maxT = Math.max(...ks.map((k) => Math.max(sim[k][0], sim[k][2]))), iced = ks.filter((k) => sim[k][4]), minO = Math.min(...ks.map((k) => sim[k][3]));
     if (maxT < 1.5) alerts.push("전체가 0℃에 가까워 자리 차이가 작게 계산됩니다. 순위보다 덜 찬 곳을 고르는 정도로 보세요.");
@@ -805,7 +809,7 @@
   const TIMES = [7, 9, 12, 15, 17];
   let matrixKey = "", matrixTop = {};
   function matrix(st) {
-    const key = [st.f, st.stock, st.crowd, st.cruise, st.note, st.rain, st.k, st.release, st.relH].join();
+    const key = [st.f, st.stock, st.crowd, st.cruise, st.note, st.rain, st.k, st.release, st.relH, st.total, st.stockN].join();
     if (key !== matrixKey) {
       matrixKey = key; matrixTop = {};
       D.scenarios.forEach((s) => TIMES.forEach((h) => { matrixTop[s + h] = ranks({ ...st, s, h })[0].short; }));
@@ -837,7 +841,7 @@
   const curM = MONTHS.findIndex((m) => m[1] === now.getMonth() + 1);
   if (curM >= 0) calM = curM;
   $("summary").textContent = `수면 약 ${(D.area / 10000).toFixed(1)}ha, 부피 약 ${(D.volume / 10000).toFixed(1)}만㎥, 평균 수심 약 ${(D.volume / D.area).toFixed(1)}m (사진에서 측정, 동쪽 수심은 추정)`;
-  ["scenario", "hour", "inflow", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "release", "relH"].forEach((id) => $(id).addEventListener("input", panel));
+  ["scenario", "hour", "inflow", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH"].forEach((id) => $(id).addEventListener("input", panel));
   $("mode").addEventListener("input", paint);
   $("ve").addEventListener("input", applyVe);
   $("spin").addEventListener("input", (e) => { controls.autoRotate = e.target.checked; });
@@ -899,7 +903,7 @@
   function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   new ResizeObserver(resize).observe(view); resize(); views.focus(true);
   // 마지막 옵션과 시점을 다시 열 때 그대로 보여 줍니다.
-  const KEEP = ["inflow", "stock", "release", "relH", "clarity", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText"];
+  const KEEP = ["inflow", "stock", "stockN", "release", "relH", "clarity", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText"];
   const saveSettings = () => {
     const o = { cam: camera.position.toArray(), tgt: controls.target.toArray() };
     KEEP.forEach((id) => { const e = $(id); o[id] = e.type === "checkbox" ? e.checked : e.value; });

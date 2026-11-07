@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.45", date: "2026-11-07", title: "방류량을 마릿수로 반영",
+    changes: [
+      "방류량을 50~100마리로 조절하도록 변경 (기본 75마리)",
+    ],
+  },
+  {
     version: "1.44", date: "2026-11-07", title: "가두리 송어, 물골 깊이, 데크 이름 반영",
     changes: [
       "가두리 깊이 2m와 안팎의 송어를 3D 분포에 반영 (11월 초~3월 말)",
