@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.54", date: "2026-11-07", title: "구역별 추정값 접기",
+    changes: [
+      "구역별 추정값도 평소에 접어 두고 이름을 누르면 펼치도록 변경",
+    ],
+  },
+  {
     version: "1.53", date: "2026-11-07", title: "덕봉 3D 표 접기",
     changes: [
       "수심별 수온과 시간대별 1순위를 평소에 접어 두고 이름을 누르면 펼치도록 변경",
