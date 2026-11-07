@@ -481,3 +481,6 @@ details.table-view summary { cursor: pointer; font-size: 13px; color: var(--ink-
 .code-dialog input { width: 100%; box-sizing: border-box; font-size: 30px; font-weight: 600; letter-spacing: .4em; text-align: center; padding: 8px 0 8px .4em; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--ink); }
 .code-dialog p { font-size: 13px; color: var(--ink-2); margin: 10px 0; }
 .code-dialog button { font: inherit; font-size: 13px; padding: 4px 14px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; }
+.temp-fold > summary { cursor: pointer; }
+.temp-fold > summary h2 { display: inline; margin: 0; }
+.temp-fold[open] > summary { margin-bottom: 10px; }

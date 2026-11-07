@@ -1108,6 +1108,9 @@
       </div>`;
   }
 
+  // 수온 실측의 펼침 상태는 다시 그려도 유지합니다.
+  document.addEventListener("toggle", (e) => { if (e.target.id === "tempFold") state.notes.tempOpen = e.target.open; }, true);
+
   function renderNotes() {
     if (!IS_BETA && ["book", "versions"].includes(state.notes.tab)) state.notes.tab = "summary";
     if (state.notes.tab === "versions") { notesFrame(`<h2 class="ver-title">버전 기록 <button class="ver-public" data-to-public>공개전환</button></h2><p class="sub">현재 v${esc(window.FISH_VERSIONS[0].version)} 베타 · 자료 빌드 ${esc(window.FISH.built)}</p>${versionListHtml()}`); return; }
@@ -1148,7 +1151,7 @@
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
       ${notesTabs()}
       <div class="notes-grid">
-        <div class="panel notes-wide"><h2>수온 실측</h2><p class="sub">수집한 실측값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
+        <details class="panel notes-wide temp-fold" id="tempFold" ${state.notes.tempOpen ? "open" : ""}><summary><h2>수온 실측</h2></summary><p class="sub">수집한 실측값입니다. 측정 연도가 달라 계절 흐름만 참고하세요.</p>
           <div class="month-legend">${places.map((p) => `<span><i class="dot" style="background:${colorOf(p)}"></i> ${esc(p)}</span>`).join("")}</div>
           <div class="month-legend"><span>● 표층</span><span>■ 바닥</span>${trips.length ? "<span>▲ 내 출조</span>" : ""}${fit ? "<span>━ 표층 곡선</span><span>╍ 바닥 곡선</span>" : ""}</div>
           ${tempChart(rows, trips, colorOf, fit, fitColor)}
@@ -1172,7 +1175,7 @@
           </div>` : ""}
           <details class="table-view"><summary>표로 보기</summary><table class="num-table"><tr><th>장소</th><th>날짜</th><th>시각</th><th>표층</th><th>바닥</th><th>상황</th></tr>${rows.map((r) => `<tr><td class="left">${esc(r.place)}</td><td>${r.date}</td><td>${r.time}</td><td>${num(r.surface)}℃</td><td>${num(r.bottom)}℃</td><td class="left">${esc(r.note || "")}</td></tr>`).join("")}</table></details>
           <ul class="notes-list">${n.temperatureFindings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
-        </div>
+        </details>
 
         <div class="panel"><h2>안 물릴 때 체크리스트</h2><p class="sub">한 번에 하나씩 위에서부터 바꿔 봅니다.</p>
           <div class="check-list">${n.checklist.map((c, i) => `<label class="check-item"><input type="checkbox" data-check="${i}" ${done.includes(i) ? "checked" : ""}><span><b>${i + 1}. ${esc(c.title)}</b>${esc(c.body)}<small>${esc(c.source)}</small></span></label>`).join("")}</div>

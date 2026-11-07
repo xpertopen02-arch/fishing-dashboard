@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.71", date: "2026-11-07", title: "수온 실측 접기",
+    changes: [
+      "수온 실측을 평소에 접어 두고 이름을 누르면 펼치도록 변경",
+    ],
+  },
+  {
     version: "1.70", date: "2026-11-07", title: "수집 자료 공개 범위 확대",
     changes: [
       "수온 실측, 안 물릴 때 체크리스트, 상황별 메모, 캐스팅을 공개 수집 자료에 추가",
