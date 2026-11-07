@@ -1051,7 +1051,7 @@
   }
 
   function notesTabs() {
-    const tabs = [["study", "카페 자료"], ...(window.FISH_VIDEO_GUIDE ? [["video", "영상 가이드"]] : []), ...(window.FISH_BOOK_GUIDE ? [["book", "북가이드"]] : [])];
+    const tabs = [["study", "카페 자료"], ...(window.FISH_RESEARCH_GUIDE ? [["research", "문헌조사"]] : []), ...(window.FISH_VIDEO_GUIDE ? [["video", "영상 가이드"]] : []), ...(window.FISH_BOOK_GUIDE ? [["book", "북가이드"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -1088,6 +1088,7 @@
   function renderNotes() {
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
     if (window.FISH_BOOK_GUIDE && state.notes.tab === "book") { renderChapterGuide(window.FISH_BOOK_GUIDE); return; }
+    if (window.FISH_RESEARCH_GUIDE && state.notes.tab === "research") { renderChapterGuide(window.FISH_RESEARCH_GUIDE); return; }
     const n = window.FISH_NOTES;
     const places = [...new Set(n.temperatures.map((r) => r.place))];
     const placeColors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
@@ -1190,7 +1191,7 @@
       moveInk();
       renderBrief();
       if (initialView === "notes") go("notes", false);
-      ["video_guide", "book_guide"].forEach((name) => {
+      ["research_guide", "video_guide", "book_guide"].forEach((name) => {
         const g = document.createElement("script");
         g.src = `private/${name}.js`;
         g.onload = () => { if (!$("#view-notes").hidden) renderNotes(); };
