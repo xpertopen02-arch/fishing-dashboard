@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "1.79", date: "2026-11-07", title: "부교 방류 방향과 바람 화살표",
+    changes: [
+      "부교 가두리 방류는 사방이 아니라 부교 안쪽(서쪽 못 방류 지점) 방향 부채꼴로 넘어가도록 변경",
+      "날씨 그림 아래에 바람 방향 화살표와 풍속 표시 (4m/s 이상 빨간색)",
+    ],
+  },
+  {
     version: "1.78", date: "2026-11-07", title: "방류 마릿수와 날씨 그림 크기",
     changes: [
       "방류 때 가두리를 넘어오는 송어 수를 방류량 설정만큼 표시",

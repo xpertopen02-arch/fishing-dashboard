@@ -47,7 +47,9 @@
   .cond { display:flex; align-items:flex-start; gap:8px; }
   .cond .ctext { min-width:0; }
   .cond .cicon { flex:none; filter:drop-shadow(0 0 2px rgba(0,0,0,.7)); }
-  .cond .cicon svg { display:block; height:5.4em; width:auto; }   /* 글 네 줄 높이 (줄 높이 1.35em × 4) */
+  .cond .cicon svg { display:block; height:5.4em; width:auto; margin:0 auto; }
+  .cond .cwind { text-align:center; white-space:nowrap; font-weight:700; }
+  .cond .cwind .arrow { font-size:1.25em; margin-right:2px; }   /* 글 네 줄 높이 (줄 높이 1.35em × 4) */
   .cond span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cond .windy { color:#ff6b6b; font-weight:700; }
   .cond b { font-weight:700; }
@@ -638,17 +640,24 @@
     if (!jump) return;
     const c = st.release === "bridge" ? D.cages.east : D.cages.west;   // 부교 방류는 부교 가두리, 중앙 방류는 중앙 가두리에서 나옵니다.
     jump.center = [wx(c[0]), wz(c[1])];
+    jump.fan = null;
+    if (st.release === "bridge") {   // 부교 가두리는 부교 안쪽(서쪽 못의 방류 지점) 방향으로만 넘깁니다.
+      const L = RELEASE.bridge, dx = wx(L[0]) - jump.center[0], dz = wz(L[1]) - jump.center[1];
+      jump.fan = { ang: Math.atan2(dz, dx), spread: .55, reach: Math.hypot(dx, dz) };
+    }
   }
   function drawJump(t) {
     if (!jump) return;
     const n = jump.n, [cx, cz] = jump.center;
     for (let k = 0; k < JUMP_N; k++) {
-      const S = jumpSeed[k], u = (t * S.spd + S.ph) % 1, on = k < n, ca = Math.cos(S.ang), sa = Math.sin(S.ang);
-      const r0 = Math.abs(S.lat) * 1.6, r1 = CAGE_HALF + .8 + S.land;   // 가두리 안쪽에서 출발해 그물 밖에 떨어집니다.
+      const S = jumpSeed[k], u = (t * S.spd + S.ph) % 1, on = k < n, F = jump.fan;
+      const ang = F ? F.ang + (S.ang / 6.28 - .5) * 2 * F.spread : S.ang, ca = Math.cos(ang), sa = Math.sin(ang);
+      const r0 = Math.abs(S.lat) * 1.6, r1 = F ? Math.max(CAGE_HALF + 1, F.reach - 1.5 + S.land * .9) : CAGE_HALF + .8 + S.land;   // 가두리 안쪽에서 출발해 그물 밖에 떨어집니다.
       const bx = cx + ca * r0, bz = cz + sa * r0, ex = cx + ca * r1, ez = cz + sa * r1;
       const s = Math.min(1, u / .7);   // 0.7까지 날고, 남은 시간은 물보라만 남습니다.
-      const x = bx + (ex - bx) * s, z = bz + (ez - bz) * s, y = .1 + S.peak * 4 * s * (1 - s);
-      const vy = S.peak * 4 * (1 - 2 * s), hz = r1 - r0;
+      const pk = S.peak * Math.max(1, (r1 - r0) / 7);   // 멀리 넘길수록 높이 뜹니다.
+      const x = bx + (ex - bx) * s, z = bz + (ez - bz) * s, y = .1 + pk * 4 * s * (1 - s);
+      const vy = pk * 4 * (1 - 2 * s), hz = r1 - r0;
       dummy.position.set(x, y, z); dummy.rotation.set(0, -Math.atan2(sa, ca), Math.atan2(vy, hz), "YZX");
       dummy.scale.setScalar(on && u < .7 ? 1 : 0); dummy.updateMatrix(); jumpFish.setMatrixAt(k, dummy.matrix);
       const g = u >= .7 ? (u - .7) / .3 : -1;
@@ -1087,7 +1096,7 @@
     const up = tempAt(v, probe.d, .3, st, k, probe.wheel), down = tempAt(v, probe.d, probe.d * .9, st, k, probe.wheel);
     const extra = [st.rain ? "비 온 다음날" : "", iceAt(st) >= .3 ? "동쪽 못 얼음" : ""].filter(Boolean).join(" · ");
     const [wd, ws, , wg] = windAt(st), wName = "북 북동 동 남동 남 남서 서 북서".split(" ")[Math.round(wd / 45) % 8];
-    $("cond").innerHTML = `<div class="ctext"><span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span class="${ws >= 4 ? "windy" : ""}">바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s (돌풍 ${wg.toFixed(1)})</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}</div><div class="cicon" title="${sky}">${skyIcon(sky, st.h)}</div>`;
+    $("cond").innerHTML = `<div class="ctext"><span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span class="${ws >= 4 ? "windy" : ""}">바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s (돌풍 ${wg.toFixed(1)})</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃</span>${extra ? `<span>${extra}</span>` : ""}</div><div class="cicon" title="${sky}, 바람 ${wName}풍 ${ws.toFixed(1)}m/s">${skyIcon(sky, st.h)}<div class="cwind ${ws >= 4 ? "windy" : ""}"><i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i>${ws.toFixed(1)}m/s</div></div>`;
     $("cond").title = `${md ? (f ? "날씨는 Open-Meteo 예보" : "날씨는 지난 3년 같은 날짜 평균(평년)") : "날씨 흐름 예시"}. 수온은 부교와 가두리 사이 추정값이며 평년 날씨로 계산했습니다.`;
   }
   function panel() {
@@ -1274,7 +1283,7 @@
     controls.update();
     const under = camera.position.y < 0;
     scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); window.__lastT = now; drawFish(now); renderer.render(scene, camera); })();
-  window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N };
+  window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }) };
 })();
 </script>
 </body>
