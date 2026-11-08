@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.15", date: "2026-11-08", title: "자료 탐색 제목 키움",
+    changes: [
+      "'자료' 화면의 '자료 탐색' 제목 글자를 키움: PC 30px → 40px('기록' 제목과 같은 크기), 휴대폰 26px → 34px",
+    ],
+  },
+  {
     version: "2.1.14", date: "2026-11-08", title: "휴대폰: 연구 노트 탭 두 줄 배치",
     changes: [
       "휴대폰 화면 '연구'에서 탭 이름(수집 자료, 덕봉 3D, 덕봉 정리·문헌 등)이 한 글자씩 세로로 꺾이던 것을 고침. 탭 6개를 세 개씩 두 줄로 놓고 이름은 한 줄로 표시 (360×800에서 확인)",

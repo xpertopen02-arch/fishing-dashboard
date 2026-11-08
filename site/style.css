@@ -1374,10 +1374,12 @@ body[data-view="home"] main { padding-bottom: 0; }
   .page-head .ph-tool { flex: none; }
   .page-head .ph-tool select { min-width: 110px; }
 }
+/* v2.1.15: bigger 자료 탐색 title (PC 40px, phone 34px) */
+#view-library .hero-line h1 { font-size: 40px; letter-spacing: -.02em; }
 /* v2.1.12 phone: 자료 탐색 title on its own line, the three counts on one line below, all centred */
 @media (max-width: 720px) {
   #view-library .hero-line { display: grid; grid-template-columns: repeat(3, auto); justify-content: center; align-items: end; gap: 6px 28px; text-align: center; }
-  #view-library .hero-line h1 { grid-column: 1 / -1; font-size: 26px; }
+  #view-library .hero-line h1 { grid-column: 1 / -1; font-size: 34px; }
   #view-library .hero-line .stat strong { font-size: 24px; }
   #view-library .source-hint { display: block; text-align: right; }
 }
