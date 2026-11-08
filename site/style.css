@@ -1362,3 +1362,9 @@ body[data-view="home"] main { padding-bottom: 0; }
 @media (max-width: 720px) {
   .h-banner { background-size: 100% 100%, auto max(100%, 28vw); background-position: 0 0, 50% 55%; }
 }
+/* v2.1.10 phone: the verdict block (판단 line, light + word, summary) sits in the middle */
+@media (max-width: 720px) {
+  #ccLeft > .eyebrow.accent { text-align: center; }
+  #ccLeft > .lead { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  #ccLeft > .verdict-row { justify-content: center; }
+}
