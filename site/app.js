@@ -1096,13 +1096,23 @@
     return { update, destroy: () => ro.disconnect() };
   }
 
-  // Two rings per day: outer = 입질, inner = 편의; the day's score sits in the middle.
-  function ringGauge(outer, inner, centre) {
-    const ring = (r, v, cls) => {
-      const C = 2 * Math.PI * r, len = Math.max(0, Math.min(100, v)) / 100 * C;
-      return `<circle r="${r}" cx="32" cy="32" class="rg-track"/><circle r="${r}" cx="32" cy="32" class="${cls}" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/>`;
+  // Two rings per day: outer = 입질, inner = 편의. Each ring is drawn in short pieces that run from red at 0
+  // through yellow to green at 100, so a ring that stops early stays red and a full ring ends in green.
+  const hueAt = (v) => `hsl(${Math.round(Math.max(0, Math.min(100, v)) * 1.2)} 78% 50%)`;
+  function ringGauge(outer, inner) {
+    const PIECES = 40;
+    const pt = (r, pos) => { const a = (pos * 3.6 - 90) * Math.PI / 180; return `${(32 + r * Math.cos(a)).toFixed(2)} ${(32 + r * Math.sin(a)).toFixed(2)}`; };
+    const ring = (r, v) => {
+      let out = `<circle r="${r}" cx="32" cy="32" class="rg-track"/>`;
+      for (let i = 0; i < PIECES; i++) {
+        const p0 = i * 100 / PIECES, p1 = Math.min(v, (i + 1) * 100 / PIECES);
+        if (p0 >= v) break;
+        out += `<path d="M${pt(r, p0)}A${r} ${r} 0 0 1 ${pt(r, p1 + (p1 < v ? .3 : 0))}" stroke="${hueAt((p0 + p1) / 2)}"/>`;
+      }
+      return out;
     };
-    return `<svg class="rg" viewBox="0 0 64 64" role="img" aria-label="입질 ${outer}, 편의 ${inner}, 점수 ${centre}">${ring(27, outer, "rg-o")}${ring(19.5, inner, "rg-i")}<text x="32" y="36.5" text-anchor="middle" class="rg-c">${centre}</text></svg>`;
+    return `<svg class="rg" viewBox="0 0 64 64" role="img" aria-label="입질 ${outer}, 편의 ${inner}">${ring(27.5, outer)}${ring(20, inner)}
+      <text x="32" y="30" text-anchor="middle" class="rg-n" fill="${hueAt(outer)}">${outer}</text><line x1="25" x2="39" y1="33" y2="33" class="rg-sep"/><text x="32" y="43" text-anchor="middle" class="rg-n" fill="${hueAt(inner)}">${inner}</text></svg>`;
   }
   // Sixteen days laid out on a week grid, each with its own best window from the hourly forecast.
   function renderDays() {
@@ -1115,12 +1125,12 @@
     const cells = days.map((d) => {
       const r = d.r, t = scoreTone(r.score), sub = subScores(r), dt = parseISO(d.date), wd = dt.getDay();
       return `<button class="cday tone-${t} ${d.date === state.date ? "on" : ""} ${d.date === TODAY ? "today" : ""}" data-date="${d.date}" title="${fmtDate(d.date)} ${VERDICT[t]} 점수 ${r.score}, 입질 ${sub.bite}, 편의 ${sub.access}, 좋은 시간 ${r.from}~${r.to}시">
-        <span class="cd-top"><b class="mono ${wd === 0 ? "sun" : wd === 6 ? "sat" : ""}">${dt.getDate()}</b>${d.date === TODAY ? "<small>오늘</small>" : dt.getDate() === 1 ? `<small>${dt.getMonth() + 1}월</small>` : ""}</span>
-        ${ringGauge(sub.bite, sub.access, r.score)}
+        <span class="cd-top"><b class="mono ${wd === 0 ? "sun" : wd === 6 ? "sat" : ""}">${dt.getDate()}${d.date === TODAY ? "<small>오늘</small>" : dt.getDate() === 1 ? `<small>${dt.getMonth() + 1}월</small>` : ""}</b><span class="cd-s mono">${r.score}</span></span>
+        ${ringGauge(sub.bite, sub.access)}
         <span class="cd-v">${VERDICT[t]}</span>
         <span class="cd-w mono">${pad2(r.from)}–${pad2(r.to)}시</span></button>`;
     }).join("");
-    el.innerHTML = `<div class="cal-top"><span class="eyebrow">앞으로 16일</span><span class="cal-key mono"><i class="k-o"></i>바깥 입질<i class="k-i"></i>안쪽 편의<i class="k-c">00</i>점수</span></div>
+    el.innerHTML = `<div class="cal-top"><span class="eyebrow">앞으로 16일</span><span class="cal-key mono"><i class="k-grad"></i>낮음 → 높음 <span>· 위 숫자 입질(바깥 원) · 아래 숫자 편의(안쪽 원) · 오른쪽 위 하루 점수</span></span></div>
       <div class="cal">${head}${pad(lead)}${cells}${pad(tail)}</div>`;
     renderMidSub();
   }
@@ -1363,11 +1373,12 @@
     const best = (t, c, label) => !t ? `<p class="sc-foot">기록이 없습니다.</p>` : `${big(t.trip.catch, c, "수")}<button class="sc-name" data-open="${t.id}">${esc(t.place)}</button>
       <ul class="sc-facts"><li>${icon("pin")}${esc(placeById[t.place]?.name || t.place)}</li><li>${icon("calendar")}${fmtDate(t.trip.date)}</li><li>${icon("trend")}${esc(t.trip.technique || "기법 기록 없음")}</li><li>${icon("target")}${esc(t.trip.weather || t.trip.hours || label)}</li></ul>`;
     // donut of trips by place
-    const R = 54, C = 2 * Math.PI * R;
-    let off = 0;
-    const segs = places.map(([, n], i) => { const len = n / own.length * C; const s = `<circle r="${R}" cx="70" cy="70" fill="none" stroke="${PALETTE[i % PALETTE.length]}" stroke-width="18" stroke-dasharray="${Math.max(0, len - 1.5)} ${C}" stroke-dashoffset="${-off}"/>`; off += len; return s; }).join("");
-    const donut = `<div class="donut"><svg viewBox="0 0 140 140" role="img" aria-label="낚시터별 출조 비율"><g transform="rotate(-90 70 70)">${segs}</g></svg><div class="dn-c"><b>${places.length}</b><small>낚시터</small></div></div>
-      <ul class="dn-list">${places.map(([id, n], i) => `<li><button data-logplace="${esc(id)}"><i style="background:${PALETTE[i % PALETTE.length]}"></i>${esc(id)}<b>${n}</b><small>(${Math.round(n / own.length * 100)}%)</small></button></li>`).join("")}</ul>`;
+    // trips per place as horizontal bars: names stay readable and lengths compare at a glance
+    const maxN = places.length ? places[0][1] : 1;
+    const barRow = ([id, n]) => { const tp = placeById[id]?.type || ""; return `<li><button data-logplace="${esc(id)}" class="${state.log.place === id ? "on" : ""}"><span class="pb-n">${esc(id)}</span><span class="pb-t"><i class="fill-${tp}" style="width:${n / maxN * 100}%"></i></span><b class="mono">${n}</b><small class="mono">${Math.round(n / own.length * 100)}%</small></button></li>`; };
+    const donut = `<div class="pbars-key">${TYPES.map((t) => `<span><i class="fill-${t}"></i>${t}</span>`).join("")}</div>
+      <ol class="pbars">${places.slice(0, 10).map(barRow).join("")}</ol>
+      ${places.length > 10 ? `<details class="pbars-more"><summary>나머지 ${places.length - 10}곳 보기</summary><ol class="pbars">${places.slice(10).map(barRow).join("")}</ol></details>` : ""}`;
     return `<div class="stats">
       ${card("t-blue", "총 조과", "조과를 적은 출조의 합계", "fish", `${big(total.toLocaleString(), "c-blue", "수")}<p class="sc-foot">${withC.length}회 출조 기록</p>`)}
       ${card("t-violet", "출조당 평균", "한 번 나가서 잡은 수", "chart", `${big(avg.toFixed(1), "c-violet", "수")}<p class="sc-foot">조과 기록이 있는 출조 기준</p>`)}
@@ -1375,7 +1386,7 @@
       ${card("t-violet", "낚시 종류별 출조", "내 조행기 기준", "waves", rows(TYPES.map((tp) => [tp, `${own.filter((t) => t.fishing === tp).length}회`]), "c-violet"))}
       ${card("t-yellow", "최고 조과", "하루에 가장 많이 잡은 날", "trophy", best(sorted[0], "c-yellow", "최고 기록"))}
       ${card("t-orange", "2위 조과", "두 번째로 많이 잡은 날", "medal", best(sorted[1], "c-orange", "2위 기록"))}
-      ${card("t-plain wide", "낚시터별 출조", "누르면 그 낚시터 기록만 봅니다", "pin", donut)}
+      ${card("t-plain wide pbar-card", "낚시터별 출조", `${places.length}곳, 많이 간 순서. 누르면 그 낚시터 기록만 봅니다`, "chart", donut)}
       ${card("t-blue", "출조 일수", "물가에 나간 날", "calendar", `${big(days, "c-blue", "일")}<p class="sc-foot">조행기 ${own.length}건</p>`)}
       ${card("t-mint", "조과 있던 날", "한 마리 이상 잡은 날", "check", `${big(caught, "c-mint", "회")}<div class="sc-barrow"><div class="sc-bar"><i style="width:${pct}%"></i></div><span class="mono c-mint">${pct.toFixed(1)}%</span></div>`)}
       ${card("t-red", "꽝 친 날", "한 마리도 못 잡은 날", "xcircle", `${big(skunk, "c-red", "회")}<p class="sc-foot">${skunk ? "다음엔 시간대를 바꿔 보세요" : "아직 없습니다"}</p>`)}

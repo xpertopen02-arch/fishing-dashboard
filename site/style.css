@@ -843,3 +843,36 @@ main { max-width: none; padding: 0 0 80px; }
   .top-date { order: 1; }
   .type-toggle { order: 8; }
 }
+
+/* ================= v2.0.6 gradient rings and place bars ================= */
+.rg path { fill: none; stroke-width: 6; stroke-linecap: butt; }
+.rg .rg-track { stroke-width: 6; }
+.rg-n { font-family: "JetBrains Mono", monospace; font-size: 12.5px; font-weight: 700; }
+.rg-sep { stroke: var(--axis); stroke-width: 1; }
+.cd-s { font-size: 12px; font-weight: 700; color: var(--tone); }
+.cd-top b small { margin-left: 4px; font-size: 10px; color: var(--accent); font-family: inherit; font-weight: 500; }
+.cal-key .k-grad { width: 46px; height: 8px; border-radius: 4px; margin-left: 0; border: 0; background: linear-gradient(90deg, hsl(0 78% 50%), hsl(60 78% 50%), hsl(120 78% 50%)); }
+.cal-key span { color: var(--muted); }
+.cal-key { flex-wrap: wrap; row-gap: 4px; }
+.pbar-card { display: block !important; }
+.pbars-key { display: flex; gap: 14px; font-size: 12.5px; color: var(--ink-2); margin: 14px 0 6px; }
+.pbars-key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.pbars { list-style: none; margin: 0; padding: 0; }
+.pbars button { width: 100%; display: grid; grid-template-columns: 76px minmax(0, 1fr) 32px 40px; gap: 10px; align-items: center; padding: 4px 0; text-align: left; font-size: 14.5px; border-radius: 6px; }
+.pbars button:hover .pb-n, .pbars button.on .pb-n { color: var(--accent); }
+.pbars button.on { background: var(--accent-soft); }
+.pb-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-t { height: 14px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.pb-t i { display: block; height: 100%; border-radius: 3px; }
+.pbars b { text-align: right; font-size: 14px; }
+.pbars small { text-align: right; color: var(--muted); font-size: 12px; }
+.pbars-more summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-top: 6px; }
+@media (max-width: 720px) {
+  .rg path, .rg .rg-track { stroke-width: 6.5; }
+  .rg-n { font-size: 13.5px; }
+  .cd-top { justify-content: space-between; padding: 0 2px; }
+  .cd-top b small { display: none; }
+  .cd-s { font-size: 10.5px; }
+  .cal-key span { flex-basis: 100%; }
+  .pbars button { grid-template-columns: 64px minmax(0, 1fr) 28px 36px; gap: 8px; }
+}
