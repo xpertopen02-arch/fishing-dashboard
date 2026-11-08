@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.16", date: "2026-11-08", title: "자료 탐색 제목 더 크게, 숫자 작게",
+    changes: [
+      "'자료 탐색' 제목을 더 키움: PC 48px, 휴대폰 42px",
+      "아래 페이지·이미지·글자 수는 작게: 숫자 PC 22px·휴대폰 18px, 이름 12px·11.5px (PC와 360×800에서 확인)",
+    ],
+  },
+  {
     version: "2.1.15", date: "2026-11-08", title: "자료 탐색 제목 키움",
     changes: [
       "'자료' 화면의 '자료 탐색' 제목 글자를 키움: PC 30px → 40px('기록' 제목과 같은 크기), 휴대폰 26px → 34px",
