@@ -5,89 +5,90 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>낚시 브리핑</title>
 <meta name="robots" content="noindex, nofollow, noarchive, noimageindex">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#1f2631">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="top">
-  <button class="brand" data-go="plan">낚시 브리핑</button>
-  <nav class="tabs" aria-label="화면">
-    <button data-go="plan">출조 브리핑</button>
-    <button data-go="log">출조 기록</button>
-    <button data-go="library">자료 탐색</button>
-    <button data-go="notes" hidden>연구 노트</button>
-    <span class="tab-ink" aria-hidden="true"></span>
+<aside class="rail" aria-label="화면">
+  <button class="rail-logo" data-go="plan" aria-label="낚시 브리핑 처음으로"><i data-icon="fish" aria-hidden="true"></i></button>
+  <nav class="tabs">
+    <button data-go="plan"><i data-icon="bolt" aria-hidden="true"></i><span>지금</span></button>
+    <button data-go="map"><i data-icon="map" aria-hidden="true"></i><span>지도</span></button>
+    <button data-go="log"><i data-icon="book" aria-hidden="true"></i><span>기록</span></button>
+    <button data-go="library"><i data-icon="library" aria-hidden="true"></i><span>자료</span></button>
+    <button data-go="notes" hidden><i data-icon="compass" aria-hidden="true"></i><span>연구</span></button>
+    <span class="tab-ink" hidden></span>
   </nav>
-  <div class="top-actions">
-    <button class="search-open" id="searchOpen" aria-label="자료 검색"><i data-icon="search" aria-hidden="true"></i><span>자료 검색</span><kbd>/</kbd></button>
+  <div class="rail-foot">
     <button class="icon-btn" id="themeBtn" aria-label="밝기 전환" title="밝기 전환"><i data-icon="contrast" aria-hidden="true"></i></button>
     <button class="ver-btn" id="verBtn" title="변경 기록 보기"></button>
   </div>
+</aside>
+
+<header class="top">
+  <details class="place-pick" id="placePick">
+    <summary><i data-icon="pin" aria-hidden="true"></i><span class="pp-text"><b id="placeName">낚시터</b><small id="placeType"></small></span><i data-icon="chev" class="chev" aria-hidden="true"></i></summary>
+    <div class="place-box" id="placeChips"></div>
+  </details>
+  <div class="top-go" id="topGo"></div>
+  <div class="top-title">출조 판단</div>
+  <button class="search-open" id="searchOpen" aria-label="자료 검색"><i data-icon="search" aria-hidden="true"></i><span>낚시터, 기법, 조행기 검색</span><kbd>/</kbd></button>
+  <div class="type-toggle" id="typeToggle" role="group" aria-label="낚시 종류"></div>
+  <div class="top-date">
+    <label for="dateInput" class="sr">낚시 날짜</label>
+    <input type="date" id="dateInput">
+    <div class="quick" id="quickDates" hidden></div>
+    <small class="date-range" id="dateRange" hidden></small>
+  </div>
+  <div class="top-clock" id="topClock"></div>
 </header>
 
 <main>
   <section id="view-plan" class="view">
-    <div class="picker-bar">
-      <details class="place-pick" id="placePick">
-        <summary><b id="placeName">낚시터</b><small id="placeType"></small><i data-icon="chev" class="chev" aria-hidden="true"></i></summary>
-        <div class="place-box" id="placeChips"></div>
-      </details>
-      <div class="date-box">
-        <label for="dateInput" class="sr">낚시 날짜</label>
-        <input type="date" id="dateInput">
-        <div class="quick" id="quickDates"></div>
+    <div class="cc">
+      <div class="cc-left" id="ccLeft"></div>
+      <div class="cc-mid">
+        <div id="ccMid"></div>
+        <div class="days" id="dayStrip" aria-label="앞으로 16일"></div>
       </div>
-      <small class="date-range" id="dateRange"></small>
+      <div class="cc-right" id="ccRight"></div>
     </div>
-
-    <div class="plan-grid">
-      <div class="plan-main">
-        <section class="hero" id="hero" aria-live="polite"></section>
-        <section class="metrics" id="metrics" aria-label="핵심 환경 지표"></section>
-        <section class="verdict" id="verdict" aria-label="오늘의 판단"></section>
-        <section class="spots" id="spots" aria-label="추천 낚시터"></section>
-        <nav class="sec-links" aria-label="브리핑 안에서 이동">
-          <button data-jump="analysisSec">시간대별 그래프와 16일 전망</button>
-          <button data-jump="docsSec">공략 자료</button>
-        </nav>
-      </div>
-      <div class="plan-side" id="mapSec">
-        <div class="map-card">
-          <div id="map"></div>
-          <canvas id="windCanvas" aria-hidden="true"></canvas>
-          <div class="map-note" id="mapNote" hidden></div>
-          <div class="map-tools">
-            <button id="mapSat" aria-pressed="false">위성 보기</button>
-            <button id="mapAll">전체 낚시터 보기</button>
-          </div>
-          <div class="spot-card" id="spotCard" hidden></div>
-          <div class="hour-bar">
-            <button class="play" id="playBtn" aria-label="시간 재생"></button>
-            <input type="range" id="hourRange" min="0" max="23" value="6" aria-label="시간">
-            <output id="hourLabel">06:00</output>
-          </div>
-        </div>
-        <div class="place-info" id="placeInfo"></div>
-      </div>
-    </div>
-
     <section class="sec" id="analysisSec">
-      <header class="sec-head"><h2>시간대별 그래프</h2><p>그래프 위에서 움직이면 지도도 같은 시각으로 바뀝니다. 음영은 해가 진 시간입니다.</p></header>
+      <h2 class="eyebrow">세부 그래프</h2>
       <div class="charts" id="charts"></div>
-      <h3 class="sub-head">앞으로 16일 <small>칸 안의 숫자는 하루 날씨만으로 낸 간이 점수입니다</small></h3>
-      <div class="strip" id="dayStrip" aria-label="앞으로 16일 날씨"></div>
       <div class="records" id="records"></div>
     </section>
-
     <section class="sec" id="docsSec">
-      <header class="sec-head"><h2>공략 자료</h2><p>이 낚시터의 공략법, 이맘때의 조행기, 출조 전에 읽을 자료입니다.</p></header>
+      <h2 class="eyebrow">공략 자료</h2>
       <div class="dossier" id="dossier"></div>
     </section>
+  </section>
+
+  <section id="view-map" class="view" hidden>
+    <div class="mapview">
+      <div class="map-card">
+        <div id="map"></div>
+        <canvas id="windCanvas" aria-hidden="true"></canvas>
+        <div class="map-note" id="mapNote" hidden></div>
+        <div class="map-tools">
+          <button id="mapSat" aria-pressed="false">위성 보기</button>
+          <button id="mapAll">전체 낚시터 보기</button>
+        </div>
+        <div class="hour-bar">
+          <button class="play" id="playBtn" aria-label="시간 재생"></button>
+          <input type="range" id="hourRange" min="0" max="23" value="6" aria-label="시간">
+          <output id="hourLabel">06:00</output>
+        </div>
+      </div>
+      <aside class="map-panel" id="mapPanel"></aside>
+    </div>
   </section>
 
   <section id="view-log" class="view" hidden></section>
