@@ -262,6 +262,8 @@
     up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
     back: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
     chevL: '<path d="m15 18-6-6 6-6"/>',
+    monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
+    phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     bolt: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
@@ -2245,6 +2247,35 @@
   updateClock();
   setInterval(updateClock, 30000);
   $("#wxBtn").addEventListener("click", refreshWeather);
+  // Phone view: the same page in a 390 px wide frame, so the phone layout can be checked on a PC.
+  // Inside the frame the button is hidden, so frames never nest.
+  if (window.self !== window.top) document.documentElement.classList.add("in-phone");
+  // One button: the phone icon opens the phone frame, and while it is open the same button shows a monitor
+  // and brings the PC layout back. Escape or a click outside the phone also closes it.
+  let phoneLayer = null;
+  function setPhoneBtn() {
+    const b = $("#phoneBtn"), on = !!phoneLayer;
+    b.innerHTML = icon(on ? "monitor" : "phone");
+    b.classList.toggle("on", on);
+    b.title = on ? "PC 화면으로 돌아가기" : "휴대폰 화면으로 보기";
+    b.setAttribute("aria-label", b.title);
+    b.setAttribute("aria-pressed", String(on));
+  }
+  const onPhoneKey = (e) => { if (e.key === "Escape") togglePhoneView(false); };
+  function togglePhoneView(want = !phoneLayer) {
+    if (!want && phoneLayer) { phoneLayer.remove(); phoneLayer = null; document.removeEventListener("keydown", onPhoneKey); }
+    else if (want && !phoneLayer) {
+      phoneLayer = document.createElement("div");
+      phoneLayer.className = "phone-layer";
+      phoneLayer.innerHTML = `<div class="phone-dev"><div class="phone-bar"><span>휴대폰 보기 · 390 × 844</span><span>왼쪽 ${icon("monitor")} 버튼으로 PC 화면</span></div><iframe src="${location.pathname}${location.hash || "#plan"}" title="휴대폰 화면 미리보기"></iframe></div>`;
+      phoneLayer.addEventListener("click", (e) => { if (e.target === phoneLayer) togglePhoneView(false); });
+      document.addEventListener("keydown", onPhoneKey);
+      document.body.append(phoneLayer);
+    }
+    setPhoneBtn();
+  }
+  setPhoneBtn();
+  $("#phoneBtn").addEventListener("click", () => togglePhoneView());
   // coming back to the tab after half an hour fetches the weather again
   document.addEventListener("visibilitychange", () => { if (!document.hidden && state.wxAt && Date.now() - state.wxAt > 30 * 60e3) refreshWeather(); });
   setInterval(() => { if (!document.hidden && state.wxAt && Date.now() - state.wxAt > 30 * 60e3) refreshWeather(); }, 5 * 60e3);
