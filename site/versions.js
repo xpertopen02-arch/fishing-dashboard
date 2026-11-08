@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.12", date: "2026-11-08", title: "휴대폰: 자료 탐색 머리 한 줄 정리",
+    changes: [
+      "휴대폰 화면 '자료'에서 페이지·이미지·글자 수가 두 줄로 나뉘던 것을 한 줄에 나오도록 글자 크기를 줄임. 제목 '자료 탐색'은 위 줄, 세 숫자는 아래 줄에 두고 모두 가운데 정렬, 안내 문장도 가운데로 (360×800에서 확인)",
+    ],
+  },
+  {
     version: "2.1.11", date: "2026-11-08", title: "휴대폰: 기록의 연도 선택을 제목 옆으로",
     changes: [
       "휴대폰 화면 '기록'에서 제목 아래에 있던 연도 선택을 '기록' 제목 오른쪽으로 옮기고, 제목과 설명 두 줄의 가운데 높이에 맞춤 (360×800에서 확인)",
