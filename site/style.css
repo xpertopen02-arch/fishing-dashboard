@@ -996,3 +996,11 @@ main { max-width: none; padding: 0 0 80px; }
   .top > * { padding: 0 8px; }
   .place-pick { flex: 1 1 auto; min-width: 0; }
 }
+
+/* v2.0.9 expected water temperature */
+:root, :root[data-theme="dark"] { --line-water: #3fd8e8; }
+:root[data-theme="light"] { --line-water: #0a8fa3; }
+.l-water { fill: none; stroke: var(--line-water); stroke-width: 2.4; stroke-linecap: round; }
+.bigchart .pt.water { fill: var(--line-water); stroke: var(--surface); stroke-width: 1.5; }
+.bigchart .lab.water { fill: var(--line-water); }
+.k-water { background: var(--line-water); }

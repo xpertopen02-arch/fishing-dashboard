@@ -62,6 +62,7 @@
     marine: null,
     scores: {},
     outlook: null,
+    outlookAll: null,
     alertClosed: {},
     mapTab: "ideal",
     mapType: "",
@@ -177,13 +178,39 @@
   async function fetchOutlook(place) {
     const key = `${place.id}:${place.lat},${place.lon}`;
     if (outlookCache[key]) return outlookCache[key];
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&hourly=${HOURLY},precipitation_probability&daily=sunrise,sunset&wind_speed_unit=ms&timezone=${TZ}&forecast_days=16`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&hourly=${HOURLY},precipitation_probability&daily=sunrise,sunset&wind_speed_unit=ms&timezone=${TZ}&past_days=10&forecast_days=16`;
     const j = await getJSON(url), h = j.hourly;
+    const water = waterFromAir(h.temperature_2m);
     const days = j.daily.time.map((date, d) => {
       const sl = (arr) => (arr ? arr.slice(d * 24, d * 24 + 24) : null);
-      return { date, w: { time: sl(h.time).map((t) => t.slice(11, 16)), temp: sl(h.temperature_2m), precip: sl(h.precipitation), prob: sl(h.precipitation_probability), wind: sl(h.wind_speed_10m), dir: sl(h.wind_direction_10m), gust: sl(h.wind_gusts_10m), pressure: sl(h.pressure_msl), code: sl(h.weather_code), sunrise: j.daily.sunrise[d]?.slice(11, 16), sunset: j.daily.sunset[d]?.slice(11, 16) } };
+      return { date, w: { time: sl(h.time).map((t) => t.slice(11, 16)), temp: sl(h.temperature_2m), precip: sl(h.precipitation), prob: sl(h.precipitation_probability), wind: sl(h.wind_speed_10m), dir: sl(h.wind_direction_10m), gust: sl(h.wind_gusts_10m), pressure: sl(h.pressure_msl), code: sl(h.weather_code), sunrise: j.daily.sunrise[d]?.slice(11, 16), sunset: j.daily.sunset[d]?.slice(11, 16), water: sl(water) } };
     });
     return (outlookCache[key] = days);
+  }
+  // Expected water temperature, hour by hour, from the air temperature alone. A pond's surface water follows the
+  // air slowly: here it closes the gap by 1/72 every hour (about a three-day lag), so its daily swing is about a
+  // twentieth of the air's. It never reads below 0.5 °C (the surface freezes instead). An estimate, not a measurement.
+  const WATER_TAU = 72;
+  function waterFromAir(air) {
+    const start = fin(air.slice(0, 72));
+    let wv = start.length ? start.reduce((a, b) => a + b, 0) / start.length : null;
+    return air.map((t) => {
+      if (t == null || wv == null) return wv == null ? null : Math.max(.5, wv);
+      wv += (t - wv) / WATER_TAU;
+      return Math.max(.5, wv);
+    });
+  }
+  // The chosen place's water curve for the chosen day (trout and freshwater only). On this PC, where measured
+  // temperatures exist, the curve is shifted so its daily mean matches the measured seasonal curve for that day.
+  function waterSeries(p) {
+    if (!p || p.type === "바다") return null;
+    const day = state.outlookAll?.find((d) => d.date === state.date);
+    const arr = day?.w.water;
+    if (!arr || !fin(arr).length) return null;
+    const est = waterEstimate(p, state.date);
+    if (!est) return { values: arr, fitted: false };
+    const mean = fin(arr).reduce((a, b) => a + b, 0) / fin(arr).length;
+    return { values: arr.map((v) => (v == null ? null : Math.max(.5, v + est.surface - mean))), fitted: true };
   }
   const dailyCache = {};
   async function fetchTripDays(place) {
@@ -554,9 +581,10 @@
     const accent = "var(--accent)";
     const sun = { sunrise: w.sunrise, sunset: w.sunset };
     let i = 0;
-    charts.push(makeChart(chartShell(host, "기온", i++), {
+    const wsr = waterSeries(placeById[state.place]);
+    charts.push(makeChart(chartShell(host, wsr ? "기온과 수온" : "기온", i++, wsr ? `<div class="legend"><span><i style="background:${accent}"></i>기온</span><span><i style="background:var(--line-water)"></i>수온 ${wsr.fitted ? "(실측 맞춤 추정)" : "(추정)"}</span></div>` : ""), {
       ...sun, title: "기온", unit: "°C", digits: 1, minSpan: 4,
-      series: [{ label: "기온", color: accent, values: w.temp }],
+      series: [{ label: "기온", color: accent, values: w.temp }, ...(wsr ? [{ label: "수온", color: "var(--line-water)", values: wsr.values }] : [])],
       note: (h) => (w.code ? WX(w.code[h])[1] : "평균값"),
     }));
     charts.push(makeChart(chartShell(host, "바람", i++, `<div class="legend"><span><i style="background:${accent}"></i>풍속</span><span><i class="dash"></i>돌풍</span></div>`), {
@@ -982,7 +1010,7 @@
       <p class="mid-sub" id="midSub">16일 전망을 불러오는 중입니다.</p>
       <div class="bigchart" id="bigChart"><div class="bc-read mono" id="bcRead"></div></div>
       <p class="bc-legend mono">${legendFor(p, w)}</p>
-      <p class="bc-src">날씨 출처: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> 예보 · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? " · 조위와 파고는 해상 모델 값" : ""}</p>`;
+      <p class="bc-src">날씨 출처: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> 예보 · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? " · 조위와 파고는 해상 모델 값" : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`;
     bigChart = drawBigChart($("#bigChart"), r, w);
     renderMidSub();
 
@@ -1022,7 +1050,8 @@
   function legendFor(p, w) {
     const rng = (a, d = 1) => { const v = fin(a); return `${num(Math.min(...v), d)}~${num(Math.max(...v), d)}`; };
     const sea = p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6, wave = sea && state.marine.wave && fin(state.marine.wave).length;
-    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃ <span class="k-wind"></span>바람 ${rng(w.wind)}m/s${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
+    const wsr = waterSeries(p);
+    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃ ${wsr ? `<span class="k-water"></span>수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"}) ` : ""}<span class="k-wind"></span>바람 ${rng(w.wind)}m/s${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
   }
   // Score bars for each hour with temperature and wind drawn over them.
   let bigChart = null;
@@ -1039,7 +1068,8 @@
     const tide = sea ? state.marine.sea : null;
     const tv = tide ? fin(tide) : [], tdl = Math.min(...tv), tdh = Math.max(...tv);
     const DY = (v) => m.t + (H - m.t - m.b) * (.92 - .5 * (v - tdl) / ((tdh - tdl) || 1));
-    const bv = fin(blue), tlo = Math.min(...bv), thi = Math.max(...bv), pad = (thi - tlo) * .15 || 1;
+    const wsr = waterSeries(placeById[state.place]), wat = wsr?.values || null;
+    const bv = [...fin(blue), ...(wat ? fin(wat) : [])], tlo = Math.min(...bv), thi = Math.max(...bv), pad = (thi - tlo) * .15 || 1;
     const TY = (t) => m.t + (H - m.t - m.b) * (.88 - .72 * (t - tlo + pad) / (thi - tlo + 2 * pad));
     const wmax = Math.max(dash === w.wind ? 6 : 2, ...fin(dash));
     const WY = (v) => m.t + (H - m.t - m.b) * (1 - v / wmax * .9);
@@ -1094,6 +1124,15 @@
         });
       };
       ext(blue, TY, "temp", "℃", 1);
+      if (wat) {
+        P.push(`<path d="${smooth(wat, TY)}" class="l-water"/>`);
+        const wv = fin(wat), hi = wat.indexOf(Math.max(...wv)), lo = wat.indexOf(Math.min(...wv));
+        [[hi, "수온 최고", -9], [lo, "수온 최저", 17]].forEach(([i, word, dy], k) => {
+          if (k === 1 && Math.abs(wat[hi] - wat[lo]) < .05) return;
+          const anchor = i < 2 ? "start" : i > 21 ? "end" : "middle";
+          P.push(`<circle cx="${X(i)}" cy="${TY(wat[i])}" r="3.2" class="pt water"/><text x="${X(i)}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, TY(wat[i]) + dy))}" text-anchor="${anchor}" class="lab water">${word} ${num(wat[i], 1)}℃</text>`);
+        });
+      }
       ext(dash, WY, "wind", dashUnit, 1);
       // sunrise and sunset as thin vertical lines with their times
       const xt = (t) => m.l + (W - m.l - m.r) * t / 24;
@@ -1130,7 +1169,7 @@
       if (!cur) return;
       cur.setAttribute("x1", X(h)); cur.setAttribute("x2", X(h));
       const rd = $("#bcRead");
-      if (rd) rd.innerHTML = `${pad2(h)}:00 · 점수 <b>${vals[h] ?? "–"}</b> · 기온 ${num(w.temp[h])}℃ · 바람 ${num(w.wind[h])}m/s${w.dir[h] != null ? ` ${compass(w.dir[h])}` : ""}${sea ? ` · 조위 ${num(state.marine.sea[h], 2)}m` : ""}${sea && state.marine.wave?.[h] != null ? ` · 파고 ${num(state.marine.wave[h])}m` : ""}${w.precip?.[h] ? ` · 비 ${num(w.precip[h])}mm` : ""}`;
+      if (rd) rd.innerHTML = `${pad2(h)}:00 · 점수 <b>${vals[h] ?? "–"}</b> · 기온 ${num(w.temp[h])}℃${wat?.[h] != null ? ` · 수온 ${num(wat[h])}℃` : ""} · 바람 ${num(w.wind[h])}m/s${w.dir[h] != null ? ` ${compass(w.dir[h])}` : ""}${sea ? ` · 조위 ${num(state.marine.sea[h], 2)}m` : ""}${sea && state.marine.wave?.[h] != null ? ` · 파고 ${num(state.marine.wave[h])}m` : ""}${w.precip?.[h] ? ` · 비 ${num(w.precip[h])}mm` : ""}`;
     }
     draw();
     const ro = new ResizeObserver(() => { if (Math.abs(host.clientWidth - W) > 2) draw(); });
@@ -1373,10 +1412,12 @@
     }
     if (hasPin(p)) fetchOutlook(p).then((days) => {
       if (token !== loadToken) return;
-      state.outlook = days.map((d) => ({ date: d.date, r: scorePlace(p, d.w, null, d.date) }));
+      state.outlookAll = days;
+      state.outlook = days.filter((d) => d.date >= TODAY).map((d) => ({ date: d.date, r: scorePlace(p, d.w, null, d.date) }));
       renderDays();
-    }).catch(() => { state.outlook = null; renderDays(); });
-    else { state.outlook = null; renderDays(); }
+      if (waterSeries(p)) { renderBrief(); renderCharts(); }
+    }).catch(() => { state.outlook = null; state.outlookAll = null; renderDays(); });
+    else { state.outlook = null; state.outlookAll = null; renderDays(); }
   }
 
   function selectPlace(id, fly = true) {
