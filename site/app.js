@@ -60,6 +60,7 @@
     hour: new Date().getHours(),
     weather: null,
     marine: null,
+    scores: {},
     similar: null,
     playing: null,
     picking: false,
@@ -200,6 +201,211 @@
     requestAnimationFrame(step);
   }
 
+  /* ---------- icons (Lucide, ISC licence; only where the meaning is clear) ---------- */
+  const ICONS = {
+    fish: '<path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/><path d="M18 12v.5"/><path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/><path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1.17 1.5-1.17 4.5 0 6-1.17 1.5-1.17 4.5 0 6C5.58 17.03 7 14.97 7 12.33"/>',
+    dashboard: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+    book: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+    library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
+    flask: '<path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>',
+    search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    contrast: '<circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/>',
+    pin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+    activity: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
+    map: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+    wind: '<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
+    thermo: '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+    gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+    rain: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    sunrise: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+    sunset: '<path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+    waves: '<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    cube: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+    play: '<path d="M6 3l14 9-14 9z"/>',
+    pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+    up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  };
+  const icon = (name, cls = "") => `<svg class="ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+  const fillIcons = (root = document) => $$("i[data-icon]", root).forEach((el) => { el.outerHTML = icon(el.dataset.icon, el.className); });
+
+  /* ---------- fishing score ----------
+     New in v2.0.2: there was no score before, so every weight below is an assumption, and the screen says so.
+     Each hour gets factors between 0 and 1 (wind, rain, pressure change, temperature, time of day mixed with
+     the place's own catch record, and waves at sea). The hour's score is their weighted geometric mean, so one
+     bad factor pulls the hour down hard. The day's score is the average over its best stretch of hours. */
+  const hourFrac = (t) => { if (!t) return null; const [a, b] = t.split(":").map(Number); return a + b / 60; };
+  const lerp = (pts, x) => {
+    if (x == null || Number.isNaN(x)) return 1;
+    if (x <= pts[0][0]) return pts[0][1];
+    for (let i = 1; i < pts.length; i++) {
+      const [x1, y1] = pts[i];
+      if (x <= x1) { const [x0, y0] = pts[i - 1]; return y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
+    }
+    return pts[pts.length - 1][1];
+  };
+  const SCORE_W = { wind: .25, rain: .2, press: .1, temp: .25, time: .2, wave: .15 };
+  const FACTOR_NAME = { wind: "바람", rain: "강수", press: "기압", temp: "기온", water: "수온", time: "시간대", wave: "파고" };
+  // 공기 온도가 낚시에 알맞은 범위 (어종별 가정)
+  const TEMP_CURVE = {
+    송어: [[-8, .3], [-2, .55], [3, .85], [6, 1], [16, 1], [22, .7], [28, .4]],
+    민물: [[0, .2], [6, .4], [12, .75], [16, 1], [26, 1], [30, .8], [34, .55]],
+    바다: [[0, .3], [6, .5], [12, .8], [16, 1], [27, 1], [32, .75]],
+  };
+  const curveOf = (type) => TEMP_CURVE[type] || TEMP_CURVE.민물;
+  // 송어 수온: 덕봉 3D 모델과 같은 활성 곡선 (2℃에서 바닥, 10℃에서 최대), 16℃ 위로는 떨어집니다.
+  const waterF = (T) => Math.min(Math.max((T - 2) / 8, .1), 1) * lerp([[16, 1], [20, .6], [23, .3]], T);
+  const windF = (ws, gust) => lerp([[0, 1], [2, 1], [4, .8], [6, .5], [8, .25], [12, .05]], ws) * (gust != null && ws != null && gust - ws > 5 ? .9 : 1);
+  const rainF = (mm, prob) => Math.min(lerp([[0, 1], [.2, .9], [1, .7], [3, .45], [8, .2]], mm ?? 0), prob == null ? 1 : 1 - .35 * prob / 100);
+  const pressF = (series, h) => {
+    const a = series?.[Math.max(0, h - 3)], b = series?.[h];
+    if (a == null || b == null) return 1;
+    const d = b - a;
+    return d < 0 ? lerp([[0, 1], [1, .95], [2, .8], [3, .6], [5, .45]], -d) : lerp([[0, 1], [1.5, .95], [3, .8]], d);
+  };
+  const waveF = (m) => lerp([[0, 1], [.5, 1], [1, .7], [1.5, .4], [2.5, .1]], m);
+  const NIGHT = { 송어: .15, 민물: .75, 바다: .65 };
+  function lightF(type, h, rise, set) {
+    if (rise == null || set == null) return 1;
+    const c = h + .5;
+    if (c < rise - 1 || c > set + 1) return NIGHT[type] ?? .6;
+    return Math.min(Math.abs(c - rise), Math.abs(c - set)) <= 1.5 ? 1 : .85;
+  }
+  // Hours with catches in this place's own trip logs (only trips of the place's main fishing type).
+  function catchProfile(p) {
+    const own = p.trips.filter((t) => !t.trip.other && t.trip.hourly && t.fishing === p.type);
+    if (!own.length) return null;
+    const sum = Array(24).fill(0);
+    own.forEach((t) => t.trip.hourly.forEach((v, h) => { sum[h] += v || 0; }));
+    const total = sum.reduce((a, b) => a + b, 0);
+    if (total < 8) return null;
+    const top = Math.max(...sum);
+    return { sum, total, top, trips: own.length, peak: sum.indexOf(top) };
+  }
+  const geo = (f) => {
+    let lg = 0, tw = 0;
+    Object.keys(f).forEach((k) => { lg += SCORE_W[k] * Math.log(Math.max(f[k], .02)); tw += SCORE_W[k]; });
+    return 100 * Math.exp(lg / tw);
+  };
+  function scorePlace(p, w, marine) {
+    if (!w || !fin(w.temp).length) return null;
+    const type = p.type, water = waterEstimate(p, state.date), prof = catchProfile(p);
+    const rise = hourFrac(w.sunrise), set = hourFrac(w.sunset);
+    const hours = Array.from({ length: 24 }, (_, h) => {
+      if (w.temp[h] == null) return null;
+      const light = lightF(type, h, rise, set);
+      const rec = prof ? (prof.sum[h] ? .55 + .45 * prof.sum[h] / prof.top : .5) : null;
+      const f = {
+        wind: windF(w.wind[h], w.gust?.[h]),
+        rain: rainF(w.precip?.[h], w.prob?.[h]),
+        press: pressF(w.pressure, h),
+        temp: water ? waterF(water.surface) : lerp(curveOf(type), w.temp[h]),
+        time: rec == null ? light : (light + rec) / 2,
+      };
+      if (marine?.wave?.[h] != null) f.wave = waveF(marine.wave[h]);
+      return { h, f, s: geo(f) };
+    });
+    const valid = hours.filter(Boolean);
+    if (!valid.length) return null;
+    const top = valid.reduce((a, b) => (b.s > a.s ? b : a));
+    let a = top.h, b = top.h;
+    const near = (h) => (hours[h] && hours[h].s >= top.s - 6 ? hours[h].s : -1);
+    while (b - a < 3) {
+      const L = a > 0 ? near(a - 1) : -1, R = b < 23 ? near(b + 1) : -1;
+      if (L < 0 && R < 0) break;
+      if (R >= L) b++; else a--;
+    }
+    if (a === b) { const L = hours[a - 1]?.s ?? -1, R = hours[b + 1]?.s ?? -1; if (R >= L && R >= 0) b++; else if (L >= 0) a--; }
+    const span = hours.slice(a, b + 1).filter(Boolean);
+    const mean = (fn) => span.reduce((s, x) => s + fn(x), 0) / span.length;
+    const factors = {};
+    Object.keys(span[0].f).forEach((k) => { factors[k] = mean((x) => x.f[k]); });
+    const avg = (arr) => { const v = (arr || []).slice(a, b + 1).filter((x) => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+    const pr = fin(w.pressure);
+    return {
+      id: p.id, type, hours, from: a, to: b + 1, score: Math.round(mean((x) => x.s)), factors, water, prof,
+      temp: avg(w.temp), wind: avg(w.wind), gust: w.gust ? Math.max(...fin(w.gust.slice(a, b + 1))) : null,
+      dir: w.dir[Math.round((a + b) / 2)], pressure: avg(w.pressure), pTrend: pr.length ? pr[pr.length - 1] - pr[0] : 0,
+      prob: w.prob ? Math.max(...fin(w.prob.slice(a, b + 1))) : null, rain: fin(w.precip).reduce((s, x) => s + x, 0),
+      rainSpan: fin((w.precip || []).slice(a, b + 1)).reduce((s, x) => s + x, 0),
+      wave: marine?.wave ? avg(marine.wave) : null, sunrise: w.sunrise, sunset: w.sunset,
+    };
+  }
+  // A rough score for the 16-day strip, from daily values only (no pressure, no time of day).
+  function dayScore(type, d, i) {
+    const t = (d.temperature_2m_max[i] + d.temperature_2m_min[i]) / 2;
+    if (Number.isNaN(t) || d.wind_speed_10m_max[i] == null) return null;
+    return Math.round(geo({ wind: windF(d.wind_speed_10m_max[i] * .75), rain: rainF((d.precipitation_sum[i] || 0) / 6, null), temp: lerp(curveOf(type), t) }));
+  }
+  const scoreTone = (s) => (s >= 80 ? "good" : s >= 65 ? "info" : s >= 50 ? "warn" : "bad");
+  const SCORE_LABEL = { good: "출조하기 좋은 날", info: "출조할 만한 날", warn: "조건을 보고 짧게", bad: "출조를 미루는 편이 좋은 날" };
+  const factorTone = (f) => (f >= .85 ? "good" : f >= .65 ? "info" : f >= .45 ? "warn" : "bad");
+  const stars = (f) => { const n = Math.max(1, Math.min(5, Math.round(f * 5))); return `<span class="stars" role="img" aria-label="5점 중 ${n}점">${"★".repeat(n)}<i>${"★".repeat(5 - n)}</i></span>`; };
+  const hhmm = (h) => `${pad(h)}:00`;
+  const spanText = (r) => `${hhmm(r.from)} ~ ${hhmm(r.to)}`;
+
+  // Moon age from a known new moon (2000-01-06 18:14 UTC), at noon local time.
+  function moonAge(iso) {
+    const SYN = 29.530588853, t = (parseISO(iso).getTime() + 12 * 36e5 - Date.UTC(2000, 0, 6, 18, 14)) / 864e5;
+    return ((t % SYN) + SYN) % SYN;
+  }
+  const moonName = (a) => (a < 1.85 || a >= 27.7 ? "신월" : a < 5.5 ? "초승달" : a < 9.2 ? "상현달" : a < 13.8 ? "보름 전" : a < 15.7 ? "보름달" : a < 20.3 ? "보름 뒤" : a < 24 ? "하현달" : "그믐달");
+  // Spring tides come about 1 to 3 days after new and full moon. A rough guide only, not a tide table.
+  const tideHint = (a) => { const x = a % 14.765; return x >= .5 && x <= 3.5 ? "사리 무렵(물살 셈)" : x >= 6.5 && x <= 9.5 ? "조금 무렵(물살 약함)" : "사리와 조금 사이"; };
+
+  // What each value means for fishing.
+  const READ = {
+    wind: (r) => (r.wind <= 2 ? "채비 운용 좋음" : r.wind <= 4 ? "채비 운용 양호" : r.wind <= 7 ? "캐스팅 주의" : "낚시에 불리"),
+    temp: (r) => { const c = curveOf(r.type), lo = c.find((x) => x[1] === 1)[0]; return lerp(c, r.temp) >= .85 ? "활성에 알맞은 기온" : r.temp < lo ? "낮은 기온, 활성 약함" : "높은 기온, 활성 저하"; },
+    water: (r) => (r.water.surface < 4 ? "활성 낮음, 느린 운용" : r.water.surface < 8 ? "활성 보통" : r.water.surface <= 16 ? "활성 양호" : "고수온 주의"),
+    // the words follow the same 3-hour change the score uses, so the dot and the text agree
+    press: (r) => (r.factors.press >= .85 ? "안정적" : r.pTrend < 0 ? "하강 중, 입질 둔화 가능" : "상승 중, 회복세"),
+    // judged on the best hours, like the score; rain at other hours is mentioned separately
+    rain: (r) => (r.rainSpan > 4 ? "많은 비, 출조 불리" : (r.prob ?? 0) >= 50 || r.rainSpan > 1 ? "비 예상, 우비 준비" : (r.prob ?? 0) >= 20 || r.rainSpan > .2 ? "약한 비 가능" : r.rain > 1 ? "이 시간대는 비 없음" : "비 소식 없음"),
+    wave: (r) => (r.wave <= .5 ? "잔잔함" : r.wave <= 1 ? "보통" : r.wave <= 1.5 ? "높음, 주의" : "위험, 출조 자제"),
+    time: (r) => (r.prof ? `기록상 ${r.prof.peak}시대 조과가 가장 많음` : "해 뜰 무렵과 해 질 무렵 유리"),
+  };
+  const GOOD_WORD = { wind: "바람 약함", rain: "비 없음", press: "기압 안정", temp: "기온 알맞음", water: "수온 알맞음", time: "시간대 유리", wave: "파도 잔잔" };
+  const BAD_WORD = { wind: "바람 강함", rain: "비", press: "기압 변화", temp: "기온 불리", water: "수온 불리", time: "시간대 불리", wave: "파도 높음" };
+  const named = (r) => Object.entries(r.factors).map(([k, f]) => [k === "temp" && r.water ? "water" : k, f]);
+  const whyText = (r) => {
+    const list = named(r).sort((x, y) => y[1] - x[1]);
+    const good = list.filter(([, f]) => f >= .85).slice(0, 2).map(([k]) => GOOD_WORD[k]);
+    const bad = list.filter(([, f]) => f < .65).slice(-1).map(([k]) => BAD_WORD[k]);
+    return [...good, ...bad].join(" · ") || "무난함";
+  };
+  // Data, then what it means, then what to do.
+  function verdictText(r, p) {
+    const list = named(r).sort((x, y) => y[1] - x[1]);
+    const goods = list.filter(([, f]) => f >= .85).map(([k]) => FACTOR_NAME[k]);
+    const weak = list.filter(([, f]) => f < .65).map(([k]) => FACTOR_NAME[k]);
+    const data = [
+      r.water ? `표층 수온 약 ${num(r.water.surface)}℃` : `기온 ${num(r.temp)}℃`,
+      `바람 ${r.dir != null ? compass(r.dir) + "풍 " : ""}${num(r.wind)}m/s`,
+      r.pressure != null ? `기압 ${Math.round(r.pressure)}hPa(${READ.press(r).split(",")[0]})` : "",
+      r.prob != null ? `강수확률 ${r.prob}%` : `강수 ${num(r.rain)}mm`,
+      r.wave != null ? `파고 ${num(r.wave)}m` : "",
+    ].filter(Boolean).join(", ");
+    const meaning = goods.length ? `${goods.slice(0, 3).join(", ")} 조건이 좋${weak.length ? `고, ${weak.join(", ")} 조건이 약점입니다` : "습니다"}.` : weak.length ? `${weak.join(", ")} 조건이 불리합니다.` : "큰 약점은 없습니다.";
+    const act = [];
+    if (r.prof && r.prof.sum.slice(r.from, r.to).some((v) => v > 0)) act.push(`지난 출조 ${r.prof.trips}회의 기록에서도 이 시간대에 입질이 있었습니다.`);
+    if (r.wind > 4) act.push("바람을 등지는 자리를 고르고 무게 있는 채비로 운용하세요.");
+    else if (r.wind <= 2) act.push("가벼운 채비도 운용하기 좋습니다.");
+    if (p.type === "송어") {
+      const t = r.water ? r.water.surface : r.temp;
+      act.push(t < 4 ? "물이 차가우니 바닥층 위주로 천천히 운용하세요." : t > 16 ? "수온이 높으니 깊은 층을 먼저 탐색하세요." : "중층부터 탐색해 반응층을 찾으세요.");
+    }
+    if ((r.prob ?? 0) >= 50 || r.rainSpan > 1) act.push("비에 대비해 우비를 챙기세요.");
+    else if (r.rain > 1) act.push(`비는 이 시간대 밖에 하루 ${num(r.rain)}mm 예보돼 있으니 늦어지지 않게 정리하세요.`);
+    if (r.wave != null && r.wave > 1) act.push("파도가 높으니 갯바위와 방파제 끝은 피하세요.");
+    const close = r.score >= 65 ? `따라서 ${hhmm(r.from)} 전후 출조를 우선 추천합니다.` : r.score >= 50 ? `출조한다면 ${spanText(r)}에 짧게 노리세요.` : "무리하기보다 상세 분석의 16일 전망에서 다른 날을 고르는 편이 좋습니다.";
+    return { lead: `${spanText(r)}이 가장 유리합니다.`, data: `${data}.`, meaning, act: [...act, close] };
+  }
+
   /* ---------- charts ---------- */
   const charts = [];
   function makeChart(el, cfg) {
@@ -221,6 +427,7 @@
     if (hi - lo < (cfg.minSpan || 2)) { const c = (hi + lo) / 2; if (!cfg.zero) lo = c - (cfg.minSpan || 2) / 2; hi = cfg.zero ? hi : c + (cfg.minSpan || 2) / 2; }
     const headroom = cfg.zero ? 0 : (hi - lo) * .12;
     lo -= headroom; hi += cfg.zero ? (hi - lo) * .12 : headroom;
+    if (cfg.fixed) [lo, hi] = cfg.fixed;
 
     const X = (i) => m.l + (width - m.l - m.r) * (cfg.bars ? (i + .5) / n : i / (n - 1));
     const Y = (v) => m.t + (H - m.t - m.b) * (1 - (v - lo) / (hi - lo));
@@ -242,15 +449,19 @@
         parts.push(`<text x="${m.l - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${cfg.tick ? cfg.tick(v) : Math.round(v)}</text>`);
       }
       [0, 6, 12, 18, 23].forEach((h) => parts.push(`<text x="${X(h)}" y="${H - m.b + 15}" text-anchor="middle" font-size="11" fill="var(--muted)">${h}시</text>`));
+      if (cfg.band) {
+        const slot = (width - m.l - m.r) / n;
+        parts.push(`<rect x="${m.l + slot * cfg.band[0]}" y="${m.t}" width="${slot * (cfg.band[1] - cfg.band[0] + 1)}" height="${H - m.t - m.b}" fill="var(--accent-soft)" opacity=".7"/>`);
+      }
       if (cfg.bars) {
         const s = cfg.series[0];
         const bw = Math.max(2, (width - m.l - m.r) / n - 2);
         s.values.forEach((v, i) => {
           if (!v) return;
           const y = Y(v), h = Y(lo) - y, r = Math.min(4, h, bw / 2);
-          parts.push(`<path class="${animate ? "bar-in" : ""}" style="animation-delay:${i * 18}ms" fill="${s.color}" d="M${X(i) - bw / 2} ${Y(lo)}V${y + r}Q${X(i) - bw / 2} ${y} ${X(i) - bw / 2 + r} ${y}H${X(i) + bw / 2 - r}Q${X(i) + bw / 2} ${y} ${X(i) + bw / 2} ${y + r}V${Y(lo)}Z"/>`);
+          parts.push(`<path class="${animate ? "bar-in" : ""}" style="animation-delay:${i * 18}ms" fill="${s.colorAt ? s.colorAt(i) : s.color}" d="M${X(i) - bw / 2} ${Y(lo)}V${y + r}Q${X(i) - bw / 2} ${y} ${X(i) - bw / 2 + r} ${y}H${X(i) + bw / 2 - r}Q${X(i) + bw / 2} ${y} ${X(i) + bw / 2} ${y + r}V${Y(lo)}Z"/>`);
         });
-        if (!fin(s.values).some((v) => v > 0)) parts.push(`<text x="${(width + m.l) / 2}" y="${H / 2}" text-anchor="middle" font-size="13" fill="var(--muted)">이날 강수 없음</text>`);
+        if (!cfg.band && !fin(s.values).some((v) => v > 0)) parts.push(`<text x="${(width + m.l) / 2}" y="${H / 2}" text-anchor="middle" font-size="13" fill="var(--muted)">이날 강수 없음</text>`);
       } else {
         cfg.series.forEach((s) => {
           let d = "", pen = false;
@@ -307,9 +518,9 @@
     return { update, destroy: () => ro.disconnect() };
   }
 
-  function chartShell(host, title, i, legend = "") {
+  function chartShell(host, title, i, legend = "", cls = "") {
     const el = document.createElement("div");
-    el.className = "chart";
+    el.className = `chart ${cls}`;
     el.style.setProperty("--i", i);
     el.innerHTML = `<div class="chart-head"><div class="chart-title"><h3>${title}</h3>${legend}</div><div class="chart-now"></div></div>`;
     host.append(el);
@@ -322,9 +533,20 @@
     host.innerHTML = "";
     const w = state.weather?.data[state.place];
     if (!w) return;
-    const accent = "var(--s1)";
+    const accent = "var(--accent)";
     const sun = { sunrise: w.sunrise, sunset: w.sunset };
     let i = 0;
+    const r = state.scores?.[state.place];
+    if (r) {
+      const word = { good: "좋음", info: "양호", warn: "주의", bad: "불리" };
+      const vals = r.hours.map((x) => (x ? Math.round(x.s) : null));
+      charts.push(makeChart(chartShell(host, "시간대별 낚시 점수", i++, `<div class="legend"><span><i class="band"></i>BEST TIME ${hhmm(r.from)}~${hhmm(r.to)}</span></div>`, "full"), {
+        ...sun, title: "시간대별 낚시 점수", unit: "점", digits: 0, zero: true, fixed: [0, 100], bars: true, band: [r.from, r.to - 1],
+        series: [{ label: "점수", color: accent, colorAt: (h) => (vals[h] == null ? accent : `var(--${scoreTone(vals[h])})`), values: vals }],
+        tick: (v) => Math.round(v),
+        note: (h) => (vals[h] == null ? "" : word[scoreTone(vals[h])]),
+      }));
+    }
     charts.push(makeChart(chartShell(host, "기온", i++), {
       ...sun, title: "기온", unit: "°C", digits: 1, minSpan: 4,
       series: [{ label: "기온", color: accent, values: w.temp }],
@@ -365,10 +587,6 @@
         $(".chart-now", el).remove();
         el.insertAdjacentHTML("beforeend", `<p class="state-msg">이 날짜와 위치의 해상 모델 값이 없습니다. 보통 앞으로 7일 정도까지만 제공됩니다.</p>`);
       }
-    } else {
-      const el = chartShell(host, "시간별 메모", i++);
-      $(".chart-now", el).remove();
-      el.insertAdjacentHTML("beforeend", `<p class="notice">그래프 위에서 포인터를 움직이면 지도의 풍향과 기온이 같은 시각으로 함께 바뀝니다. 음영은 일출 전과 일몰 후입니다.</p>`);
     }
   }
 
@@ -383,11 +601,11 @@
     refreshWindField();
   }
   function stopPlay() {
-    if (state.playing) { clearInterval(state.playing); state.playing = null; $("#playBtn").textContent = "▶"; }
+    if (state.playing) { clearInterval(state.playing); state.playing = null; $("#playBtn").innerHTML = icon("play"); }
   }
   function togglePlay() {
     if (state.playing) return stopPlay();
-    $("#playBtn").textContent = "❚❚";
+    $("#playBtn").innerHTML = icon("pause");
     state.playing = setInterval(() => setHour((state.hour + 1) % 24), 650);
   }
 
@@ -503,8 +721,10 @@
       const w = data?.[id], h = state.hour;
       el.classList.toggle("sel", id === state.place);
       mk.setZIndexOffset(id === state.place ? 1000 : 0);
-      $("b", el).textContent = w?.temp[h] == null ? "–" : `${Math.round(w.temp[h])}°`;
-      $("span", el).textContent = id === state.place && w?.wind[h] != null ? `${id} ${w.wind[h].toFixed(1)}m/s` : id;
+      const sc = state.scores?.[id];
+      $("b", el).textContent = sc ? sc.score : "–";
+      el.dataset.tone = sc ? scoreTone(sc.score) : "";
+      $("span", el).textContent = id === state.place && w?.wind[h] != null ? `${id} ${Math.round(w.temp[h])}° ${w.wind[h].toFixed(1)}m/s` : id;
       const dir = w?.dir[h];
       if (dir != null) {
         const svg = $(".arrow svg", el);
@@ -595,6 +815,9 @@
   }
 
   function renderPlaceChips() {
+    const cur = placeById[state.place];
+    $("#placeName").textContent = cur.name;
+    $("#placeType").textContent = `${cur.type}낚시`;
     $("#placeChips").innerHTML = TYPES.map((t) => `<div class="place-row"><b><i class="dot ${t}"></i>${t}</b>` +
       PLACES.filter((p) => placeTypes(p).includes(t)).sort((a, b) => b.trips.length - a.trips.length).map((p) =>
         `<button class="chip ${p.id === state.place ? "on" : ""} ${hasPin(p) ? "" : "nopin"}" data-place="${esc(p.id)}" title="${esc(p.accuracy)}">${esc(p.id)}<small>${p.trips.length}</small></button>`).join("") + `</div>`).join("");
@@ -616,56 +839,121 @@
     const el = $("#dayStrip");
     if (!daily) { el.innerHTML = ""; return; }
     el.innerHTML = daily.time.map((t, i) => {
-      const d = parseISO(t), wk = d.getDay();
+      const d = parseISO(t), wk = d.getDay(), ds = dayScore(placeById[state.place].type, daily, i);
       return `<button class="day ${t === state.date ? "on" : ""}" style="--i:${i}" data-date="${t}" title="${WX(daily.weather_code[i])[1]}">
         <span class="d ${wk === 0 || wk === 6 ? "weekend" : ""}">${t === TODAY ? "오늘" : fmtShort(t)}</span>
-        <span class="ic" aria-hidden="true">${WX(daily.weather_code[i])[0]}</span>
+
         <div class="t">${Math.round(daily.temperature_2m_min[i])}° / ${Math.round(daily.temperature_2m_max[i])}°</div>
         <div class="w">바람 ${num(daily.wind_speed_10m_max[i])}</div>
-        <div class="w">비 ${num(daily.precipitation_sum[i])}mm</div></button>`;
+        <div class="w">비 ${num(daily.precipitation_sum[i])}mm</div>${ds == null ? "" : `<b class="ds tone-${scoreTone(ds)}" title="간이 점수">${ds}</b>`}</button>`;
     }).join("");
     focusStripDay();
   }
 
+  // Scores for every place that has weather for the chosen day; the chosen sea place also counts its waves.
+  function computeScores() {
+    state.scores = {};
+    if (!state.weather) return;
+    PLACES.filter(hasPin).forEach((p) => {
+      const r = scorePlace(p, state.weather.data[p.id], p.id === state.place ? state.marine : null);
+      if (r) state.scores[p.id] = r;
+    });
+  }
+  const MODE_SHORT = { forecast: "예보 기준", archive: "과거 재분석 기준", climate: "평년값 기준 참고 점수" };
+
   function renderBrief(err) {
     const p = placeById[state.place];
     const w = state.weather?.data[p.id];
-    // the most severe code of the day, which is how the daily cards above are coded too
-    const dayWx = w?.code && fin(w.code).length ? WX(Math.max(...fin(w.code))) : null;
-    const water = waterEstimate(p, state.date);
-    const waterTip = water ? `${water.own ? "이 낚시터의 수온 곡선" : "전체 측정값의 수온 곡선"}으로 계산했습니다.${water.outside ? " 측정 기간 밖이라 곡선을 연장한 값입니다." : ""} 자세한 내용은 연구 노트를 보세요.` : "";
-    const waterBox = water ? `<div class="brief-water" title="${esc(waterTip)}"><b class="brief-wx-date">예상 수온</b><div class="brief-water-values"><span>표층 <strong>${num(water.surface)}</strong>°C</span><span>바닥 <strong>${num(water.bottom)}</strong>°C</span></div><small>${water.own && !water.outside ? "추정" : "참고값"}</small></div>` : "";
-    const head = `<div class="card brief-head"><div class="brief-main"><h2>${esc(p.name)}</h2><p>${esc(p.address)}</p>
-      <p class="pin-fix">위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
-      <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}</div>
-      ${w ? `<span class="source-tag">${fmtDate(state.date)} · ${MODE_LABEL[state.weather.mode](state.date)}</span>` : ""}</div>${dayWx ? `<div class="brief-wx" title="${dayWx[1]}"><b class="brief-wx-date">${state.date.slice(0, 4) === TODAY.slice(0, 4) ? "" : `${state.date.slice(0, 4)}. `}${fmtShort(state.date)}</b><i aria-hidden="true">${dayWx[0]}</i><span>${dayWx[1]}</span></div>` : ""}${waterBox}</div>`;
-    if (!hasPin(p)) {
-      $("#brief").innerHTML = head + `<div class="card notice">이 낚시터의 주소를 찾지 못해 날씨를 조회할 수 없습니다. 지도에서 낚시터 위치를 클릭하면 저장되고 날씨가 바로 나옵니다.</div>`;
+    const r = state.scores?.[p.id];
+    const head = `<div class="hero-head"><span>${esc(p.name)}</span><span>${esc(p.type)}낚시</span><span>${fmtDate(state.date)}</span>${w ? `<span>${MODE_SHORT[state.weather.mode]}</span>` : ""}</div>`;
+    const info = `<p>${esc(p.address)}</p><p class="pin-fix">위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
+      <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}${p.id === "덕봉" ? `<a class="chip" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}덕봉 3D 자리 분석</a>` : ""}</div>`;
+    $("#placeInfo").innerHTML = info;
+    const clear = () => { ["#metrics", "#verdict"].forEach((s) => { $(s).innerHTML = ""; }); $("#spotCard").hidden = true; };
+    if (!hasPin(p) || err) {
+      $("#hero").innerHTML = head + `<p class="hero-msg">${!hasPin(p)
+        ? "이 낚시터의 주소를 찾지 못해 날씨를 조회할 수 없습니다. 지도에서 낚시터 위치를 누르면 저장되고 점수가 바로 나옵니다."
+        : `날씨 정보를 불러오지 못했습니다(${esc(err)}). 인터넷 연결을 확인한 뒤 날짜를 다시 선택해 주세요. 아래 공략 자료는 그대로 볼 수 있습니다.`}</p>`;
+      clear(); renderSpots();
       return;
     }
-    if (err) {
-      $("#brief").innerHTML = head + `<div class="card notice">날씨 정보를 불러오지 못했습니다(${esc(err)}). 인터넷 연결을 확인한 뒤 날짜를 다시 선택해 주세요. 아래 공략법과 조행기는 그대로 볼 수 있습니다.</div>`;
+    if (!w || !r) {
+      $("#hero").innerHTML = head + `<div class="skeleton hero-skel"></div>`;
+      clear();
+      $("#spots").innerHTML = "";
       return;
     }
-    if (!w) {
-      $("#brief").innerHTML = head + `<div class="tiles">${[0, 1, 2, 3].map(() => `<div class="skeleton"></div>`).join("")}</div>`;
-      return;
-    }
-    const temps = fin(w.temp), winds = fin(w.wind), gusts = fin(w.gust);
-    const rain = fin(w.precip).reduce((a, b) => a + b, 0);
-    const maxProb = w.prob ? Math.max(...fin(w.prob)) : null;
-    const tile = (i, label, val, d, unit, extra = "") => `<div class="tile" style="--i:${i}"><span>${label}</span><strong data-to="${val}" data-d="${d}">${Number(val).toFixed(d)}</strong><small>${unit}</small>${extra ? `<span>${extra}</span>` : ""}</div>`;
-    const maxWindIdx = w.wind.indexOf(Math.max(...winds));
-    $("#brief").innerHTML = head + `<div class="tiles">
-      ${tile(0, "최고 기온", Math.max(...temps), 0, "°C", `최저 ${Math.round(Math.min(...temps))}°C`)}
-      ${tile(1, "최대 풍속", Math.max(...winds), 1, "m/s", `${pad(maxWindIdx)}시 · ${compass(w.dir[maxWindIdx] ?? 0)}풍`)}
-      ${tile(2, "강수 합계", rain, 1, "mm", maxProb != null ? `최대 확률 ${maxProb}%` : "확률 자료 없음")}
-      ${tile(3, "최대 돌풍", Math.max(...gusts), 1, "m/s", w.sunrise ? `일출 ${w.sunrise} · 일몰 ${w.sunset}` : "")}
-    </div>
-    ${state.weather.savedAt ? `<div class="card notice climate-note"><b>인터넷에 연결되어 있지 않습니다.</b> ${new Date(state.weather.savedAt).toLocaleString("ko-KR")}에 저장된 날씨입니다. 최신 예보와 다를 수 있습니다.</div>` : ""}
-    ${state.weather.mode === "climate" ? `<div class="card notice climate-note"><b>예보 범위 밖 날짜입니다.</b> ${fmtDate(state.date)}의 예보는 아직 없어, ${state.weather.years.join("·")}년 같은 날짜의 평균을 보여줍니다. 실제 날씨와 다를 수 있으며, 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 제공됩니다.</div>` : ""}
-    ${p.type === "바다" ? `<div class="card notice">해상 값은 모델 참고치입니다. 출항 판단은 기상청 특보와 물때표로 다시 확인하세요.</div>` : ""}`;
-    $$("[data-to]", $("#brief")).forEach(countUp);
+    const tone = scoreTone(r.score);
+    const notes = [
+      state.weather.savedAt && `인터넷에 연결되어 있지 않아 ${new Date(state.weather.savedAt).toLocaleString("ko-KR")}에 저장된 날씨로 계산했습니다.`,
+      state.weather.mode === "climate" && `예보 범위 밖이라 ${state.weather.years.join("·")}년 같은 날짜의 평균 날씨로 계산했습니다. 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 나옵니다.`,
+      p.type === "바다" && "바다 값은 모델 참고치입니다. 출항 판단은 기상청 특보와 물때표로 다시 확인하세요.",
+    ].filter(Boolean);
+    $("#hero").innerHTML = head + `<div class="hero-body">
+        <div class="hero-score tone-${tone}"><div class="big"><strong data-to="${r.score}">${r.score}</strong><span>/ 100</span></div><em>${SCORE_LABEL[tone]}</em></div>
+        <div class="hero-best"><small>BEST TIME</small><strong>${spanText(r)}</strong><span>${r.prof ? `조과 기록 ${r.prof.trips}회 반영` : "날씨와 해 뜨고 지는 시각 기준"}</span></div>
+      </div>
+      ${notes.map((n) => `<p class="hero-note">${esc(n)}</p>`).join("")}`;
+    $$("[data-to]", $("#hero")).forEach(countUp);
+
+    // one row per factor: value, what it means, and how much it helped
+    const f = r.factors;
+    const row = (ic, label, value, unit, sub, read, fv) => `<div class="m-row${fv == null ? "" : ` tone-${factorTone(fv)}`}">
+        <span class="m-label">${icon(ic)}${label}</span>
+        <span class="m-val"><strong>${value}</strong><small>${unit}</small>${sub ? `<em>${sub}</em>` : ""}</span>
+        <span class="m-read">${read}</span>${fv == null ? '<span class="m-stars"></span>' : `<span class="m-stars">${stars(fv)}</span>`}</div>`;
+    const rows = [];
+    if (r.water) rows.push(row("thermo", "수온", num(r.water.surface), "℃", `바닥 ${num(r.water.bottom)}℃ · ${r.water.own && !r.water.outside ? "추정" : "참고"}`, READ.water(r), f.temp));
+    rows.push(row("thermo", "기온", num(r.temp), "℃", r.water ? "점수에는 수온을 씀" : "", READ.temp(r), r.water ? null : f.temp));
+    rows.push(row("wind", "바람", num(r.wind), "m/s", `${r.dir != null ? compass(r.dir) + "풍" : ""}${r.gust != null ? ` · 돌풍 ${num(r.gust)}` : ""}`, READ.wind(r), f.wind));
+    if (r.pressure != null) rows.push(row("gauge", "기압", Math.round(r.pressure), "hPa", `하루 변화 ${r.pTrend >= 0 ? "+" : "−"}${num(Math.abs(r.pTrend))}`, READ.press(r), f.press));
+    rows.push(row("rain", "강수", r.prob != null ? r.prob : num(r.rain), r.prob != null ? "%" : "mm", r.prob != null ? `하루 ${num(r.rain)}mm` : "확률 자료 없음", READ.rain(r), f.rain));
+    if (r.wave != null) rows.push(row("waves", "파고", num(r.wave), "m", "모델 참고값", READ.wave(r), f.wave));
+    rows.push(row("clock", "시간대", `${r.from}~${r.to}`, "시", r.prof ? `조과 기록 ${r.prof.total}수 반영` : "일출 일몰 기준", READ.time(r), f.time));
+    const age = moonAge(state.date);
+    const sky = `<div class="m-sky"><span>${icon("sunrise")}일출 ${esc(r.sunrise || "–")}</span><span>${icon("sunset")}일몰 ${esc(r.sunset || "–")}</span><span>${icon("moon")}월령 ${age.toFixed(1)} · ${moonName(age)}</span>${p.type === "바다" ? `<span>${tideHint(age)}</span>` : ""}</div>`;
+    $("#metrics").innerHTML = `<header class="blk-head"><h2>오늘의 낚시 전망</h2><span>${spanText(r)} 평균</span></header>${rows.join("")}${sky}`;
+
+    const v = verdictText(r, p);
+    $("#verdict").innerHTML = `<header class="blk-head"><h2>오늘의 출조 판단</h2></header>
+      <p class="v-lead">${esc(v.lead)}</p><p>${esc(v.data)} ${esc(v.meaning)}</p><ul>${v.act.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+      <details class="v-how"><summary>점수는 어떻게 계산하나요?</summary><p>시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 그 기록을 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꾼 뒤 가중 기하평균을 냅니다. 한 항목이 나쁘면 점수가 크게 내려갑니다. 하루 점수는 가장 좋은 연속 2~4시간의 평균이고, 그 구간이 BEST TIME입니다. 가중치와 기준은 v2.0에서 새로 정한 가정이며 실제 조과로 검증하지 않았습니다.</p></details>`;
+    renderSpots();
+    renderSpotCard();
+  }
+
+  // The other places of the same kind, by their score for the chosen day.
+  function renderSpots() {
+    const p = placeById[state.place];
+    const list = Object.values(state.scores || {}).filter((r) => placeTypes(placeById[r.id]).includes(p.type)).sort((a, b) => b.score - a.score);
+    if (!list.length) { $("#spots").innerHTML = ""; return; }
+    const pos = list.findIndex((r) => r.id === p.id);
+    const shown = list.slice(0, 3);
+    if (pos >= 3) shown.push(list[pos]);
+    $("#spots").innerHTML = `<header class="blk-head"><h2>추천 낚시터</h2><span>${esc(p.type)}낚시 ${list.length}곳 중 이날 점수순</span></header>
+      <ol class="spot-list">${shown.map((r) => {
+        const rank = list.indexOf(r) + 1, q = placeById[r.id];
+        return `<li><button class="spot ${r.id === p.id ? "sel" : ""}" data-place="${esc(r.id)}">
+          <span class="rank">${rank}</span><span class="nm"><b>${esc(r.id)}</b><small>${esc(whyText(r))}</small></span>
+          <span class="bt">${icon("clock")}${hhmm(r.from)}~${hhmm(r.to)}</span>
+          <span class="sc tone-${scoreTone(r.score)}">${stars(r.score / 100)}<b>${r.score}</b></span></button>${q.id === "덕봉" ? `<a class="spot-3d" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}자리별 분석</a>` : ""}</li>`;
+      }).join("")}</ol>`;
+  }
+
+  // The chosen place's card on the map.
+  function renderSpotCard() {
+    const p = placeById[state.place], r = state.scores?.[p.id], card = $("#spotCard");
+    if (!r) { card.hidden = true; return; }
+    const v = verdictText(r, p);
+    const rows = [
+      ["BEST", spanText(r)],
+      r.water ? ["수온", `${num(r.water.surface)}℃ (바닥 ${num(r.water.bottom)}℃)`] : ["기온", `${num(r.temp)}℃`],
+      ["바람", `${r.dir != null ? compass(r.dir) + "풍 " : ""}${num(r.wind)}m/s`],
+      r.wave != null ? ["파고", `${num(r.wave)}m`] : null,
+    ].filter(Boolean);
+    card.hidden = false;
+    card.innerHTML = `<div class="sc-head"><b>${esc(p.id)}</b><span class="tone-${scoreTone(r.score)}">${r.score}<small>/100</small></span></div>
+      <dl>${rows.map(([k, x]) => `<dt>${k}</dt><dd>${esc(x)}</dd>`).join("")}</dl><p>${esc(v.act[0])}</p>`;
   }
 
   const docBtn = (pg, i = 0, cls = "", sub = "") => `<button class="doc ${cls}" style="--i:${i}" data-open="${pg.id}"><b>${esc(pg.title)}</b><span>${esc(sub || `${pg.section} · 수정 ${pg.modified}`)}</span></button>`;
@@ -731,12 +1019,11 @@
       : `<p class="notice">선택한 날짜 앞뒤 30일 안에 이곳에 간 기록이 없습니다.${p.trips.length ? " 전체 기록은 아래에 있습니다." : ""}</p>`;
     const restTrips = p.trips.filter((t) => !seasonal.includes(t));
 
+    $("#records").innerHTML = `${catchPanel(p)}<div class="panel" style="grid-column:span 12" id="similarPanel"><h2>비슷한 날씨의 지난 출조</h2><p class="sub">선택한 날의 기온, 바람, 강수와 가까운 순입니다. 과거 값은 재분석 자료입니다.</p><div id="similarBody"><div class="skeleton"></div></div></div>`;
     $("#dossier").innerHTML = `
       <div class="panel"><h2>${esc(p.id)} 공략법</h2><p class="sub">이 장소를 다루는 문서입니다. 언급 횟수가 많은 순으로 보여줍니다.</p>${guideHtml}</div>
       <div class="panel wide"><h2>이맘때의 조행기</h2><p class="sub">${fmtShort(state.date)} 앞뒤 30일 안에 ${esc(p.id)}에 다녀온 기록 ${seasonal.length}건</p>${seasonalHtml}</div>
-      <div class="panel wide" id="similarPanel"><h2>비슷한 날씨의 지난 출조</h2><p class="sub">선택한 날의 기온, 바람, 강수와 가까운 순입니다. 과거 값은 재분석 자료입니다.</p><div id="similarBody"><div class="skeleton"></div></div></div>
       <div class="panel"><h2>출조 전에 읽기</h2><p class="sub">${placeTypes(p).join("·")}낚시 공통 자료</p><div>${essentials.slice(0, 10).map((d, i) => docBtn(d, i, "", d.section)).join("") || '<p class="notice">공통 자료가 없습니다.</p>'}</div></div>
-      ${catchPanel(p)}
       ${restTrips.length ? `<div class="panel wide" style="grid-column:span 12"><h2>${esc(p.id)} 나머지 기록 ${restTrips.length}건</h2><p class="sub">최근 순</p><div class="trip-grid">${restTrips.map((t, i) => tripCard(t, Math.min(i, 12))).join("")}</div></div>` : ""}`;
   }
 
@@ -775,6 +1062,7 @@
     updateMapNote();
     state.weather = cacheW[state.date] || null;
     state.marine = null;
+    computeScores();
     renderBrief();
     $("#charts").innerHTML = state.weather ? "" : `<div class="skeleton" style="grid-column:span 12;height:180px"></div>`;
     try {
@@ -789,6 +1077,7 @@
         try { state.marine = await fetchMarine(p, state.date); } catch { state.marine = null; }
         if (token !== loadToken) return;
       }
+      computeScores();
       renderBrief();
       renderCharts();
       updatePins();
@@ -796,6 +1085,7 @@
       renderSimilar();
     } catch (e) {
       if (token !== loadToken) return;
+      state.scores = {};
       renderBrief(e.message);
       $("#charts").innerHTML = "";
       const sim = $("#similarBody");
@@ -1360,6 +1650,7 @@
 
   document.addEventListener("click", (e) => {
     const t = e.target.closest("button,img,[data-close]");
+    if (e.target.closest("a")) return;
     const bg = e.target;
     // a gallery image sits inside its button, so look for the button from whatever was clicked
     const fig = bg.closest("[data-fig-src]");
@@ -1375,7 +1666,8 @@
     if (d.go) go(d.go);
     else if (d.pick) setPicking(!state.picking);
     else if (d.unpin) resetPin(placeById[state.place]);
-    else if (d.place) selectPlace(d.place);
+    else if (d.place) { $("#placePick").open = false; selectPlace(d.place); }
+    else if (d.jump) { if (state.view !== "plan") go("plan"); $(`#${d.jump}`)?.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" }); }
     else if (d.date) selectDate(d.date);
     else if (d.open) { if (d.searchClose) $("#searchLayer").hidden = true; openPage(d.open); }
     else if (d.close !== undefined) closeDrawer();
@@ -1507,6 +1799,8 @@
   addEventListener("hashchange", () => go(location.hash.slice(1), false));
 
   /* ---------- start ---------- */
+  fillIcons();
+  $("#playBtn").innerHTML = icon("play");
   const savedTheme = store.get("theme", null);
   if (savedTheme) document.documentElement.dataset.theme = savedTheme;
   $("#dateInput").value = state.date;
