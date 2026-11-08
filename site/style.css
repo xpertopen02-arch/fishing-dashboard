@@ -1037,3 +1037,22 @@ main { max-width: none; padding: 0 0 80px; }
 @media (max-width: 720px) { #phoneBtn { display: none; } }
 .phone-bar .ico { width: 14px; height: 14px; vertical-align: -2px; }
 #phoneBtn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* v2.0.12: 입질 and 편의 as two bordered tabs with bold numbers */
+.kpis { gap: 12px; padding: 0; border: 0; margin-bottom: 24px; }
+.kpis > div, .kpis > div + div { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 12px; padding: 14px 16px 14px; }
+.kpis .eyebrow { font-size: 14px; font-weight: 700; color: var(--ink); }
+.kpis strong { font-weight: 800; font-size: 56px; letter-spacing: -.03em; margin: 4px 0 2px; }
+.kpis small { display: block; }
+@media (max-width: 720px) { .kpis strong { font-size: 48px; } .kpis > div, .kpis > div + div { padding: 12px 14px; } }
+
+/* mid widths: search shrinks to an icon and the bar may wrap, so nothing runs off the edge */
+@media (max-width: 1320px) and (min-width: 721px) {
+  .top { flex-wrap: wrap; height: auto; min-height: 74px; padding-top: 10px; padding-bottom: 10px; row-gap: 8px; }
+  .top .search-open { flex: none; width: 42px; min-width: 0; padding: 0; justify-content: center; margin: 0 12px; }
+  .top .search-open span, .top .search-open kbd { display: none; }
+}
+/* calendar: date and score stay on one line; today is marked by an underline instead of a word */
+.cd-top { flex-wrap: nowrap; }
+.cd-top b small { display: none; }
+.cday.today .cd-top b { text-decoration: underline 2px var(--accent); text-underline-offset: 3px; }
