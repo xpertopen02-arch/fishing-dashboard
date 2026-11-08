@@ -1156,7 +1156,9 @@
     function draw() {
       W = host.clientWidth;
       if (W < 200) return;
-      const P = [];
+      const P = [], LBL = [];
+      // fixed = labels that must stay where they are (score over its bar, 지금)
+      const lab = (x, y, text, anchor, cls, style = "", fixed = false) => LBL.push({ x, y, text, anchor, cls, style, fixed });
       [0, 25, 50, 75, 100].forEach((v) => {
         P.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/>`);
         P.push(`<text x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end" class="ax">${v}</text>`);
@@ -1166,8 +1168,8 @@
         if (v == null) return;
         const cls = h >= r.from && h < r.to ? "b-on" : h === nowH ? "b-now" : "b-off";
         P.push(`<rect class="${cls}" x="${X(h) - bw / 2}" y="${Y(v)}" width="${bw}" height="${Y(0) - Y(v)}" rx="2"/>`);
-        if (h === topAt && h !== nowH) P.push(`<text x="${X(h)}" y="${Y(v) - 6}" text-anchor="middle" class="lab acc">${v}</text>`);
-        if (h === nowH) P.push(`<text x="${X(h)}" y="${Y(v) - 6}" text-anchor="middle" class="lab">지금</text>`);
+        if (h === topAt && h !== nowH) lab(X(h), Y(v) - 6, String(v), "middle", "acc", "", true);
+        if (h === nowH) lab(X(h), Y(v) - 6, "지금", "middle", "", "", true);
       });
       // Catmull-Rom through the hourly points, drawn as cubic Béziers, so the lines read as curves
       const smooth = (arr, fy) => {
@@ -1197,7 +1199,8 @@
           const x = X(i), y = fy(arr[i]);
           const anchor = i < 2 ? "start" : i > 21 ? "end" : "middle";
           const col = cls === "wind" ? ` style="fill:${windCol(arr[i])}"` : cls === "temp" ? ` style="fill:${tempCol(arr[i])}"` : "";
-          P.push(`<circle cx="${x}" cy="${y}" r="3.2" class="pt ${cls}"${col}/><text x="${x}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, y + dy))}" text-anchor="${anchor}" class="lab ${cls}"${col}>${word} ${num(arr[i], d)}${unit}</text>`);
+          P.push(`<circle cx="${x}" cy="${y}" r="3.2" class="pt ${cls}"${col}/>`);
+          lab(x, y + dy, `${word} ${num(arr[i], d)}${unit}`, anchor, cls, col);
         });
       };
       ext(blue, TY, "temp", "℃", 1);
@@ -1207,7 +1210,8 @@
         [[hi, "수온 최고", -9], [lo, "수온 최저", 17]].forEach(([i, word, dy], k) => {
           if (k === 1 && Math.abs(wat[hi] - wat[lo]) < .05) return;
           const anchor = i < 2 ? "start" : i > 21 ? "end" : "middle";
-          P.push(`<circle cx="${X(i)}" cy="${TY(wat[i])}" r="3.2" class="pt water"/><text x="${X(i)}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, TY(wat[i]) + dy))}" text-anchor="${anchor}" class="lab water">${word} ${num(wat[i], 1)}℃</text>`);
+          P.push(`<circle cx="${X(i)}" cy="${TY(wat[i])}" r="3.2" class="pt water"/>`);
+          lab(X(i), TY(wat[i]) + dy, `${word} ${num(wat[i], 1)}℃`, anchor, "water");
         });
       }
       ext(dash, WY, "wind", dashUnit, 1);
@@ -1226,7 +1230,7 @@
           if ([a, b, c].some((v) => v == null)) continue;
           const high = b >= a && b > c, low = b <= a && b < c;
           if (!high && !low) continue;
-          P.push(`<text x="${X(h)}" y="${DY(b) + (high ? -8 : 15)}" text-anchor="middle" class="lab tide">${high ? "▲만조" : "▼간조"} ${pad2(h)}:00</text>`);
+          lab(X(h), DY(b) + (high ? -8 : 15), `${high ? "▲만조" : "▼간조"} ${pad2(h)}:00`, "middle", "tide");
         }
       }
       // hourly current speed (model): fastest and slowest marked
@@ -1235,10 +1239,30 @@
         const cv = fin(cur), hi = cur.indexOf(Math.max(...cv)), lo = cur.indexOf(Math.min(...cv));
         [[hi, "유속 최고", -8], [lo, "유속 최저", 15]].forEach(([i, word, dy]) => {
           const anchor = i < 2 ? "start" : i > 21 ? "end" : "middle";
-          P.push(`<circle cx="${X(i)}" cy="${CY(cur[i])}" r="3" class="pt cur"/><text x="${X(i)}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, CY(cur[i]) + dy))}" text-anchor="${anchor}" class="lab cur">${word} ${num(cur[i], 2)}m/s</text>`);
+          P.push(`<circle cx="${X(i)}" cy="${CY(cur[i])}" r="3" class="pt cur"/>`);
+          lab(X(i), CY(cur[i]) + dy, `${word} ${num(cur[i], 2)}m/s`, anchor, "cur");
         });
       }
       [0, 3, 6, 9, 12, 15, 18, 21].forEach((h) => P.push(`<text x="${m.l + slot() * h}" y="${H - 6}" class="ax">${pad2(h)}</text>`));
+      // Labels: fixed ones first, then each other label tries its own spot and, if that overlaps
+      // a label already placed, moves up or down in 13 px steps until it finds a free spot.
+      const meas = document.createElement("canvas").getContext("2d");
+      meas.font = '600 11.5px "Pretendard Variable", Pretendard, sans-serif';
+      const placed = [];
+      const boxOf = (l, y) => { const w = meas.measureText(l.text).width + 4; const x0 = l.anchor === "start" ? l.x : l.anchor === "end" ? l.x - w : l.x - w / 2; return { x0, x1: x0 + w, y0: y - 11, y1: y + 3 }; };
+      const hits = (b) => placed.some((q) => b.x0 < q.x1 && b.x1 > q.x0 && b.y0 < q.y1 && b.y1 > q.y0);
+      const yMin = m.t + 10, yMax = H - m.b - 4;
+      [...LBL.filter((l) => l.fixed), ...LBL.filter((l) => !l.fixed)].forEach((l) => {
+        let y = Math.max(yMin, Math.min(yMax, l.y));
+        if (!l.fixed) {
+          for (const off of [0, -13, 13, -26, 26, -39, 39, -52, 52, -65, 65]) {
+            const ty = Math.max(yMin, Math.min(yMax, l.y + off));
+            if (!hits(boxOf(l, ty))) { y = ty; break; }
+          }
+        }
+        placed.push(boxOf(l, y));
+        P.push(`<text x="${l.x}" y="${y}" text-anchor="${l.anchor}" class="lab ${l.cls}"${l.style}>${l.text}</text>`);
+      });
       P.push(`<line class="cur" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)" stroke-dasharray="2 3"/>`);
       P.push(`<rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`);
       svgBox.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="시간대별 점수와 기온, 바람">${P.join("")}</svg>`;
