@@ -1391,3 +1391,10 @@ body[data-view="home"] main { padding-bottom: 0; }
   .notes-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 4px; }
   .notes-tabs button { white-space: nowrap; padding: 9px 2px; text-align: center; }
 }
+
+/* v2.2.23 휴대폰: 옆으로 쓸어 넘긴 방향에서 다음 메뉴가 밀려 들어옵니다. */
+.view.slide-next { animation: slideNext .32s ease both; }
+.view.slide-prev { animation: slidePrev .32s ease both; }
+@keyframes slideNext { from { opacity: 0; transform: translateX(48px); } to { opacity: 1; transform: none; } }
+@keyframes slidePrev { from { opacity: 0; transform: translateX(-48px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .view.slide-next, .view.slide-prev { animation: none; } }

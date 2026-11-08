@@ -55,6 +55,7 @@
   .readout { position:absolute; left:10px; bottom:116px; max-width:calc(100% - 20px); z-index:3; pointer-events:none; font-size:11px; color:#fff; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
   .views { position:absolute; left:44px; top:10px; right:10px; z-index:3; display:flex; flex-wrap:wrap; gap:4px; }
   .views button { font-size:11px; padding:3px 7px; line-height:1.2; }
+  .views .dash { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700; }   /* 크게 보기 창에서 대시보드로 */
   .legend { position:absolute; left:10px; bottom:10px; z-index:3; color:#fff; font-size:12px; text-shadow:0 0 2px var(--neon), 0 0 6px var(--neon), 0 0 12px var(--neon); }
   .cond { position:absolute; left:206px; bottom:10px; right:10px; z-index:3; pointer-events:none; color:#fff; font-size:11px; line-height:1.35; text-shadow:0 0 2px #000, 0 0 5px #000; }
   .cond { display:flex; align-items:flex-start; gap:8px; }
@@ -149,7 +150,7 @@
       <button id="resetIcon" aria-label="설정 처음으로" title="설정 처음으로"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg></button>
     </div>
     <div class="readout" id="readout">끌기 회전 · 오른쪽 끌기 이동 · Ctrl+스크롤, +/− 확대 · 더블클릭 다가가기</div>
-    <div class="views"><button data-view="focus">송어터</button><button data-view="cage">가두리</button><button data-view="west">유입구</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="all">전체</button></div>
+    <div class="views"><button id="toDash" class="dash" hidden title="대시보드로 돌아가기">← 대시보드</button><button data-view="focus">송어터</button><button data-view="cage">가두리</button><button data-view="west">유입구</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="all">전체</button></div>
     <div class="legend" id="legend"></div>
     <div class="clock" id="clock" aria-live="off" title="지금 보고 있는 시각"></div>
     <div class="cond" id="cond" aria-live="polite"></div>
@@ -229,6 +230,15 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 (function () {
+  // '새 창으로 크게 보기'로 따로 열렸을 때만 '대시보드' 버튼을 보입니다. 대시보드 창이 열려 있으면 그 창으로 돌아가고 이 창은 닫습니다.
+  if (window.top === window) {
+    const back = document.getElementById("toDash");
+    back.hidden = false;
+    back.onclick = () => {
+      try { if (window.opener && !window.opener.closed && window.opener.location.host === location.host) { window.opener.focus(); window.close(); return; } } catch (e) { /* 다른 창은 건드리지 않습니다 */ }
+      location.href = "../index.html#notes";
+    };
+  }
   if (!window.THREE || !THREE.OrbitControls) {
     document.querySelector(".stage").innerHTML = '<p class="fail">3D 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 열어 주세요.</p>';
     return;

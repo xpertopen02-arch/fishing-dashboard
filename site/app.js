@@ -1533,6 +1533,12 @@
   }
 
   // The fish logo: a short welcome over the dusk picture, then the 홈 screen.
+  // 날씨를 늦게 받았으면 떠 있는 환영 화면에 오늘 점수 줄을 채웁니다.
+  function fillWelcome() {
+    const w = $(".welcome"), p = placeById[state.place], r = state.scores?.[p.id];
+    if (!w || !r || w.querySelector(".wl-today")) return;
+    w.querySelector("em").insertAdjacentHTML("beforebegin", `<p class="wl-today">${esc(p.id)} · ${VERDICT[scoreTone(r.score)]} ${r.score}점 · 최고 ${hhmm(r.from)}</p>`);
+  }
   function showWelcome() {
     if ($(".welcome")) return;
     // the logo also brings the date back to today
@@ -1544,7 +1550,7 @@
     w.innerHTML = `<div class="wl-in"><span class="wl-logo">${icon("fish")}</span><h1>FISHING INTELLIGENCE</h1><p>데이터로 예측하고, 경험으로 완성하는 스마트 낚시</p>
       ${r ? `<p class="wl-today">${esc(p.id)} · ${VERDICT[scoreTone(r.score)]} ${r.score}점 · 최고 ${hhmm(r.from)}</p>` : ""}<em>Good Fishing!</em></div>`;
     document.body.append(w);
-    const done = () => { w.classList.add("out"); setTimeout(() => w.remove(), REDUCED ? 0 : 500); go("home"); };
+    const done = () => { if (w.classList.contains("out")) return; w.classList.add("out"); setTimeout(() => w.remove(), REDUCED ? 0 : 500); go("home"); };
     w.addEventListener("click", done);
     setTimeout(done, REDUCED ? 600 : 1800);
   }
@@ -2094,7 +2100,7 @@
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
       ${notesTabs()}
-      <div class="panel"><p class="sub">${m.sub} 값은 모두 가설입니다. <a href="${m.src}" target="_blank" rel="noopener noreferrer">새 창으로 크게 보기</a></p>
+      <div class="panel"><p class="sub">${m.sub} 값은 모두 가설입니다. <a href="${m.src}" target="_blank">새 창으로 크게 보기</a></p>
         <iframe class="model-frame" src="${m.src}" title="${m.title}"></iframe>
       </div>`;
   }
@@ -2346,6 +2352,7 @@
     const on = $(".tabs button.on"), ink = $(".tab-ink");
     if (on) { ink.style.left = `${on.offsetLeft}px`; ink.style.width = `${on.offsetWidth}px`; }
   }
+  let slideDir = "";
   function go(view, push = true) {
     if (view === "library" && !IS_BETA) view = "plan";   // 자료 탐색은 베타에서만 엽니다.
     const views = ["home", "plan", "map", "log", ...(IS_BETA ? ["library"] : []), ...(window.FISH_NOTES || window.FISH_RESEARCH_GUIDE ? ["notes"] : [])];
@@ -2354,7 +2361,9 @@
     ["home", "plan", "map", "log", "library", "notes"].forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
     document.body.dataset.view = view;
     const sec = $(`#view-${view}`);
+    sec.classList.remove("slide-next", "slide-prev");
     sec.style.animation = "none"; void sec.offsetWidth; sec.style.animation = "";
+    if (slideDir) { sec.classList.add(`slide-${slideDir}`); slideDir = ""; }   // 옆으로 쓸어 넘긴 방향에서 들어옵니다.
     $$(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.go === view));
     moveInk();
     if (view === "home") renderHome();
@@ -2715,8 +2724,41 @@
   new MutationObserver(queueFit).observe(document.querySelector("main"), { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden"] });
   window.addEventListener("resize", queueFit);
   if (document.fonts?.ready) document.fonts.ready.then(queueFit);
-  go(location.hash.slice(1) || "plan", false);
-  loadNotes(location.hash.slice(1));
-  loadAll();
+  // 열 때는 언제나 홈: 물고기 로고를 누른 것처럼 환영 화면을 잠깐 보여 준 뒤 홈으로 갑니다.
+  // 3D 페이지의 '연구 노트' 링크(#notes)로 연 경우만 연구 노트로 바로 갑니다.
+  const startHash = location.hash.slice(1);
+  if (startHash === "notes") go("notes", false); else { go("home"); showWelcome(); }
+  loadNotes(startHash);
+  loadAll().then(fillWelcome, () => {});
+  // 휴대폰: 화면을 옆으로 쓸면 그 방향으로 메뉴가 넘어갑니다 (홈 → 지금 → 지도 → 기록 → 자료 → 연구).
+  // 지도, 옆으로 스크롤되는 줄, 입력칸, 3D 화면 위에서는 원래 동작을 그대로 둡니다.
+  (() => {
+    const TOUCH = matchMedia("(max-width: 720px), (pointer: coarse)");
+    let sx = 0, sy = 0, t0 = 0, armed = false;
+    const blocked = (el) => {
+      for (let e = el; e && e !== document.body; e = e.parentElement) {
+        if (e.matches && e.matches(".leaflet-container, input, select, textarea, iframe, dialog, .welcome, .lightbox, .drawer")) return true;
+        const cs = getComputedStyle(e);
+        if ((cs.overflowX === "auto" || cs.overflowX === "scroll") && e.scrollWidth > e.clientWidth + 4) return true;
+      }
+      return false;
+    };
+    document.addEventListener("touchstart", (e) => {
+      armed = TOUCH.matches && e.touches.length === 1 && !blocked(e.target);
+      if (!armed) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; t0 = Date.now();
+    }, { passive: true });
+    document.addEventListener("touchend", (e) => {
+      if (!armed) return;
+      armed = false;
+      const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - t0 > 700) return;
+      const order = [...document.querySelectorAll(".tabs [data-go]")].filter((b) => !b.hidden).map((b) => b.dataset.go), i = order.indexOf(state.view);
+      const next = i < 0 ? null : order[i + (dx < 0 ? 1 : -1)];
+      if (!next) return;
+      slideDir = dx < 0 ? "next" : "prev";
+      go(next);
+    }, { passive: true });
+  })();
   if (document.fonts?.ready) document.fonts.ready.then(moveInk);
 })();
