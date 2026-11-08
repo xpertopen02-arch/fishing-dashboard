@@ -1381,3 +1381,8 @@ body[data-view="home"] main { padding-bottom: 0; }
   #view-library .hero-line .stat strong { font-size: 24px; }
   #view-library .source-hint { display: block; text-align: right; }
 }
+/* v2.1.14 phone: research tabs in two rows of three, each name on one line */
+@media (max-width: 720px) {
+  .notes-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 4px; }
+  .notes-tabs button { white-space: nowrap; padding: 9px 2px; text-align: center; }
+}
