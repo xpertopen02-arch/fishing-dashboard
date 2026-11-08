@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.0.17", date: "2026-11-08", title: "» 버튼을 표시된 날짜 기준으로",
+    changes: [
+      "» 버튼을 화면에 표시된 날짜 기준으로 바꿈: 한 번 누르면 그 날짜 이후 토요일, 한 번 더 누르면 그 다음 날 일요일. 계속 누르면 다음 주 토요일, 일요일로 이어짐 (예: 11/18 수 → 11/21 토 → 11/22 일)",
+    ],
+  },
+  {
     version: "2.0.16", date: "2026-11-08", title: "날짜 바로가기 버튼",
     changes: [
       "위쪽 막대의 날짜 칸 옆에 작은 버튼 두 개: › 는 하루 뒤로(오늘이면 내일), » 는 이번 주 토요일. 토요일에서 » 를 한 번 더 누르면 일요일, 또 누르면 토요일",

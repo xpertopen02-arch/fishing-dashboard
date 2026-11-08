@@ -2327,13 +2327,12 @@
   setTopH();
   new ResizeObserver(setTopH).observe($(".top"));
   $("#wxBtn").addEventListener("click", refreshWeather);
-  // Date shortcuts: › goes one day on (from today that is tomorrow); » goes to this week's Saturday,
-  // and pressed again on that Saturday, to Sunday (and back).
-  const thisSaturday = () => addDays(TODAY, (6 - parseISO(TODAY).getDay() + 7) % 7 || 7);
+  // Date shortcuts, both counted from the date on screen: › one day on; » the next Saturday after it,
+  // and if the date on screen is already a Saturday, the Sunday after it (so pressing twice gives Sat, then Sun).
   $("#dNext").addEventListener("click", () => selectDate(addDays(state.date, 1)));
   $("#dWeekend").addEventListener("click", () => {
-    const sat = thisSaturday();
-    selectDate(state.date === sat ? addDays(sat, 1) : sat);
+    const wd = parseISO(state.date).getDay();
+    selectDate(addDays(state.date, wd === 6 ? 1 : 6 - wd));
   });
   // Phone view: the same page in a 390 px wide frame, so the phone layout can be checked on a PC.
   // Inside the frame the button is hidden, so frames never nest.
