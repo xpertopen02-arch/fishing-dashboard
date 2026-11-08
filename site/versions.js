@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.0.21", date: "2026-11-08", title: "검색 칸 글자 넘침 수정",
+    changes: [
+      "위쪽 막대의 검색 칸이 좁아질 때 안내 글자가 둥근 칸 밖으로 나가 옆 버튼(민물) 밑까지 보이던 문제 수정: 칸 밖으로 넘치는 글자는 잘라서 '…'로 줄이고 보이지 않게 함",
+    ],
+  },
+  {
     version: "2.0.20", date: "2026-11-08", title: "바람 색 구간에 단위",
     changes: [
       "바람 색 구간 글자에 단위를 붙임: '~2m/s 2~5m/s 5m/s~' (세부 바람 그래프 제목 옆과 24시간 그래프 범례)",
