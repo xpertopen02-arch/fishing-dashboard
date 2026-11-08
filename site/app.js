@@ -1136,7 +1136,7 @@
         <span class="ri">${icon("fish")}</span>
         <span class="rn"><b>${esc(x.id)}</b><small>${x.from}~${x.to}시 · ${esc(whyText(x))}</small></span>
         <span class="rs mono tone-${scoreTone(x.score)}">${x.score}</span></button></li>`).join("")}</ol>
-      ${p.id === "덕봉" ? `<a class="side-link" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}덕봉 3D 자리 분석</a>` : ""}
+      ${p.id === "덕봉" ? `<a class="side-link" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}덕봉 3D 자리 분석</a>` : ""}${p.id === "한터" ? `<a class="side-link" href="research/hanteo3d.html" target="_blank" rel="noopener">${icon("cube")}한터 3D 자리 분석</a>` : ""}
       <details class="v-how"><summary>점수 계산 방법</summary><p>시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꿔 가중 기하평균을 내고 제곱합니다. 하루 점수는 가장 좋은 연속 2~4시간(70%)과 해 있는 시간 전체(30%)의 평균입니다. 입질은 수온·시간대·기압만, 편의는 바람·강수${p.type === "바다" ? "·파고" : ""}만으로 같은 방식으로 낸 값입니다. 예보 신뢰도는 예보까지 남은 날수로 정한 어림값입니다. 가중치는 가정이며 실제 조과로 검증하지 않았습니다.</p></details>`;
   }
 
@@ -1577,7 +1577,7 @@
       <div class="mp-chips">${["", ...TYPES].map((t) => `<button class="${state.mapType === t ? "on" : ""}" data-maptype="${t}">${t || "전체"}</button>`).join("")}</div>
       ${body}
       <div class="mp-info"><p>${esc(p.address)}</p><p>위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
-        <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}${p.id === "덕봉" ? '<a class="chip" href="research/deokbong3d.html" target="_blank" rel="noopener">덕봉 3D 자리 분석</a>' : ""}</div></div>`;
+        <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}${p.id === "덕봉" ? '<a class="chip" href="research/deokbong3d.html" target="_blank" rel="noopener">덕봉 3D 자리 분석</a>' : ""}${p.id === "한터" ? '<a class="chip" href="research/hanteo3d.html" target="_blank" rel="noopener">한터 3D 자리 분석</a>' : ""}</div></div>`;
   }
 
   const docBtn = (pg, i = 0, cls = "", sub = "") => `<button class="doc ${cls}" style="--i:${i}" data-open="${pg.id}"><b>${esc(pg.title)}</b><span>${esc(sub || `${pg.section} · 수정 ${pg.modified}`)}</span></button>`;
@@ -2018,7 +2018,7 @@
   try { IS_BETA = localStorage.getItem("fishBeta") === "2"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [["study", "수집 자료"], ["model", "덕봉 3D"], ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
+    const tabs = [["study", "수집 자료"], ["model", "덕봉 3D"], ["hanteo", "한터 3D"], ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -2084,12 +2084,17 @@
       <div class="panel">${body}</div>`;
   }
 
-  function renderModel() {
+  const MODELS = {
+    deokbong: { src: "research/deokbong3d.html", title: "덕봉저수지 3D 모델", sub: "저수지 구조를 돌려 보며 날씨와 시각에 따른 추천 자리와 송어 예상 분포를 봅니다." },
+    hanteo: { src: "research/hanteo3d.html", title: "한터 송어낚시터 3D 모델", sub: "한터 송어터(서쪽·동쪽·남쪽 부교 아래 그물 안)를 돌려 보며 날씨와 시각에 따른 추천 자리와 송어 예상 분포를 봅니다. 바닥 높낮이는 최고 6m로 추정한 값이고, 계산 방법은 덕봉 3D와 같습니다." },
+  };
+  function renderModel(key = "deokbong") {
+    const m = MODELS[key];
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
       ${notesTabs()}
-      <div class="panel"><p class="sub">저수지 구조를 돌려 보며 날씨와 시각에 따른 추천 자리와 송어 예상 분포를 봅니다. 값은 모두 가설입니다. <a href="research/deokbong3d.html" target="_blank" rel="noopener noreferrer">새 창으로 크게 보기</a></p>
-        <iframe class="model-frame" src="research/deokbong3d.html" title="덕봉저수지 3D 모델"></iframe>
+      <div class="panel"><p class="sub">${m.sub} 값은 모두 가설입니다. <a href="${m.src}" target="_blank" rel="noopener noreferrer">새 창으로 크게 보기</a></p>
+        <iframe class="model-frame" src="${m.src}" title="${m.title}"></iframe>
       </div>`;
   }
 
@@ -2117,6 +2122,7 @@
     if (window.FISH_VIDEO_GUIDE && state.notes.tab === "video") { renderChapterGuide(window.FISH_VIDEO_GUIDE); return; }
     if (window.FISH_BOOK_GUIDE && state.notes.tab === "book") { renderChapterGuide(window.FISH_BOOK_GUIDE); return; }
     if (state.notes.tab === "model") { renderModel(); return; }
+    if (state.notes.tab === "hanteo") { renderModel("hanteo"); return; }
     if (state.notes.tab === "summary") {
       const d = window.FISH_DEOKBONG_GUIDE, r = window.FISH_RESEARCH_GUIDE;
       renderChapterGuide({ title: "덕봉 정리와 문헌", sub: `${d.sub} ${r.sub}`, chapters: [...d.chapters, ...r.chapters] });
