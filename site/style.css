@@ -1337,3 +1337,16 @@ body[data-view="home"] main { padding-bottom: 0; }
 .kpis > div { container-type: inline-size; min-width: 0; }
 .kpis strong { white-space: nowrap; font-size: clamp(30px, 40cqw, 56px); }
 .stats .big, .stat strong, .hs-best b, .dn-c b { white-space: nowrap; }
+
+/* v2.1.6 phone: 민물/송어/바다 sits on the right of the place name; the date row starts below */
+@media (max-width: 720px) {
+  .top .place-pick { order: 0; min-width: 0; flex: 0 1 auto; }
+  .top .place-pick .pp-text { min-width: 0; overflow: hidden; }
+  .top .place-pick .pp-text b, .top .place-pick .pp-text small { overflow: hidden; text-overflow: ellipsis; }
+  .top .type-toggle, .top .search-open[hidden] + .type-toggle { order: 1; flex: none; flex-basis: auto; margin-left: auto; padding: 0; justify-content: flex-end; }
+  .top .type-toggle button { flex: none; height: 32px; padding: 0 12px; }
+  .top::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
+  .top .top-date { order: 3; }
+  .top .search-open { order: 4; }
+  .top .top-wx { order: 5; }
+}

@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.6", date: "2026-11-08", title: "휴대폰: 낚시 종류 버튼을 위로",
+    changes: [
+      "휴대폰 화면에서 민물/송어/바다 버튼을 맨 윗줄 낚시터 이름 오른쪽으로 옮김. 위쪽 머리 부분이 한 줄 줄어 아래 내용이 더 많이 보임",
+      "360×800 화면에서 지금·지도·홈 화면을 확인함",
+    ],
+  },
+  {
     version: "2.1.5", date: "2026-11-08", title: "큰 숫자 글자 크기 자동 조정",
     changes: [
       "휴대폰 화면에서 입질·편의 점수 '100'이 '10'과 '0'으로 줄바꿈되던 문제를 고침. 숫자는 항상 한 줄로 나옴",
