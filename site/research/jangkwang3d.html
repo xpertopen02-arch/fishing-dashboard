@@ -375,9 +375,18 @@
     const b = D.simsOff[st.f][st.s][h][z], f = shareByZone[z];
     return [0, 1, 2, 3].map((i) => a[i] * f + b[i] * (1 - f)).concat(f >= .5 ? a[4] : b[4]);
   }
-  // 대포형 수차: 물이 섞이고 산소가 늘어나는 범위는 반경 4~5m입니다. 쏘는 방향은 아직 모릅니다.
+  // 장광 수차: 연안데크에서 정면(물 쪽, 물가와 직각)으로 물레방아가 돌아 앞쪽으로 물을 튕겨 쳐 올립니다 (사용자).
+  const wheelDir = D.wheels.map((w) => { let best = null; D.decks.forEach(([a, b]) => { const d = segDist(w[0], w[1], a, b); if (!best || d < best.d) best = { d, a, b }; });
+    const dx = best.b[0] - best.a[0], dy = best.b[1] - best.a[1], l = Math.hypot(dx, dy) || 1; let nx = -dy / l, ny = dx / l;
+    if (!inBox(w[0] + nx * 20, w[1] + ny * 20)) { nx = -nx; ny = -ny; } return [nx, ny]; });
+  const WHEEL_FWD = 2.5, WHEEL_LEN = 5, WHEEL_WID = 3;
   const WHEEL_RADIUS = 4.5;   // 물레방아형: 물을 튕겨 위로 쳐 올려 산소를 녹이고 주변을 섞는 범위 (가정)
-  const wheelAt = (x, y) => Math.max(0, ...D.wheels.flatMap((w, i) => (wheelOn(i) ? [Math.exp(-(((Math.hypot(x - w[0], y - w[1]) * M) / WHEEL_RADIUS) ** 2))] : [])));
+  // 앞쪽으로 길게: 수차 앞 FWD m를 가운데로 앞뒤 LEN m, 옆 WID m 범위에 산소와 섞임이 늘어납니다.
+  const wheelAt = (x, y) => Math.max(0, ...D.wheels.flatMap((w, i) => {
+    if (!wheelOn(i)) return [];
+    const [ux, uy] = wheelDir[i], dx = (x - w[0]) * M, dy = (y - w[1]) * M, a = dx * ux + dy * uy, s = -dx * uy + dy * ux;
+    return [Math.exp(-(((a - WHEEL_FWD) / WHEEL_LEN) ** 2) - (s / WHEEL_WID) ** 2)];
+  }));
   const kOf = (clean, st) => (st.k === 2 ? 2 - 1.2 * (st.rain ? 0 : clean) : st.k);   // 탁함 2/m, 맑은 물에 가까울수록 0.8/m
   cells.forEach((c) => { c.clean = cleanAt(c.x, c.y); c.rainF = rainAt(c.x, c.y); c.wheel = wheelAt(c.x, c.y); });
   const chanDist = (x, y) => Math.min(...D.channels.flatMap((p) => p.slice(0, -1).map((a, i) => segDist(x, y, a, p[i + 1])))) * M;
@@ -809,9 +818,9 @@ attribute vec2 aSwim;`)
     wheelRings.forEach((m, i) => { m.visible = on[i]; });
   }
   D.wheels.forEach((p, i) => {
-    // 물레방아형 수차: 부표 두 개 위의 굴대에 날개 바퀴가 돌며 물을 튕겨 위로 쳐 올립니다. 송어터 가운데 쪽으로 물을 뿌립니다.
+    // 물레방아형 수차: 부표 두 개 위의 굴대에 날개 바퀴가 돌며 물을 튕겨 위로 쳐 올립니다. 연안데크에서 정면으로 물을 뿌립니다.
     const g = new THREE.Group(); g.position.set(wx(p[0]), 0, wz(p[1])); fac.add(g);
-    g.rotation.y = -Math.atan2(wz(BOX_C[1]) - wz(p[1]), wx(BOX_C[0]) - wx(p[0]));   // 앞(+x)이 송어터 가운데를 봅니다.
+    g.rotation.y = -Math.atan2(wheelDir[i][1], wheelDir[i][0]);   // 앞(+x)이 물가에서 정면(물 쪽)을 봅니다.
     const metal = new THREE.MeshLambertMaterial({ color: 0x4a5560 }), blue = new THREE.MeshLambertMaterial({ color: 0x2f6fb3 });
     [-.95, .95].forEach((z) => { const f = new THREE.Mesh(new THREE.BoxGeometry(2.4, .32, .38), blue); f.position.set(0, .12, z); g.add(f); });   // 부표
     const axle = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.1, 10), metal); axle.rotation.x = Math.PI / 2; axle.position.set(0, .55, 0); g.add(axle);

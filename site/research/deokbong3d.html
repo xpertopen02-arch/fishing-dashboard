@@ -369,9 +369,23 @@
     const b = D.simsOff[st.f][st.s][h][z], f = shareByZone[z];
     return [0, 1, 2, 3].map((i) => a[i] * f + b[i] * (1 - f)).concat(f >= .5 ? a[4] : b[4]);
   }
-  // 대포형 수차: 물이 섞이고 산소가 늘어나는 범위는 반경 4~5m입니다. 쏘는 방향은 아직 모릅니다.
+  // 덕봉 수차: 물속에서 프로펠러를 돌려 앞쪽으로 물을 강하게 밀어내며 기포를 만듭니다 (사용자).
+  // 방향: 가장 가까운 부교나 연안데크에서 수직 정면(물 쪽)으로 밀어냅니다 (사용자).
+  const wheelDir = D.wheels.map((w) => {
+    let best = null;
+    [D.causeway, ...stands.map((st) => [st.a, st.b])].forEach(([a, b]) => { const d = segDist(w[0], w[1], a, b); if (!best || d < best.d) best = { d, a, b }; });
+    const dx = best.b[0] - best.a[0], dy = best.b[1] - best.a[1], l = Math.hypot(dx, dy) || 1; let nx = -dy / l, ny = dx / l;
+    if (nx * (250 - w[0]) + ny * (510 - w[1]) < 0) { nx = -nx; ny = -ny; }   // 서쪽 못 물 쪽으로
+    return [nx, ny];
+  });
+  const WHEEL_FWD = 3.5, WHEEL_LEN = 6, WHEEL_WID = 2.5;
   const WHEEL_RADIUS = 4.5;
-  const wheelAt = (x, y) => Math.max(0, ...D.wheels.flatMap((w, i) => (wheelOn(i) ? [Math.exp(-(((Math.hypot(x - w[0], y - w[1]) * M) / WHEEL_RADIUS) ** 2))] : [])));
+  // 앞쪽으로 길게: 수차 앞 FWD m를 가운데로 앞뒤 LEN m, 옆 WID m 범위에 산소와 섞임이 늘어납니다.
+  const wheelAt = (x, y) => Math.max(0, ...D.wheels.flatMap((w, i) => {
+    if (!wheelOn(i)) return [];
+    const [ux, uy] = wheelDir[i], dx = (x - w[0]) * M, dy = (y - w[1]) * M, a = dx * ux + dy * uy, s = -dx * uy + dy * ux;
+    return [Math.exp(-(((a - WHEEL_FWD) / WHEEL_LEN) ** 2) - (s / WHEEL_WID) ** 2)];
+  }));
   const kOf = (clean, st) => (st.k === 2 ? 2 - 1.2 * (st.rain ? 0 : clean) : st.k);   // 탁함 2/m, 맑은 물에 가까울수록 0.8/m
   cells.forEach((c) => { c.clean = cleanAt(c.x, c.y); c.rainF = rainAt(c.x, c.y); c.wheel = wheelAt(c.x, c.y); });
   const chanDist = (x, y) => Math.min(...D.channels.flatMap((p) => p.slice(0, -1).map((a, i) => segDist(x, y, a, p[i + 1])))) * M;
@@ -779,7 +793,7 @@ attribute vec2 aSwim;`)
     g.visible = false; relMarks[k] = g; scene.add(g);
   });
   // 수차
-  const wheelMeshes = [], wheelRings = [];
+  const wheelMeshes = [], wheelRings = [], wheelActive = [], wheelProps = [], wheelBubbles = [];
   function refreshWheels() {
     const on = D.wheels.map((_, i) => wheelOn(i));
     wheelMask = on.map((v) => (v ? 1 : 0)).join("");
@@ -789,11 +803,24 @@ attribute vec2 aSwim;`)
     cells.forEach((c) => { c.wheel = wheelAt(c.x, c.y); });
     cutCols.forEach((c) => { c.wheel = wheelAt(c.x, c.y); });
     wheelMeshes.forEach((m, i) => m.material.color.setHex(on[i] ? 0xe8862e : 0x6d7278));
+    wheelActive.forEach((m, i) => { m.visible = on[i]; });   // 끈 수차는 기포와 물살이 없습니다.
     wheelRings.forEach((m, i) => { m.visible = on[i]; });
   }
   D.wheels.forEach((p, i) => {
-    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2.2, 16), new THREE.MeshLambertMaterial({ color: 0xe8862e }));
-    wheel.rotation.z = Math.PI / 2; wheel.position.set(wx(p[0]), .7, wz(p[1])); fac.add(wheel); wheelMeshes.push(wheel);
+    // 물 위의 부표와 모터, 물속으로 내려간 축 끝의 프로펠러. 앞(+x)으로 물을 밀어내며 기포가 퍼집니다.
+    const g = new THREE.Group(); g.position.set(wx(p[0]), 0, wz(p[1])); g.rotation.y = -Math.atan2(wheelDir[i][1], wheelDir[i][0]); fac.add(g);
+    const float = new THREE.Mesh(new THREE.CylinderGeometry(.75, .75, .3, 18), new THREE.MeshLambertMaterial({ color: 0x3d4650 })); float.position.y = .12; g.add(float);
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.35, .42, .7, 14), new THREE.MeshLambertMaterial({ color: 0xe8862e })); wheel.position.y = .6; g.add(wheel); wheelMeshes.push(wheel);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 1.2, 8), new THREE.MeshLambertMaterial({ color: 0x8a939c })); shaft.position.set(-.15, -.35, 0); shaft.rotation.z = -.35; g.add(shaft);
+    const prop = new THREE.Group(); prop.position.set(.1, -.9, 0); g.add(prop); wheelProps.push(prop);
+    const bladeMat = new THREE.MeshLambertMaterial({ color: 0xc9cfd5, side: THREE.DoubleSide });
+    for (let b = 0; b < 3; b++) { const bl = new THREE.Mesh(new THREE.BoxGeometry(.04, .55, .18), bladeMat); bl.position.y = .28; const arm = new THREE.Group(); arm.rotation.x = b / 3 * Math.PI * 2; bl.rotation.y = .5; arm.add(bl); prop.add(arm); }
+    const act = new THREE.Group(); g.add(act); wheelActive.push(act);
+    const NB = 90, bpos = new Float32Array(NB * 3), bgeo = new THREE.BufferGeometry(); bgeo.setAttribute("position", new THREE.BufferAttribute(bpos, 3));
+    const bubbles = new THREE.Points(bgeo, new THREE.PointsMaterial({ color: 0xffffff, size: .4, transparent: true, opacity: .9, depthWrite: false }));
+    bubbles.frustumCulled = false; act.add(bubbles); wheelBubbles.push({ bpos, bgeo, seed: Array.from({ length: NB }, (_, k) => { const r = rng(900 + i * 97 + k); return [r(), r(), r()]; }) });
+    const plume = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }));
+    plume.rotation.x = -Math.PI / 2; plume.position.set(4.2, .2, 0); plume.scale.set(3.8, 1.3, 1); plume.renderOrder = 4; act.add(plume);   // 앞쪽으로 길게 흰 물살
     const reach = new THREE.Mesh(new THREE.RingGeometry(WHEEL_RADIUS - .25, WHEEL_RADIUS, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .6, side: THREE.DoubleSide, depthWrite: false }));
     reach.rotation.x = -Math.PI / 2; reach.position.set(wx(p[0]), .3, wz(p[1])); fac.add(reach); wheelRings.push(reach);
     texts.add(label(`수차 ${i + 1}`, wx(p[0]), 4.5, wz(p[1])));
@@ -806,6 +833,17 @@ attribute vec2 aSwim;`)
     const boil = new THREE.Mesh(new THREE.CircleGeometry(1.6, 32), mat()); boil.rotation.x = -Math.PI / 2; boil.renderOrder = 4; g.add(boil);
     return { g, rings, boil };
   });
+  function drawProps(t) {
+    wheelProps.forEach((pr, i) => { if (wheelOn(i)) pr.rotation.x = t * 14 + i; });
+    wheelBubbles.forEach((B, i) => {
+      if (!wheelOn(i)) return;
+      B.seed.forEach(([s1, s2, s3], k) => {   // 프로펠러에서 앞으로 밀려가며 떠오르고 옆으로 퍼집니다.
+        const u = (t * .32 + s1) % 1, x = .2 + u * 8, y = -.9 + Math.min(1, u * 2.2) * 1 + .05 * Math.sin(t * 9 + k), z = (s2 - .5) * (.3 + u * 3.2);
+        B.bpos[k * 3] = x; B.bpos[k * 3 + 1] = Math.min(.18, y); B.bpos[k * 3 + 2] = z + .1 * Math.sin(t * 3 + s3 * 6);
+      });
+      B.bgeo.attributes.position.needsUpdate = true;
+    });
+  }
   function drawRipples(t) {
     ripples.forEach((r, i) => {
       r.g.visible = wheelOn(i) && water.visible;
@@ -1508,7 +1546,7 @@ attribute vec2 aSwim;`)
     if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }
     controls.update();
     const under = camera.position.y < 0;
-    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); drawRipples(now); window.__lastT = now; fishT += Math.min(.1, now - (window.__fishPrev ?? now)) * fishMul; window.__fishPrev = now; drawFish(fishT); renderer.render(scene, camera); })();
+    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); drawRipples(now); drawProps(now); window.__lastT = now; fishT += Math.min(.1, now - (window.__fishPrev ?? now)) * fishMul; window.__fishPrev = now; drawFish(fishT); renderer.render(scene, camera); })();
   window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }), xLine, M };
 })();
 </script>
