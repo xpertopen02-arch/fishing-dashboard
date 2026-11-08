@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.5", date: "2026-11-08", title: "큰 숫자 글자 크기 자동 조정",
+    changes: [
+      "휴대폰 화면에서 입질·편의 점수 '100'이 '10'과 '0'으로 줄바꿈되던 문제를 고침. 숫자는 항상 한 줄로 나옴",
+      "큰 숫자(입질·편의 점수, 기록 탭 통계 카드, 홈의 최고 시각 등)가 칸보다 넓으면 글자 크기가 칸에 맞게 자동으로 줄어듦. 360×800 화면에서 '100'과 '10000'으로 확인함",
+    ],
+  },
+  {
     version: "2.1.4", date: "2026-11-08", title: "오늘로 돌아가기",
     changes: [
       "왼쪽 위 물고기 로고를 누르면 날짜가 오늘로 돌아간 뒤 환영 화면과 홈으로 이동",

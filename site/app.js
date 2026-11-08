@@ -2686,6 +2686,27 @@
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     navigator.serviceWorker.register("sw.js").catch(() => { /* the site still works online without it */ });
   }
+  // Big numbers shrink on their own when they would not fit their box (e.g. "100" in a narrow
+  // phone card), so they never wrap onto a second line or spill out.
+  const FIT_SEL = ".kpis strong, .stats .big, .stat strong, .hs-best b, .dn-c b";
+  let fitQueued = false;
+  const fitNumbers = () => {
+    fitQueued = false;
+    document.querySelectorAll(FIT_SEL).forEach((el) => {
+      el.style.fontSize = "";
+      const room = el.clientWidth;
+      if (!room) return;
+      const need = el.scrollWidth;
+      if (need > room) {
+        const fs = parseFloat(getComputedStyle(el).fontSize);
+        el.style.fontSize = Math.max(14, Math.floor(fs * room / need * 0.98)) + "px";
+      }
+    });
+  };
+  const queueFit = () => { if (!fitQueued) { fitQueued = true; requestAnimationFrame(fitNumbers); } };
+  new MutationObserver(queueFit).observe(document.querySelector("main"), { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden"] });
+  window.addEventListener("resize", queueFit);
+  if (document.fonts?.ready) document.fonts.ready.then(queueFit);
   go(location.hash.slice(1) || "plan", false);
   loadNotes(location.hash.slice(1));
   loadAll();
