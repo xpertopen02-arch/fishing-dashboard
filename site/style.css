@@ -1138,3 +1138,27 @@ main { max-width: none; padding: 0 0 80px; }
   .map-panel { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
   .mapview.panel-off .map-card { height: 100%; }
 }
+
+/* v2.0.26: 360 x 800 phones — the place picker opens as a sheet the width of the screen */
+@media (max-width: 720px) {
+  .place-pick .place-box { position: fixed; top: calc(var(--topH, 97px) + 4px); left: 8px; right: 8px; width: auto; max-height: 64vh; overflow-y: auto; padding: 10px; }
+  .place-row { gap: 5px; }
+  .place-row > b { min-width: 36px; font-size: 12.5px; }
+  .chip { padding: 4px 8px; }
+}
+@media (max-width: 380px) {
+  .cc > div { padding-left: 12px; padding-right: 12px; }
+  .verdict-row .verdict-word { font-size: 46px; }
+  .signal { width: 26px; }
+  .kpis { gap: 8px; }
+  .kpis strong { font-size: 42px; }
+  .tiles4 { gap: 4px; }
+  .tile4 b { font-size: 14px; }
+  .mid-title { font-size: 23px; }
+  .cal { gap: 3px; }
+  .top > * { padding: 0 6px; }
+  .top-date input { font-size: 13px; padding: 6px 6px; }
+  .dnav { width: 24px; }
+  .stats .big { font-size: 40px; }
+  .page-head h1 { font-size: 28px; }
+}
