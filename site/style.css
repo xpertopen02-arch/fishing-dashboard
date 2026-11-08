@@ -1368,3 +1368,9 @@ body[data-view="home"] main { padding-bottom: 0; }
   #ccLeft > .lead { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
   #ccLeft > .verdict-row { justify-content: center; }
 }
+/* v2.1.11 phone: the year picker sits to the right of the page title, centred on the title block */
+@media (max-width: 720px) {
+  .page-head { flex-direction: row; align-items: center; justify-content: space-between; }
+  .page-head .ph-tool { flex: none; }
+  .page-head .ph-tool select { min-width: 110px; }
+}

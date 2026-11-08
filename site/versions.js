@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.11", date: "2026-11-08", title: "휴대폰: 기록의 연도 선택을 제목 옆으로",
+    changes: [
+      "휴대폰 화면 '기록'에서 제목 아래에 있던 연도 선택을 '기록' 제목 오른쪽으로 옮기고, 제목과 설명 두 줄의 가운데 높이에 맞춤 (360×800에서 확인)",
+    ],
+  },
+  {
     version: "2.1.10", date: "2026-11-08", title: "휴대폰: 판단 부분 가운데로, 설명 상자",
     changes: [
       "휴대폰 화면 '지금'에서 '판단 · 오늘' 줄과 신호등·출조 추천 글자를 가운데로 맞춤",
