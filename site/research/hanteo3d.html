@@ -851,10 +851,10 @@ attribute vec2 aSwim;`)
   const addDisc = (px, py, r, color, op, parent = mapLayer) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(wx(px), .25, wz(py)); parent.add(m); };
   D.mapSpots.forEach((s) => { addDisc(s[0], s[1], 2.6, 0xc8d84a, .55, wormLayer); });
 
-  // 수온 단면: 가두리에서 송어터 가운데를 지나 남쪽 그물 밖까지 남북으로 자른 면
+  // 수온 단면과 수심 눈금: 가두리 가운데에서 서쪽, 동쪽 부교와 나란하게(남북으로) 남쪽 그물까지 내려오는 선
   const cutCols = [], ROWS = 9;
   for (let t = 0; t <= 1; t += 1 / 80) {
-    const x = 767 - 20 * t, y = 962 + 186 * t, n = Math.round((y - D.crop[1]) / G.step) * G.nx + Math.round((x - D.crop[0]) / G.step), d = G.depth[n];
+    const x = D.cage[0], y = D.cage[1] + (BX.y2 - 1 - D.cage[1]) * t, n = Math.round((y - D.crop[1]) / G.step) * G.nx + Math.round((x - D.crop[0]) / G.step), d = G.depth[n];
     if (d) cutCols.push({ x, y, d, z: G.zones[n], clean: cleanAt(x, y), rainF: rainAt(x, y), wheel: wheelAt(x, y) });
   }
   const cutPos = new Float32Array(cutCols.length * ROWS * 3), cutCol = new Float32Array(cutCols.length * ROWS * 3), cutIdx = [];
