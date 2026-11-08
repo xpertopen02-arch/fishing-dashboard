@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.0.19", date: "2026-11-08", title: "그래프 제목 옆 색 구간 글자 겹침 수정",
+    changes: [
+      "세부 그래프 제목 옆의 색 구간 글자(기온 '0℃ 미만 0~10℃ 10℃~', 바람 '~2 2~5 5~')가 한데 겹쳐 보이던 문제 수정. 범례의 색 칩 크기(12px) 규칙이 글자에도 적용되던 것이 원인",
+    ],
+  },
+  {
     version: "2.0.18", date: "2026-11-08", title: "그래프 숫자 겹침 해소",
     changes: [
       "24시간 그래프의 최고·최저 기온, 풍속, 수온, 유속, 만조·간조, 점수 글자가 서로 겹치던 문제 수정: 글자를 하나씩 놓으면서 앞서 놓은 글자와 겹치면 13px씩 위아래로 옮겨 빈 자리에 둠(점수와 '지금'은 막대 위 고정)",

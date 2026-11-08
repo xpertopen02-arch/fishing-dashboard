@@ -1106,3 +1106,7 @@ main { max-width: none; padding: 0 0 80px; }
 /* v2.0.18: chart labels get a halo in the page colour so lines running under them do not cut through the digits */
 .bigchart .lab { paint-order: stroke fill; stroke: var(--plane); stroke-width: 3.5px; stroke-linejoin: round; }
 .bigchart .lab[style*="fill"] { stroke: var(--plane); }
+
+/* the coloured range labels are text, not colour chips: undo the legend chip size so they do not pile up */
+.legend i.wk, .bc-legend i.wk { display: inline; width: auto; height: auto; background: none !important; border: 0; margin: 0 0 0 6px; vertical-align: baseline; border-radius: 0; }
+.legend span:has(.wk), .bc-legend .wk { white-space: nowrap; }
