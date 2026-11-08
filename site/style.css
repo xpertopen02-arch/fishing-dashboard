@@ -1306,3 +1306,9 @@ html.rot-on, html.rot-on body { overflow: hidden; }
 body[data-view="home"] main { padding-bottom: 0; }
 @media (min-width: 1281px) { .h-row.r2 { height: 318px; } .hcd-img { height: 118px; } }
 @media (min-width: 1281px) { .hcd-img { height: 104px; } .hcd-b { gap: 2px; padding-top: 7px; padding-bottom: 8px; } .h-card ul { gap: 2px; margin: 1px 0 3px; } }
+
+/* v2.1.2 spot photos with a small source line */
+.hcd-img .own { cursor: pointer; }
+.hcd-img .credit { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 6px 2px; font-size: 9.5px; line-height: 1.2; color: rgba(255, 255, 255, .85); background: linear-gradient(180deg, transparent, rgba(0, 0, 0, .55)); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.hcd-img .credit:hover { color: #fff; text-decoration: underline; }
+.hcd-img .ph-n { position: absolute; top: 6px; right: 6px; font-size: 10.5px; font-weight: 700; color: #fff; background: rgba(0, 0, 0, .5); border-radius: 6px; padding: 0 6px; pointer-events: none; }

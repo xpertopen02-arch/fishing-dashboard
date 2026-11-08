@@ -1404,7 +1404,11 @@
     const tx = Math.floor(px / 256), ty = Math.floor(py / 256), ox = px - tx * 256, oy = py - ty * 256;
     let tiles = "";
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) tiles += `<img alt="" loading="lazy" src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${ty + dy}/${tx + dx}" style="left:${dx * 256 - ox}px;top:${dy * 256 - oy}px">`;
-    return `<div class="aer">${tiles}</div><img class="own" alt="${esc(p.id)} 사진" src="img/places/${encodeURIComponent(p.id)}.jpg" onerror="this.remove()">`;
+    const photos = window.FISH_PLACE_PHOTOS?.[p.id] || [];
+    if (!photos.length) return `<div class="aer">${tiles}</div><span class="credit">위성 사진 © Esri</span>`;
+    // the chosen photos, one at a time (tap the picture for the next), each with its source in small type
+    const k = (state.photoIdx?.[p.id] || 0) % photos.length, ph = photos[k];
+    return `<div class="aer">${tiles}</div><img class="own" alt="${esc(p.id)} 풍경" src="${ph.src}" loading="lazy" data-photo-next="${esc(p.id)}" title="${esc(ph.title)}">${photos.length > 1 ? `<span class="ph-n">${k + 1}/${photos.length}</span>` : ""}<a class="credit" href="${esc(ph.page)}" target="_blank" rel="noopener" title="${esc(ph.title)}">출처: ${esc(ph.site)}</a>`;
   }
   const starRow = (score) => { const n = Math.max(1, Math.min(5, Math.round(score / 20))); return `<span class="h-stars">${"★".repeat(n)}<i>${"★".repeat(5 - n)}</i></span>`; };
   function homeGauge(score, tone) {
@@ -1445,7 +1449,7 @@
         <header class="h-banner"><div class="hb-text"><h1>FISHING INTELLIGENCE</h1><p>데이터로 예측하고, 경험으로 완성하는 스마트 낚시</p></div><div class="hb-chips" id="hChips"></div></header>
         <div class="h-row r1"><section class="hc h-score" id="hScore"></section><section class="hc h-wx" id="hWx"></section><section class="hc h-chart" id="hChart"></section></div>
         <div class="h-row r2"><section class="hc h-map"><header class="hc-h"><h2>${icon("pin")}추천 포인트</h2><div class="h-tabs" id="hTabs"></div><button class="h-link" data-go="map">지도 보기 ${icon("map")}</button></header><div id="homeMap"></div></section>
-          <section class="hc h-places"><header class="hc-h"><h2><span class="h-star">★</span>주요 낚시터 상세 정보</h2><small class="h-src" title="카드 사진은 Esri 위성 항공 사진입니다. site/img/places/낚시터이름.jpg 에 사진을 넣으면 그 사진이 나옵니다.">사진: 위성 항공(Esri)</small></header><div class="h-cards" id="hCards"></div></section></div>
+          <section class="hc h-places"><header class="hc-h"><h2><span class="h-star">★</span>주요 낚시터 상세 정보</h2><small class="h-src" title="사진마다 아래에 출처가 있습니다. 출처를 누르면 원래 글이 열립니다.">사진을 누르면 다음 사진</small></header><div class="h-cards" id="hCards"></div></section></div>
         <div class="h-row r3"><section class="hc h-past" id="hPast"></section><section class="hc h-keys" id="hKeys"></section><section class="hc h-quick" id="hQuick"></section></div>
         <p class="h-note">v2.1.1 시안 화면입니다. 실제 자료로 채웠고, 수심처럼 자료가 없는 항목은 넣지 않았습니다. 카드 사진은 위성 항공 사진(Esri)이며, site/img/places/낚시터이름.jpg 에 사진을 넣으면 그 사진이 대신 나옵니다.</p>
       </div>`;
@@ -2383,6 +2387,7 @@
       $("#mpOpen").hidden = !state.panelOff;
       if (map) setTimeout(() => map.invalidateSize(), 320);
     }
+    else if (d.photoNext) { state.photoIdx = state.photoIdx || {}; state.photoIdx[d.photoNext] = (state.photoIdx[d.photoNext] || 0) + 1; renderHome(); }
     else if (d.homeFocus !== undefined) { homeFocus = d.homeFocus; renderHome(); }
     else if (d.homeOpen) { selectPlace(d.homeOpen, false); go("plan"); }
     else if (d.bubbles !== undefined) { state.bubbles = !state.bubbles; drawBubbles(); renderMapPanel(); }

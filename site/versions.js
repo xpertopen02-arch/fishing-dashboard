@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.2", date: "2026-11-08", title: "낚시터 풍경 사진",
+    changes: [
+      "23개 낚시터마다 사용자가 고른 풍경 사진 2장씩(모두 46장)을 홈의 낚시터 카드에 넣음. 사진을 누르면 다음 사진으로 바뀌고(1/2, 2/2), 사진 아래에 아주 작게 출처(사이트 이름)를 표시하며 누르면 원래 글이 열림",
+      "사진은 최대 1200px 폭으로 줄여 site/img/places 에 저장, 출처 목록은 site/img/places/photos.js. 일부(12장)는 원본을 받을 수 없어 검색 미리보기 크기로 저장됨. 사진이 없는 경우에는 위성 항공 사진과 'Esri' 표시",
+    ],
+  },
+  {
     version: "2.1.1", date: "2026-11-08", title: "홈 시안 다듬기",
     changes: [
       "홈 색상을 다른 화면과 같은 색(어두운 바탕, 민트 강조, 밝은 화면 전환 포함)으로 맞춤",
