@@ -1004,3 +1004,25 @@ main { max-width: none; padding: 0 0 80px; }
 .bigchart .pt.water { fill: var(--line-water); stroke: var(--surface); stroke-width: 1.5; }
 .bigchart .lab.water { fill: var(--line-water); }
 .k-water { background: var(--line-water); }
+
+/* v2.0.10: two-word verdicts need a smaller headline than the one-word ones did */
+.verdict-word { font-size: clamp(52px, 4.4vw, 76px); letter-spacing: -.04em; line-height: 1.05; white-space: nowrap; }
+.cd-v { font-size: 13.5px; letter-spacing: -.02em; }
+@media (max-width: 720px) { .verdict-word { font-size: 58px; } }
+
+/* v2.0.10 traffic light beside the verdict */
+.verdict-row { display: flex; align-items: center; gap: 14px; margin: 14px 0 22px; }
+.verdict-row .verdict-word { margin: 0; font-size: clamp(46px, 3.9vw, 68px); }
+.signal { width: 34px; height: auto; flex: none; }
+.signal.sm { width: 12px; }
+.sig-box { fill: #11161d; stroke: rgba(255, 255, 255, .12); stroke-width: 1.5; }
+:root[data-theme="light"] .sig-box { fill: #2a313b; }
+.lamp-off { fill: #2b323c; }
+.lamp-on { fill: var(--lamp); filter: drop-shadow(0 0 6px var(--lamp)); }
+.lamp-on.dim { opacity: .65; filter: drop-shadow(0 0 3px var(--lamp)); }
+.top-go .signal.sm { margin-right: -2px; }
+@media (max-width: 720px) {
+  .verdict-row { gap: 12px; }
+  .verdict-row .verdict-word { font-size: 52px; }
+  .signal { width: 30px; }
+}

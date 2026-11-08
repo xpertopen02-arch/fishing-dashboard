@@ -879,8 +879,16 @@
     });
   }
   const MODE_SHORT = { forecast: "예보", archive: "과거 재분석", climate: "평년값 참고" };
-  const VERDICT = { good: "가자.", info: "가볼 만.", warn: "짧게.", bad: "쉬자." };
+  // v2.0.10: words that say what to do (score 80+, 65-79, 50-64, under 50)
+  const VERDICT = { good: "출조 추천", info: "출조 가능", warn: "짧게 출조", bad: "출조 보류" };
   const mono = (t) => `<span class="mono">${t}</span>`;
+  // A three-lamp traffic light beside the verdict: green for 출조 추천 and 출조 가능 (dimmer), yellow for 짧게 출조, red for 출조 보류.
+  const LAMP = { good: 2, info: 2, warn: 1, bad: 0 };
+  function signalLight(tone, cls = "") {
+    const on = LAMP[tone];
+    const lamp = (i, color) => `<circle cx="20" cy="${18 + i * 28}" r="10" class="${i === on ? `lamp-on${tone === "info" ? " dim" : ""}` : "lamp-off"}" style="--lamp:${color}"/>`;
+    return `<svg class="signal ${cls}" viewBox="0 0 40 96" role="img" aria-label="신호등 ${["빨강", "노랑", "초록"][on]}"><rect x="2" y="2" width="36" height="92" rx="12" class="sig-box"/>${lamp(0, "#ff5147")}${lamp(1, "#ffc02e")}${lamp(2, "#2ee68f")}</svg>`;
+  }
 
   // 입질 = how the fish should feed (temperature, time of day, pressure); 편의 = how easy the water is to fish (wind, rain, waves).
   // Both come from the same hourly factors as the score, so they never disagree with it.
@@ -928,10 +936,10 @@
         if (b >= a && b > c) ext.push([h, "H", b]);
         else if (b <= a && b < c) ext.push([h, "L", b]);
       }
-      if (ext.length) return { title: "물때 · 오늘 (모델)", tiles: ext.slice(0, 4).map(([h, k, v]) => ({ mark: k === "H" ? "▲" : "▼", cls: k === "H" ? "hi" : "lo", top: hhmm(h), sub: `${k === "H" ? "만조" : "간조"} ${v.toFixed(1)}m` })) };
+      if (ext.length) return { title: `물때 · ${dayLabel()} (모델)`, tiles: ext.slice(0, 4).map(([h, k, v]) => ({ mark: k === "H" ? "▲" : "▼", cls: k === "H" ? "hi" : "lo", top: hhmm(h), sub: `${k === "H" ? "만조" : "간조"} ${v.toFixed(1)}m` })) };
     }
     const age = moonAge(state.date);
-    return { title: "해와 달 · 오늘", tiles: [
+    return { title: `해와 달 · ${dayLabel()}`, tiles: [
       { mark: "▲", cls: "hi", top: r.sunrise || "–", sub: "일출" },
       { mark: "▼", cls: "lo", top: r.sunset || "–", sub: "일몰" },
       { mark: "●", cls: "", top: age.toFixed(1), sub: `월령 ${moonName(age)}` },
@@ -943,7 +951,7 @@
 
   function renderTop() {
     const p = placeById[state.place], r = state.scores?.[p.id];
-    $("#topGo").innerHTML = r ? `<b class="tg-v tone-${scoreTone(r.score)}">${VERDICT[scoreTone(r.score)].replace(".", "")}</b><b class="mono tone-${scoreTone(r.score)}">${r.score}</b><span class="eyebrow">· 최고<br>${hhmm(r.from)}</span>` : "";
+    $("#topGo").innerHTML = r ? `${signalLight(scoreTone(r.score), "sm")}<b class="tg-v tone-${scoreTone(r.score)}">${VERDICT[scoreTone(r.score)]}</b><b class="mono tone-${scoreTone(r.score)}">${r.score}</b><span class="eyebrow">· 최고<br>${hhmm(r.from)}</span>` : "";
     $("#typeToggle").innerHTML = TYPES.map((t) => `<button data-type="${t}" class="${p.type === t ? "on" : ""}">${t}</button>`).join("");
   }
   // Weather source and the time it was fetched, with a button to fetch it again.
@@ -990,7 +998,7 @@
       ${a ? `<div class="alert"><button class="alert-x" data-alert-close="${esc(a.key)}" aria-label="알림 닫기">${icon("x")}</button>
         <b class="mono">${esc(a.t)}${alerts.length > 1 ? ` · 외 ${alerts.length - 1}건` : ""}</b><p>${esc(a.body)}</p><small>출처: <span>${esc(a.src)}</span></small></div>` : ""}
       <p class="eyebrow accent">판단 · ${dayLabel()} · ${state.date === TODAY ? `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}` : MODE_SHORT[state.weather.mode]}</p>
-      <div class="verdict-word tone-${tone}">${VERDICT[tone]}</div>
+      <div class="verdict-row">${signalLight(tone)}<div class="verdict-word tone-${tone}">${VERDICT[tone]}</div></div>
       <p class="lead">${esc(lead)}. ${state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to) ? `${mono(hhmm(r.from))}부터 ${r.to - r.from}시간이 가장 좋았습니다` : state.date === TODAY && new Date().getHours() >= r.from ? `좋은 시간이 ${mono(hhmm(r.to))}까지 이어집니다` : `${r.to - r.from}시간의 좋은 시간이 ${mono(hhmm(r.from))}에 열립니다`}.</p>
       <div class="kpis">
         <div><span class="eyebrow">입질</span><strong>${sub.bite}</strong><small class="mono">하루 최고 · ${peakBite(r)}</small></div>
