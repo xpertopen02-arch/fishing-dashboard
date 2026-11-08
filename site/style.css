@@ -1123,3 +1123,18 @@ main { max-width: none; padding: 0 0 80px; }
 .bc-legend { column-gap: 16px; row-gap: 6px; }
 .bc-legend .lg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 500; }
 .bc-legend .lg span { margin-left: 0 !important; flex: none; }
+
+/* v2.0.25: rotate button only on touch phones; the phone-preview button only on PCs */
+#rotateBtn { display: none; }
+@media (pointer: coarse) { #rotateBtn { display: grid; } #phoneBtn { display: none !important; } }
+.egg-toast { z-index: 3000; color: var(--surface); }
+
+/* phone map screen: the map stays put at the top, only the panel under it scrolls */
+@media (max-width: 720px) {
+  body[data-view="map"] main { padding-bottom: 0; }
+  body[data-view="map"] { overflow: hidden; }
+  .mapview { height: calc(100dvh - var(--topH, 97px) - 64px); display: flex; flex-direction: column; overflow: hidden; }
+  .mapview .map-card { position: relative; flex: none; height: 52%; }
+  .map-panel { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .mapview.panel-off .map-card { height: 100%; }
+}

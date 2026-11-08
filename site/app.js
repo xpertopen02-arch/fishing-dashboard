@@ -262,6 +262,7 @@
     up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
     back: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
     chevL: '<path d="m15 18-6-6 6-6"/>',
+    rotate: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
     monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
     phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
@@ -2386,16 +2387,30 @@
     const vp = $('meta[name="viewport"]');
     if (!vp) return;
     const PHONE = "width=device-width, initial-scale=1";
-    // the zoom that makes 1400 px fit the long side of the screen
-    const desk = () => { const k = (Math.max(screen.width, screen.height) / 1400).toFixed(3); return `width=1400, initial-scale=${k}, minimum-scale=${k}`; };
+    const FIT = .95;   // a little smaller than the screen so nothing touches the right edge
+    const deskAt = (k) => `width=1400, initial-scale=${k.toFixed(3)}, minimum-scale=${k.toFixed(3)}`;
     const isPhone = () => matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) <= 600;
+    const landscape = () => matchMedia("(orientation: landscape)").matches;
+    // the width actually visible, in CSS px at zoom 1 (notches and browser bars already left out)
+    const visible = () => (window.visualViewport ? visualViewport.width * visualViewport.scale : innerWidth);
+    const set = (c) => { if (vp.getAttribute("content") !== c) vp.setAttribute("content", c); };
+    const fit = () => {
+      if (!(isPhone() && landscape())) return;
+      const guess = Math.max(screen.width, screen.height) / 1400 * FIT;
+      const k = Math.min(guess, visible() / 1400 * FIT);
+      set(deskAt(k));
+    };
     const apply = () => {
-      const want = isPhone() && matchMedia("(orientation: landscape)").matches ? desk() : PHONE;
-      if (vp.getAttribute("content") !== want) vp.setAttribute("content", want);
+      if (isPhone() && landscape()) {
+        set(deskAt(Math.max(screen.width, screen.height) / 1400 * FIT));
+        // measure again once the browser has settled into landscape (bars, notch) and correct the zoom
+        [250, 700, 1500].forEach((t) => setTimeout(fit, t));
+      } else set(PHONE);
     };
     apply();
     matchMedia("(orientation: landscape)").addEventListener?.("change", apply);
     addEventListener("orientationchange", () => setTimeout(apply, 150));
+    document.addEventListener("fullscreenchange", () => setTimeout(apply, 300));
   })();
   fillIcons();
   $("#playBtn").innerHTML = icon("play");
@@ -2444,6 +2459,26 @@
   }
   setPhoneBtn();
   $("#phoneBtn").addEventListener("click", () => togglePhoneView());
+  // Rotate button (phones): turns the screen between landscape and portrait where the browser allows it
+  // (Android Chrome and similar, in full screen); elsewhere it asks the user to turn the phone.
+  function toast(text) {
+    const t = document.createElement("div");
+    t.className = "egg-toast";
+    t.textContent = text;
+    document.body.append(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+  $("#rotateBtn").addEventListener("click", async () => {
+    const land = matchMedia("(orientation: landscape)").matches;
+    const target = land ? "portrait" : "landscape";
+    try {
+      if (!screen.orientation?.lock) throw new Error("unsupported");
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+      await screen.orientation.lock(target);
+    } catch (e) {
+      toast(land ? "이 브라우저는 화면 회전을 지원하지 않습니다. 휴대폰을 세로로 돌려 주세요." : "이 브라우저는 화면 회전을 지원하지 않습니다. 휴대폰을 가로로 돌려 주세요.");
+    }
+  });
   // coming back to the tab after half an hour fetches the weather again
   document.addEventListener("visibilitychange", () => { if (!document.hidden && state.wxAt && Date.now() - state.wxAt > 30 * 60e3) refreshWeather(); });
   setInterval(() => { if (!document.hidden && state.wxAt && Date.now() - state.wxAt > 30 * 60e3) refreshWeather(); }, 5 * 60e3);
