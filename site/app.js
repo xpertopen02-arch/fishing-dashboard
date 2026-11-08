@@ -628,7 +628,7 @@
       series: [{ label: "기온", color: "var(--line-temp)", values: w.temp, bands: TEMP_BANDS }, ...(wsr ? [{ label: "수온", color: "var(--line-water)", values: wsr.values }] : [])],
       note: (h) => (w.code ? WX(w.code[h])[1] : "평균값"),
     }));
-    charts.push(makeChart(chartShell(host, "바람", i++, `<div class="legend"><span>풍속 <i class="wk g">~2</i><i class="wk o">2~5</i><i class="wk r">5~</i></span><span><i class="dash"></i>돌풍</span></div>`), {
+    charts.push(makeChart(chartShell(host, "바람", i++, `<div class="legend"><span>풍속 <i class="wk g">~2m/s</i><i class="wk o">2~5m/s</i><i class="wk r">5m/s~</i></span><span><i class="dash"></i>돌풍</span></div>`), {
       ...sun, title: "바람", unit: "m/s", digits: 1, zero: true, minTop: 5,
       series: [{ label: "풍속", color: "#ff9f3a", values: w.wind, bands: [[2, WIND_COL[0]], [5, WIND_COL[1]], [99, WIND_COL[2]]], dashed: true }, { label: "돌풍", color: "var(--muted)", values: w.gust, dash: true }],
       arrows: w.dir,
@@ -1124,7 +1124,7 @@
     const sea = p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6, wave = sea && state.marine.wave && fin(state.marine.wave).length;
     const wsr = waterSeries(p);
     const curv = sea && state.marine.cur && fin(state.marine.cur).length;
-    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃(<i class="wk r">0 미만</i><i class="wk y">0~10</i><i class="wk b">10~</i>) ${curv ? `<span class="k-cur"></span>유속 ${rng(state.marine.cur, 2)}m/s ` : ""}${wsr ? `<span class="k-water"></span>수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"}) ` : ""}<span class="k-wind"></span>바람 ${rng(w.wind)}m/s(<i class="wk g">~2</i><i class="wk o">2~5</i><i class="wk r">5~</i>)${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
+    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃(<i class="wk r">0 미만</i><i class="wk y">0~10</i><i class="wk b">10~</i>) ${curv ? `<span class="k-cur"></span>유속 ${rng(state.marine.cur, 2)}m/s ` : ""}${wsr ? `<span class="k-water"></span>수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"}) ` : ""}<span class="k-wind"></span>바람 ${rng(w.wind)}m/s(<i class="wk g">~2m/s</i><i class="wk o">2~5m/s</i><i class="wk r">5m/s~</i>)${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
   }
   // Score bars for each hour with temperature and wind drawn over them.
   let bigChart = null;

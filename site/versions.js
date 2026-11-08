@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.0.20", date: "2026-11-08", title: "바람 색 구간에 단위",
+    changes: [
+      "바람 색 구간 글자에 단위를 붙임: '~2m/s 2~5m/s 5m/s~' (세부 바람 그래프 제목 옆과 24시간 그래프 범례)",
+    ],
+  },
+  {
     version: "2.0.19", date: "2026-11-08", title: "그래프 제목 옆 색 구간 글자 겹침 수정",
     changes: [
       "세부 그래프 제목 옆의 색 구간 글자(기온 '0℃ 미만 0~10℃ 10℃~', 바람 '~2 2~5 5~')가 한데 겹쳐 보이던 문제 수정. 범례의 색 칩 크기(12px) 규칙이 글자에도 적용되던 것이 원인",
