@@ -1396,12 +1396,15 @@
   /* ---------- 홈 (v2.1.0 draft): one-screen overview in the layout of the reference dashboard ---------- */
   const HOME_HEAD = { good: "출조하기 좋은 날!", info: "출조해 볼 만한 날", warn: "짧게 다녀오기 좋은 날", bad: "오늘은 쉬어 가는 날" };
   let homeMap = null, homeMarkers = null, homeFocus = "";
-  // A satellite tile (Esri World Imagery) around a place, used as the card picture.
-  function satThumb(p, z = 16) {
+  // An aerial picture centred on the place: a 3 x 3 block of satellite tiles positioned so the
+  // spot sits in the middle of the card. If site/img/places/<id>.jpg exists (your own photo), it is shown instead.
+  function aerial(p, z = 16) {
     const n = 2 ** z, rad = p.lat * Math.PI / 180;
-    const x = Math.floor((p.lon + 180) / 360 * n);
-    const y = Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n);
-    return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+    const px = (p.lon + 180) / 360 * n * 256, py = (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n * 256;
+    const tx = Math.floor(px / 256), ty = Math.floor(py / 256), ox = px - tx * 256, oy = py - ty * 256;
+    let tiles = "";
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) tiles += `<img alt="" loading="lazy" src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${ty + dy}/${tx + dx}" style="left:${dx * 256 - ox}px;top:${dy * 256 - oy}px">`;
+    return `<div class="aer">${tiles}</div><img class="own" alt="${esc(p.id)} 사진" src="img/places/${encodeURIComponent(p.id)}.jpg" onerror="this.remove()">`;
   }
   const starRow = (score) => { const n = Math.max(1, Math.min(5, Math.round(score / 20))); return `<span class="h-stars">${"★".repeat(n)}<i>${"★".repeat(5 - n)}</i></span>`; };
   function homeGauge(score, tone) {
@@ -1439,13 +1442,12 @@
     if (!host.dataset.built) {
       host.dataset.built = "1";
       host.innerHTML = `<div class="home">
-        <header class="h-banner"><div class="hb-sky"></div><svg class="hb-hills" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 80 C120 40 220 70 330 52 C450 30 560 74 690 50 C820 28 930 66 1040 46 C1110 34 1160 48 1200 44 V120 H0Z" fill="#0d1a33"/><path d="M0 96 C160 78 300 92 460 84 C640 74 820 96 1000 86 C1100 80 1160 88 1200 86 V120 H0Z" fill="#0a1428" opacity=".9"/></svg>
-          <div class="hb-text"><h1>FISHING INTELLIGENCE</h1><p>데이터로 예측하고, 경험으로 완성하는 스마트 낚시</p></div><div class="hb-chips" id="hChips"></div></header>
+        <header class="h-banner"><div class="hb-text"><h1>FISHING INTELLIGENCE</h1><p>데이터로 예측하고, 경험으로 완성하는 스마트 낚시</p></div><div class="hb-chips" id="hChips"></div></header>
         <div class="h-row r1"><section class="hc h-score" id="hScore"></section><section class="hc h-wx" id="hWx"></section><section class="hc h-chart" id="hChart"></section></div>
         <div class="h-row r2"><section class="hc h-map"><header class="hc-h"><h2>${icon("pin")}추천 포인트</h2><div class="h-tabs" id="hTabs"></div><button class="h-link" data-go="map">지도 보기 ${icon("map")}</button></header><div id="homeMap"></div></section>
-          <section class="hc h-places"><header class="hc-h"><h2><span class="h-star">★</span>주요 낚시터 상세 정보</h2></header><div class="h-cards" id="hCards"></div></section></div>
+          <section class="hc h-places"><header class="hc-h"><h2><span class="h-star">★</span>주요 낚시터 상세 정보</h2><small class="h-src" title="카드 사진은 Esri 위성 항공 사진입니다. site/img/places/낚시터이름.jpg 에 사진을 넣으면 그 사진이 나옵니다.">사진: 위성 항공(Esri)</small></header><div class="h-cards" id="hCards"></div></section></div>
         <div class="h-row r3"><section class="hc h-past" id="hPast"></section><section class="hc h-keys" id="hKeys"></section><section class="hc h-quick" id="hQuick"></section></div>
-        <p class="h-note">v2.1.0 시안 화면입니다. 실제 자료로 채웠고, 수심처럼 자료가 없는 항목은 넣지 않았습니다. 기존 '지금' 화면은 그대로 있습니다.</p>
+        <p class="h-note">v2.1.1 시안 화면입니다. 실제 자료로 채웠고, 수심처럼 자료가 없는 항목은 넣지 않았습니다. 카드 사진은 위성 항공 사진(Esri)이며, site/img/places/낚시터이름.jpg 에 사진을 넣으면 그 사진이 대신 나옵니다.</p>
       </div>`;
       if (window.L) {
         homeMap = L.map("homeMap", { zoomControl: true, attributionControl: true, scrollWheelZoom: true, dragging: !L.Browser.mobile }).setView([36.9, 127], 9);
@@ -1497,7 +1499,7 @@
     const badge = ["#3ddc84", "#ffc94a", "#4f9bff"];
     $("#hCards").innerHTML = top.map((x, i) => {
       const q = placeById[x.id], ws = waterSeries(q);
-      return `<article class="h-card"><div class="hcd-img"${hasPin(q) ? ` style="background-image:url('${satThumb(q)}')"` : ""}></div>
+      return `<article class="h-card"><div class="hcd-img">${hasPin(q) ? aerial(q) : ""}</div>
         <div class="hcd-b"><div class="hcd-t"><b>${i + 1}. ${esc(x.id)}</b><span class="hcd-s" style="--c:${badge[i]}">${x.score}점</span></div>${starRow(x.score)}
         <ul><li>${icon("thermo")}${ws ? `수온 ${num(ws.values[Math.min(23, x.from + 1)])}℃` : `기온 ${num(x.temp)}℃`}</li><li>${icon("wind")}바람 ${num(x.wind)}m/s</li><li>${icon("clock")}추천시간 ${hhmm(x.from)}~${hhmm(x.to)}</li></ul>
         <button class="hcd-more" data-home-open="${esc(x.id)}">상세보기 ${icon("chevR")}</button></div></article>`;
