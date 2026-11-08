@@ -192,7 +192,7 @@
     <details class="fold"><summary>시간대별 1순위</summary><div id="matrix"></div><p class="note">칸을 누르면 그 날씨와 시각으로 이동합니다.</p></details>
 
     <h2>화면</h2>
-    <label class="f">표시 <select id="mode"><option value="depth">수심</option><option value="fish">송어 예상 밀도</option><option value="bite">반응 좋은 송어 밀도</option><option value="temp">수온 (윗층)</option><option value="tempb">수온 (바닥 쪽)</option><option value="do">용존산소 (바닥 쪽)</option><option value="clean">맑은 물 범위 (탁한 날)</option></select></label>
+    <label class="f">표시 <select id="mode"><option value="depth">수심</option><option value="fish">송어 예상 밀도</option><option value="bite">반응 좋은 송어 밀도</option><option value="temp">수온 (윗층)</option><option value="tempb">수온 (바닥 쪽)</option><option value="dotop">용존산소 (윗층)</option><option value="do">용존산소 (바닥 쪽)</option><option value="clean">맑은 물 범위 (탁한 날)</option></select></label>
     <label class="f">수심 과장 <span id="veLabel"></span><input id="ve" type="range" min="1" max="10" step="0.5" value="4" aria-label="수심 과장 배율"></label>
     <label class="f">수면 진하기<input id="waterOp" type="range" min="0" max="0.8" step="0.05" value="0.3" aria-label="수면 진하기"></label>
     <div class="row">
@@ -414,18 +414,18 @@
     let e = -1, layer = .3, bt = v[0], bo = v[1];
     const n = c.d < 1 ? 2 : 4;
     for (let i = 0; i < n; i++) {
-      const z = c.d * (i + .5) / n, T = tempAt(v, c.d, z, st, k, c.wheel), O0 = z <= 1.2 ? v[1] : v[3], O = O0 + Math.max(0, sat(T) - O0) * .4 * c.wheel * (z <= 1.2 ? 1 : .3);
+      const z = c.d * (i + .5) / n, T = tempAt(v, c.d, z, st, k, c.wheel), O0 = z <= 1.2 ? v[1] : v[3], O = O0 + Math.max(0, sat(T) * 1.05 - O0) * .85 * c.wheel * (z <= 1.2 ? 1 : .4);   // 수차 둘레: 산소가 많이 녹아듭니다.
       const I = S * Math.exp(-k * z) * (c.cover ? .6 : 1);   // 맑은 물, 얕은 층, 강한 해를 피합니다.
       let q = fT(T) * fO(O, T) * (1 - .3 * Math.min(I, 400) / 400) * (c.d < .6 ? .5 : 1);
       if (st.note && i === n - 1) q *= st.h < 8 ? 1.2 : st.h <= 11 ? .8 : st.h >= 15 ? 1.1 : 1;   // 노트: 해 뜨기 전 바닥, 해 뜬 뒤 바닥을 벗어남, 오후 바닥 스테이
       if (q > e) { e = q; layer = z; bt = T; bo = O; }
     }
     if (c.z === "A") e *= .9;
-    let w = e * e * (c.cover ? 1.15 : 1) * (1 + .2 * c.wheel);
+    let w = e * e * (c.cover ? 1.15 : 1) * (1 + .3 * c.wheel);   // 산소 많고 물이 흔들리는 수차 둘레로 조금 더 모입니다.
     if (st.k === 2 && !st.rain) w *= 1 + .6 * c.clean;   // 탁한 날은 맑은 물 쪽을 더 찾는다고 가정합니다.
     if (st.note) w *= (c.chan < 4 ? 1.3 : 1) * (c.spot < 5 ? 1.35 : 1);
     if (st.crowd && c.standDist < 12) w *= .7;
-    return { w, layer, T: bt, O: bo, top: tempAt(v, c.d, .2, st, k, c.wheel), bot: tempAt(v, c.d, c.d * .9, st, k, c.wheel), botO: v[3], ice: v[4] };
+    return { w, layer, T: bt, O: bo, top: tempAt(v, c.d, .2, st, k, c.wheel), bot: tempAt(v, c.d, c.d * .9, st, k, c.wheel), botO: v[3] + Math.max(0, sat(v[2]) - v[3]) * .4 * c.wheel, ice: v[4] };
   }
   // 송어는 부교 서쪽에만 있습니다. 머무는 무리는 살기 좋은 곳에, 도는 무리는 못 둘레 경로에 나뉩니다.
   // 방류: 부교 가두리는 그물 동쪽에 있어, 방류어는 그 앞 부교 서쪽면으로 들어온다고 봅니다.
@@ -822,6 +822,22 @@ attribute vec2 aSwim;`)
     reach.rotation.x = -Math.PI / 2; reach.position.set(wx(p[0]), .3, wz(p[1])); fac.add(reach); wheelRings.push(reach);
     texts.add(label(`수차 ${i + 1}`, wx(p[0]), 4.5, wz(p[1])));
   });
+  // 수차 둘레 수면: 켜진 수차마다 동심원 물결이 퍼져 나가며 옅어지고, 가운데는 거품이 일렁입니다.
+  const ripples = D.wheels.map((p) => {
+    const g = new THREE.Group(); g.position.set(wx(p[0]), .22, wz(p[1])); scene.add(g);
+    const mat = () => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .5, side: THREE.DoubleSide, depthWrite: false });
+    const rings = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 48), mat()); m.rotation.x = -Math.PI / 2; m.renderOrder = 4; g.add(m); return m; });
+    const boil = new THREE.Mesh(new THREE.CircleGeometry(1.6, 32), mat()); boil.rotation.x = -Math.PI / 2; boil.renderOrder = 4; g.add(boil);
+    return { g, rings, boil };
+  });
+  function drawRipples(t) {
+    ripples.forEach((r, i) => {
+      r.g.visible = wheelOn(i) && water.visible;
+      if (!r.g.visible) return;
+      r.rings.forEach((m, k) => { const u = (t * .45 + k / r.rings.length + i * .17) % 1, R = .8 + u * WHEEL_RADIUS * 1.15; m.scale.set(R, R, 1); m.material.opacity = .55 * (1 - u); });
+      r.boil.material.opacity = .22 + .12 * Math.sin(t * 7 + i * 2); r.boil.scale.setScalar(1 + .08 * Math.sin(t * 5 + i));
+    });
+  }
   // 얼음: 그물 밖 저수지와 송어터를 따로 그립니다. 수차를 켜 두면 송어터는 얼지 않고, 끄면 송어터도 업니다.
   const boxPoly = [[BX.x1, bankY(BX.x1)], ...D.bank.filter((p) => p[0] > BX.x1 && p[0] < BX.x2), [BX.x2, bankY(BX.x2)], [BX.x2, BX.y2], [BX.x1, BX.y2]];
   const toV = (p) => new THREE.Vector2(wx(p[0]), -wz(p[1]));
@@ -922,7 +938,7 @@ attribute vec2 aSwim;`)
     fish: [[.1, .13, .22], [.2, .4, .55], [.95, .8, .3], [.95, .35, .2]],
   };
   const MAXD = Math.max(...G.depth);   // 가장 깊은 곳 (현재 약 5.0m)
-  const LEG = { depth: ["수심", "얕음", `${MAXD.toFixed(1)}m`, "depth"], temp: ["윗층 수온", "0℃", "10℃", "temp"], tempb: ["바닥 쪽 수온", "0℃", "10℃", "temp"], do: ["바닥 쪽 산소", "6mg/L", "14mg/L", "do"], clean: ["맑은 물 영향", "탁함", "맑음", "clean"], fish: ["송어 예상 밀도 (상대값)", "낮음", "높음", "fish"], bite: ["반응 좋은 송어 밀도 (상대값)", "낮음", "높음", "fish"] };
+  const LEG = { depth: ["수심", "얕음", `${MAXD.toFixed(1)}m`, "depth"], temp: ["윗층 수온", "0℃", "10℃", "temp"], tempb: ["바닥 쪽 수온", "0℃", "10℃", "temp"], do: ["바닥 쪽 산소", "6mg/L", "14mg/L", "do"], dotop: ["윗층 산소", "6mg/L", "14mg/L", "do"], clean: ["맑은 물 영향", "탁함", "맑음", "clean"], fish: ["송어 예상 밀도 (상대값)", "낮음", "높음", "fish"], bite: ["반응 좋은 송어 밀도 (상대값)", "낮음", "높음", "fish"] };
   function paint() {
     const st = state(), mode = $("mode").value;
     let maxW = 1e-9; const ev = {};
@@ -940,7 +956,8 @@ attribute vec2 aSwim;`)
       else if (mode === "temp") rgb = lerpCol(RAMP.temp, (tempAt(v, c.d, .2, st, kOf(c.clean, st), c.wheel) - tLo) / (tHi - tLo));
       else if (mode === "tempb") rgb = lerpCol(RAMP.temp, (tempAt(v, c.d, c.d * .9, st, kOf(c.clean, st), c.wheel) - tLo) / (tHi - tLo));
       else if (mode === "clean") rgb = lerpCol(RAMP.clean, st.k === 2 ? c.clean : 1);
-      else if (mode === "do") rgb = lerpCol(RAMP.do, (v[3] - 6) / 8);
+      else if (mode === "do") rgb = lerpCol(RAMP.do, (v[3] + Math.max(0, sat(v[2]) - v[3]) * .4 * c.wheel - 6) / 8);
+      else if (mode === "dotop") rgb = lerpCol(RAMP.do, (v[1] + Math.max(0, sat(v[0]) * 1.05 - v[1]) * .85 * c.wheel - 6) / 8);
       else rgb = lerpCol(RAMP.fish, Math.pow(ev[n] / maxW, .6));
       col[n * 3] = rgb[0]; col[n * 3 + 1] = rgb[1]; col[n * 3 + 2] = rgb[2];
     });
@@ -1515,7 +1532,7 @@ attribute vec2 aSwim;`)
     if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }
     controls.update();
     const under = camera.position.y < 0;
-    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); wheelMeshes.forEach((m, i) => { m.rotation.y = now * .5 + i; m.scale.y = 1 + .07 * Math.sin(now * 5 + i * 2); }); window.__lastT = now; fishT += Math.min(.1, now - (window.__fishPrev ?? now)) * fishMul; window.__fishPrev = now; drawFish(fishT); renderer.render(scene, camera); })();
+    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); drawRipples(now); wheelMeshes.forEach((m, i) => { m.rotation.y = now * .5 + i; m.scale.y = 1 + .07 * Math.sin(now * 5 + i * 2); }); window.__lastT = now; fishT += Math.min(.1, now - (window.__fishPrev ?? now)) * fishMul; window.__fishPrev = now; drawFish(fishT); renderer.render(scene, camera); })();
   window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }), inBox, M };
 })();
 </script>
