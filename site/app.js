@@ -551,7 +551,7 @@
           });
           if (s.bands) {
             const gid = `bg${Math.random().toString(36).slice(2, 8)}`;
-            parts.push(`<defs>${bandGradient(gid, Y(0), Y(hi), hi, s.bands)}</defs><path d="${d}" fill="none" stroke="url(#${gid})" stroke-width="2.4"${s.dashed ? ' stroke-dasharray="6 4"' : ""} stroke-linecap="round" stroke-linejoin="round"/>`);
+            parts.push(`<defs>${bandGradient(gid, Y(-60), Y(100), -60, 100, s.bands)}</defs><path d="${d}" fill="none" stroke="url(#${gid})" stroke-width="2.4"${s.dashed ? ' stroke-dasharray="6 4"' : ""} stroke-linecap="round" stroke-linejoin="round"/>`);
             return;
           }
           parts.push(s.dash
@@ -622,9 +622,9 @@
     const sun = { sunrise: w.sunrise, sunset: w.sunset };
     let i = 0;
     const wsr = waterSeries(placeById[state.place]);
-    charts.push(makeChart(chartShell(host, wsr ? "기온과 수온" : "기온", i++, wsr ? `<div class="legend"><span><i style="background:${accent}"></i>기온</span><span><i style="background:var(--line-water)"></i>수온 ${wsr.fitted ? "(실측 맞춤 추정)" : "(추정)"}</span></div>` : ""), {
+    charts.push(makeChart(chartShell(host, wsr ? "기온과 수온" : "기온", i++, `<div class="legend"><span>기온 <i class="wk r">0℃ 미만</i><i class="wk y">0~10℃</i><i class="wk b">10℃~</i></span>${wsr ? `<span><i style="background:var(--line-water)"></i>수온 ${wsr.fitted ? "(실측 맞춤 추정)" : "(추정)"}</span>` : ""}</div>`), {
       ...sun, title: "기온", unit: "°C", digits: 1, minSpan: 4,
-      series: [{ label: "기온", color: accent, values: w.temp }, ...(wsr ? [{ label: "수온", color: "var(--line-water)", values: wsr.values }] : [])],
+      series: [{ label: "기온", color: "var(--line-temp)", values: w.temp, bands: TEMP_BANDS }, ...(wsr ? [{ label: "수온", color: "var(--line-water)", values: wsr.values }] : [])],
       note: (h) => (w.code ? WX(w.code[h])[1] : "평균값"),
     }));
     charts.push(makeChart(chartShell(host, "바람", i++, `<div class="legend"><span>풍속 <i class="wk g">~2</i><i class="wk o">2~5</i><i class="wk r">5~</i></span><span><i class="dash"></i>돌풍</span></div>`), {
@@ -633,9 +633,9 @@
       arrows: w.dir,
       note: (h) => (w.dir[h] == null ? "" : `${compass(w.dir[h])}풍`),
     }));
-    charts.push(makeChart(chartShell(host, "강수량", i++), {
+    charts.push(makeChart(chartShell(host, "강수량", i++, `<div class="legend"><span><i style="background:#ffd23f"></i>1mm 미만</span><span><i style="background:#ff4f4f"></i>1mm 이상</span></div>`), {
       ...sun, title: "강수량", unit: "mm", digits: 1, zero: true, minTop: 2, bars: true,
-      series: [{ label: "강수량", color: accent, values: w.precip }],
+      series: [{ label: "강수량", color: "#ffd23f", colorAt: (h) => rainCol(w.precip[h] ?? 0), values: w.precip }],
       note: (h) => (w.prob ? `확률 ${w.prob[h] ?? "–"}%` : ""),
     }));
     charts.push(makeChart(chartShell(host, "기압", i++), {
@@ -928,12 +928,17 @@
   const windCol = (v) => WIND_COL[v < 2 ? 0 : v < 5 ? 1 : 2];
   // A gradient along the y axis (in the chart's own pixels) whose colour steps at the given values.
   // bands: [[upTo, colour], ...] from the bottom; the last colour runs to the top.
-  function bandGradient(id, yAt0, yAtTop, top, bands) {
-    const f = (v) => Math.max(0, Math.min(1, v / top)).toFixed(4);
-    let stops = "", from = 0;
-    bands.forEach(([upTo, col]) => { stops += `<stop offset="${f(from)}" stop-color="${col}"/><stop offset="${f(Math.min(upTo, top))}" stop-color="${col}"/>`; from = upTo; });
-    return `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${yAt0}" y2="${yAtTop}">${stops}</linearGradient>`;
+  function bandGradient(id, yAtLo, yAtHi, lo, hi, bands) {
+    const f = (v) => Math.max(0, Math.min(1, (v - lo) / (hi - lo))).toFixed(4);
+    let stops = "", from = lo;
+    bands.forEach(([upTo, col]) => { stops += `<stop offset="${f(from)}" stop-color="${col}"/><stop offset="${f(Math.min(upTo, hi))}" stop-color="${col}"/>`; from = upTo; });
+    return `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${yAtLo}" y2="${yAtHi}">${stops}</linearGradient>`;
   }
+  // Temperature colours: below 0 °C red, 0 to 10 °C yellow, above 10 °C the usual blue.
+  const TEMP_BANDS = [[0, "#ff4f4f"], [10, "#ffd23f"], [99, "var(--line-temp)"]];
+  const tempCol = (v) => (v < 0 ? "#ff4f4f" : v < 10 ? "#ffd23f" : "var(--line-temp)");
+  // Rain colours: under 1 mm yellow, 1 mm and more red.
+  const rainCol = (v) => (v >= 1 ? "#ff4f4f" : "#ffd23f");
   // The wind version: changes exactly at the 2 and 5 m/s lines.
   function windGradient(id, yAt0, yAtTop, top) {
     const f = (v) => Math.max(0, Math.min(1, v / top)).toFixed(4);
@@ -1118,7 +1123,7 @@
     const sea = p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6, wave = sea && state.marine.wave && fin(state.marine.wave).length;
     const wsr = waterSeries(p);
     const curv = sea && state.marine.cur && fin(state.marine.cur).length;
-    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃ ${curv ? `<span class="k-cur"></span>유속 ${rng(state.marine.cur, 2)}m/s ` : ""}${wsr ? `<span class="k-water"></span>수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"}) ` : ""}<span class="k-wind"></span>바람 ${rng(w.wind)}m/s(<i class="wk g">~2</i><i class="wk o">2~5</i><i class="wk r">5~</i>)${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
+    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃(<i class="wk r">0 미만</i><i class="wk y">0~10</i><i class="wk b">10~</i>) ${curv ? `<span class="k-cur"></span>유속 ${rng(state.marine.cur, 2)}m/s ` : ""}${wsr ? `<span class="k-water"></span>수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"}) ` : ""}<span class="k-wind"></span>바람 ${rng(w.wind)}m/s(<i class="wk g">~2</i><i class="wk o">2~5</i><i class="wk r">5~</i>)${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
   }
   // Score bars for each hour with temperature and wind drawn over them.
   let bigChart = null;
@@ -1179,9 +1184,9 @@
         const first = blue.findIndex((v) => v != null), last = blue.length - 1 - [...blue].reverse().findIndex((v) => v != null);
         P.unshift(`<defs><linearGradient id="bcFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--line-temp)" stop-opacity=".28"/><stop offset="1" stop-color="var(--line-temp)" stop-opacity="0"/></linearGradient></defs>`);
         P.push(`<path d="${tl}L${X(last).toFixed(1)} ${Y(0)}L${X(first).toFixed(1)} ${Y(0)}Z" fill="url(#bcFill)"/>`);
-        P.push(`<path d="${tl}" class="l-temp"/>`);
+        P.push(`<defs>${bandGradient("bcTemp", TY(-60), TY(100), -60, 100, TEMP_BANDS)}</defs><path d="${tl}" class="l-temp" style="stroke:url(#bcTemp)"/>`);
       }
-      P.push(`<defs>${windGradient("bcWind", WY(0), WY(wmax), wmax)}</defs><path d="${smooth(dash, WY)}" class="l-wind" stroke="url(#bcWind)"/>`);
+      P.push(`<defs>${windGradient("bcWind", WY(0), WY(wmax), wmax)}</defs><path d="${smooth(dash, WY)}" class="l-wind" style="stroke:url(#bcWind)"/>`);
       // highest and lowest of temperature and wind, marked on their lines
       const ext = (arr, fy, cls, unit, d) => {
         const v = fin(arr);
@@ -1190,7 +1195,7 @@
         [[hi, "최고", -9], [lo, "최저", 17]].forEach(([i, word, dy]) => {
           const x = X(i), y = fy(arr[i]);
           const anchor = i < 2 ? "start" : i > 21 ? "end" : "middle";
-          const col = cls === "wind" ? ` style="fill:${windCol(arr[i])}"` : "";
+          const col = cls === "wind" ? ` style="fill:${windCol(arr[i])}"` : cls === "temp" ? ` style="fill:${tempCol(arr[i])}"` : "";
           P.push(`<circle cx="${x}" cy="${y}" r="3.2" class="pt ${cls}"${col}/><text x="${x}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, y + dy))}" text-anchor="${anchor}" class="lab ${cls}"${col}>${word} ${num(arr[i], d)}${unit}</text>`);
         });
       };

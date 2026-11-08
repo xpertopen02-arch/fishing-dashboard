@@ -1073,3 +1073,12 @@ main { max-width: none; padding: 0 0 80px; }
 .wk { font-style: normal; font-weight: 700; margin: 0 2px; }
 .wk.g { color: #2ee68f; } .wk.o { color: #ff9f3a; } .wk.r { color: #ff4f4f; }
 :root[data-theme="light"] .wk.g { color: #129a5d; } :root[data-theme="light"] .wk.o { color: #d77a10; }
+
+/* v2.0.14 temperature and rain colours */
+.wk.y { color: #ffd23f; } .wk.b { color: var(--line-temp); } .wk.r { color: #ff4f4f; }
+:root[data-theme="light"] .wk.y { color: #b88a00; }
+.k-temp { background: linear-gradient(90deg, #ff4f4f 0 33%, #ffd23f 33% 66%, var(--line-temp) 66%) !important; width: 18px !important; }
+.legend .wk { margin-left: 4px; }
+.chart .legend { flex-wrap: wrap; row-gap: 2px; }
+.chart .legend span, .wk { white-space: nowrap; }
+.chart-title { flex: 1; }
