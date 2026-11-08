@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.0.7", date: "2026-11-08", title: "휴대폰 달력 숫자 크게",
+    changes: [
+      "휴대폰에서 16일 달력 원 안의 입질·편의 숫자가 작게 보이던 문제 수정: 판단 단어를 숨기고 원이 칸 폭을 다 쓰게 하며 숫자를 키움. 판단은 칸 색으로 구분(범례에 '칸 색 = 판단' 추가). PC 화면은 그대로",
+    ],
+  },
+  {
     version: "2.0.6", date: "2026-11-08", title: "그라데이션 원 그래프와 낚시터 막대그래프",
     changes: [
       "16일 달력의 두 겹 원 그래프를 빨강에서 노랑을 거쳐 초록으로 바뀌는 그라데이션으로 그림. 값이 낮으면 원이 일찍 끝나 빨간빛으로 남고, 높을수록 초록까지 이어짐",

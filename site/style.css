@@ -876,3 +876,14 @@ main { max-width: none; padding: 0 0 80px; }
   .cal-key span { flex-basis: 100%; }
   .pbars button { grid-template-columns: 64px minmax(0, 1fr) 28px 36px; gap: 8px; }
 }
+
+/* v2.0.7: on phones the ring takes the whole cell so both numbers can be read; the cell colour still shows the verdict */
+@media (max-width: 720px) {
+  .cal { gap: 3px; }
+  .cday, .cday.on { padding-left: 0; padding-right: 0; }
+  .cday .cd-v { display: none; }
+  .rg { width: 100%; max-width: 54px; }
+  .rg path, .rg .rg-track { stroke-width: 5; }
+  .rg-n { font-size: 15.5px; }
+  .cal-key span::after { content: " · 칸 색 = 판단"; }
+}

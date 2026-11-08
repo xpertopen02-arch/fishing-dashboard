@@ -1112,7 +1112,7 @@
       return out;
     };
     return `<svg class="rg" viewBox="0 0 64 64" role="img" aria-label="입질 ${outer}, 편의 ${inner}">${ring(27.5, outer)}${ring(20, inner)}
-      <text x="32" y="30" text-anchor="middle" class="rg-n" fill="${hueAt(outer)}">${outer}</text><line x1="25" x2="39" y1="33" y2="33" class="rg-sep"/><text x="32" y="43" text-anchor="middle" class="rg-n" fill="${hueAt(inner)}">${inner}</text></svg>`;
+      <text x="32" y="30" text-anchor="middle" class="rg-n" fill="${hueAt(outer)}">${outer}</text><line x1="24" x2="40" y1="33.5" y2="33.5" class="rg-sep"/><text x="32" y="44.5" text-anchor="middle" class="rg-n" fill="${hueAt(inner)}">${inner}</text></svg>`;
   }
   // Sixteen days laid out on a week grid, each with its own best window from the hourly forecast.
   function renderDays() {
