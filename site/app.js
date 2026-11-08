@@ -1154,7 +1154,17 @@
     const sea = p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6, wave = sea && state.marine.wave && fin(state.marine.wave).length;
     const wsr = waterSeries(p);
     const curv = sea && state.marine.cur && fin(state.marine.cur).length;
-    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃(<i class="wk r">0 미만</i><i class="wk y">0~10</i><i class="wk b">10~</i>) ${curv ? `<span class="k-cur"></span>유속 ${rng(state.marine.cur, 2)}m/s ` : ""}${wsr ? `<span class="k-water"></span>수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"}) ` : ""}<span class="k-wind"></span>바람 ${rng(w.wind)}m/s(<i class="wk g">~2m/s</i><i class="wk o">2~5m/s</i><i class="wk r">5m/s~</i>)${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
+    // each colour key and its words form one unbreakable item, so a line never breaks between them
+    const item = (key, text) => `<b class="lg"><span class="${key}"></span>${text}</b>`;
+    return [
+      item("k-bar", "점수 0~100"),
+      item("k-temp", `기온 ${rng(w.temp, 1)}℃(<i class="wk r">0 미만</i><i class="wk y">0~10</i><i class="wk b">10~</i>)`),
+      curv ? item("k-cur", `유속 ${rng(state.marine.cur, 2)}m/s`) : "",
+      wsr ? item("k-water", `수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"})`) : "",
+      item("k-wind", `바람 ${rng(w.wind)}m/s(<i class="wk g">~2m/s</i><i class="wk o">2~5m/s</i><i class="wk r">5m/s~</i>)`),
+      sea ? item("k-tide", `조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}`) : "",
+      item("k-sun", "일출·일몰"),
+    ].filter(Boolean).join("");
   }
   // Score bars for each hour with temperature and wind drawn over them.
   let bigChart = null;

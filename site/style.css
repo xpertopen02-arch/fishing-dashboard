@@ -1118,3 +1118,8 @@ main { max-width: none; padding: 0 0 80px; }
 
 /* v2.0.23 highest / lowest marks on the detail charts */
 .chart svg .exl { font-family: "Pretendard Variable", Pretendard, sans-serif; font-size: 10.5px; font-weight: 600; paint-order: stroke fill; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+
+/* v2.0.24: legend items keep their colour key and words together */
+.bc-legend { column-gap: 16px; row-gap: 6px; }
+.bc-legend .lg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 500; }
+.bc-legend .lg span { margin-left: 0 !important; flex: none; }

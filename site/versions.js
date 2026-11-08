@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.0.24", date: "2026-11-08", title: "그래프 범례 줄바꿈 정리",
+    changes: [
+      "24시간 그래프 아래 범례에서 색 표시와 항목 이름 사이에 줄이 바뀌어 색 표시만 윗줄 끝에 남던 문제 수정: 색 표시와 이름을 한 묶음으로 만들어 항목 단위로만 줄이 바뀌게 함",
+    ],
+  },
+  {
     version: "2.0.23", date: "2026-11-08", title: "세부 그래프 최고·최저와 시각",
     changes: [
       "세부 그래프마다 최고·최저 값을 시각과 함께 표시(예: 최고 3.2m/s 10시, 최저 0.7m/s 4시). 기온·수온·바람·기압·파고·해수면은 선 위에 점과 글자, 강수량은 가장 많은 시각만 '최대'로. 돌풍 점선은 제외",
