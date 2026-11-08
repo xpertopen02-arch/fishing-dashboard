@@ -2468,16 +2468,47 @@
     document.body.append(t);
     setTimeout(() => t.remove(), 2600);
   }
+  // Rotate view (phones): the PC dashboard, laid out 1400 px wide inside a frame, turned 90 degrees and
+  // scaled so it fills the upright screen; turn the phone sideways to read it. Works in every browser
+  // because it needs no permission to rotate the screen. Pressing the button again (here or inside the
+  // frame) or turning the phone to landscape closes it.
+  let rotLayer = null;
+  function sizeRot() {
+    if (!rotLayer) return;
+    const vw = innerWidth, vh = innerHeight;                 // upright screen
+    const s = vh / 1400, h = Math.round(vw / s);            // landscape width = vh, height = vw
+    const box = $(".rot-box", rotLayer);
+    box.style.width = "1400px";
+    box.style.height = `${h}px`;
+    box.style.transform = `translate(${vw}px, 0) rotate(90deg) scale(${s})`;
+  }
+  function closeRot() {
+    if (!rotLayer) return;
+    rotLayer.remove(); rotLayer = null;
+    document.documentElement.classList.remove("rot-on");
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  }
+  window.__closeRot = closeRot;
+  function openRot() {
+    rotLayer = document.createElement("div");
+    rotLayer.className = "rot-layer";
+    rotLayer.innerHTML = `<div class="rot-box"><iframe src="${location.pathname}${location.hash || "#plan"}" title="가로 대시보드"></iframe></div>`;
+    document.body.append(rotLayer);
+    document.documentElement.classList.add("rot-on");
+    sizeRot();
+    // full screen gives the dashboard the whole screen; the size is set first so it never waits on this
+    document.documentElement.requestFullscreen?.({ navigationUI: "hide" })?.catch(() => {});
+    setTimeout(sizeRot, 400);
+  }
+  addEventListener("resize", sizeRot);
+  document.addEventListener("fullscreenchange", () => setTimeout(sizeRot, 100));
+  matchMedia("(orientation: landscape)").addEventListener?.("change", (e) => { if (e.matches && rotLayer) closeRot(); });
   $("#rotateBtn").addEventListener("click", async () => {
-    const land = matchMedia("(orientation: landscape)").matches;
-    const target = land ? "portrait" : "landscape";
-    try {
-      if (!screen.orientation?.lock) throw new Error("unsupported");
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: "hide" });
-      await screen.orientation.lock(target);
-    } catch (e) {
-      toast(land ? "이 브라우저는 화면 회전을 지원하지 않습니다. 휴대폰을 세로로 돌려 주세요." : "이 브라우저는 화면 회전을 지원하지 않습니다. 휴대폰을 가로로 돌려 주세요.");
-    }
+    // inside the frame: the same button closes the rotated view
+    if (window.self !== window.top && window.parent.__closeRot) { window.parent.__closeRot(); return; }
+    if (rotLayer) { closeRot(); return; }
+    if (matchMedia("(orientation: landscape)").matches) { toast("가로로 들고 있어 이미 대시보드 화면입니다. 세로로 돌리면 휴대폰 화면이 됩니다."); return; }
+    openRot();
   });
   // coming back to the tab after half an hour fetches the weather again
   document.addEventListener("visibilitychange", () => { if (!document.hidden && state.wxAt && Date.now() - state.wxAt > 30 * 60e3) refreshWeather(); });
