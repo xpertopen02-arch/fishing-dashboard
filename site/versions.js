@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.0.16", date: "2026-11-08", title: "날짜 바로가기 버튼",
+    changes: [
+      "위쪽 막대의 날짜 칸 옆에 작은 버튼 두 개: › 는 하루 뒤로(오늘이면 내일), » 는 이번 주 토요일. 토요일에서 » 를 한 번 더 누르면 일요일, 또 누르면 토요일",
+    ],
+  },
+  {
     version: "2.0.15", date: "2026-11-08", title: "지금 화면 컬럼별 스크롤",
     changes: [
       "넓은 화면(1281px 이상)에서 지금 화면의 세 컬럼이 화면 높이에 맞춰지고, 마우스를 올린 컬럼만 따로 스크롤됨. 다른 컬럼은 그대로 있음. 중간 폭(981~1280px)에서는 위쪽 두 컬럼이 따로 스크롤됨",

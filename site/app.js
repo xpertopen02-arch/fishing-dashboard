@@ -265,6 +265,7 @@
     monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
     phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
+    chevR2: '<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     bolt: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
     compass: '<circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/>',
@@ -2326,6 +2327,14 @@
   setTopH();
   new ResizeObserver(setTopH).observe($(".top"));
   $("#wxBtn").addEventListener("click", refreshWeather);
+  // Date shortcuts: › goes one day on (from today that is tomorrow); » goes to this week's Saturday,
+  // and pressed again on that Saturday, to Sunday (and back).
+  const thisSaturday = () => addDays(TODAY, (6 - parseISO(TODAY).getDay() + 7) % 7 || 7);
+  $("#dNext").addEventListener("click", () => selectDate(addDays(state.date, 1)));
+  $("#dWeekend").addEventListener("click", () => {
+    const sat = thisSaturday();
+    selectDate(state.date === sat ? addDays(sat, 1) : sat);
+  });
   // Phone view: the same page in a 390 px wide frame, so the phone layout can be checked on a PC.
   // Inside the frame the button is hidden, so frames never nest.
   if (window.self !== window.top) document.documentElement.classList.add("in-phone");

@@ -1095,3 +1095,10 @@ main { max-width: none; padding: 0 0 80px; }
   .cc { grid-template-rows: calc(100vh - var(--topH, 74px)) auto; }
   .cc-left, .cc-mid { overflow-y: auto; min-height: 0; }
 }
+
+/* v2.0.16 date shortcuts */
+.top-date { gap: 4px; }
+.dnav { width: 28px; height: 30px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); }
+.dnav:hover { color: var(--accent); border-color: var(--accent); }
+.dnav .ico { width: 15px; height: 15px; }
+@media (max-width: 720px) { .dnav { width: 26px; height: 32px; } }
