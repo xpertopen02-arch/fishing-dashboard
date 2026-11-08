@@ -1115,3 +1115,6 @@ main { max-width: none; padding: 0 0 80px; }
 .top .search-open { overflow: hidden; min-width: 0; }
 .top .search-open span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .top .search-open .ico, .top .search-open kbd { flex: none; }
+
+/* v2.0.23 highest / lowest marks on the detail charts */
+.chart svg .exl { font-family: "Pretendard Variable", Pretendard, sans-serif; font-size: 10.5px; font-weight: 600; paint-order: stroke fill; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }

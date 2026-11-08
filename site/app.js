@@ -491,7 +491,7 @@
   const charts = [];
   function makeChart(el, cfg) {
     // the same height and margins on every chart keep the plot areas level across a row
-    const H = 170;
+    const H = 190;
     const m = { l: 34, r: 12, t: 24, b: 22 };
     const n = 24;
     let width = 0;
@@ -566,6 +566,36 @@
           parts.push(`<g transform="translate(${X(i)} 11) rotate(${(cfg.arrows[i] + 180) % 360})"><path d="M0 -6L4 5L0 2.5L-4 5Z" fill="var(--ink-2)"/></g>`);
         }
       }
+      // highest and lowest of each line (dashed helper lines such as gusts excepted) with the hour;
+      // bars show only their largest value. Labels step aside if they would land on one another.
+      const bandColour = (s, v) => (s.bands ? (s.bands.find(([upTo]) => v < upTo) || s.bands[s.bands.length - 1])[1] : s.color);
+      const exLabels = [];
+      cfg.series.forEach((s) => {
+        if (s.dash || s.noExt) return;
+        const vals = s.values.map((v, i) => [v, i]).filter(([v]) => v != null);
+        if (!vals.length) return;
+        const hi = vals.reduce((a, b) => (b[0] > a[0] ? b : a)), lo = vals.reduce((a, b) => (b[0] < a[0] ? b : a));
+        const marks = cfg.bars ? (hi[0] > 0 ? [[hi, "최대", -6]] : []) : hi[0] === lo[0] ? [] : [[hi, "최고", -8], [lo, "최저", 15]];
+        marks.forEach(([[v, i], word, dy]) => {
+          const x = X(i), y = Y(v), col = s.colorAt ? s.colorAt(i) : bandColour(s, v);
+          if (!cfg.bars) parts.push(`<circle cx="${x}" cy="${y}" r="3" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`);
+          exLabels.push({ x, y: y + dy, text: `${word} ${num(v, cfg.digits)}${cfg.unit} ${i}시`, anchor: i < 3 ? "start" : i > 20 ? "end" : "middle", col });
+        });
+      });
+      const meas = document.createElement("canvas").getContext("2d");
+      meas.font = '600 10.5px "Pretendard Variable", Pretendard, sans-serif';
+      const placed = [];
+      exLabels.forEach((l) => {
+        const w = meas.measureText(l.text).width + 4;
+        const box = (yy) => { const x0 = l.anchor === "start" ? l.x : l.anchor === "end" ? l.x - w : l.x - w / 2; return { x0, x1: x0 + w, y0: yy - 10, y1: yy + 3 }; };
+        let y = Math.max(m.t + 9, Math.min(H - m.b - 3, l.y));
+        for (const off of [0, -12, 12, -24, 24, -36, 36]) {
+          const ty = Math.max(m.t + 9, Math.min(H - m.b - 3, l.y + off)), b = box(ty);
+          if (!placed.some((q) => b.x0 < q.x1 && b.x1 > q.x0 && b.y0 < q.y1 && b.y1 > q.y0)) { y = ty; break; }
+        }
+        placed.push(box(y));
+        parts.push(`<text x="${l.x}" y="${y}" text-anchor="${l.anchor}" class="exl" fill="${l.col}">${l.text}</text>`);
+      });
       parts.push(`<g class="cross"><line y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)" stroke-width="1"/></g>`);
       parts.push(cfg.series.filter((s) => !cfg.bars).map((s, i) => `<circle class="pt pt${i}" r="4.5" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`).join(""));
       parts.push(`<rect class="hit" x="0" y="0" width="${width}" height="${H}" fill="transparent"/>`);
