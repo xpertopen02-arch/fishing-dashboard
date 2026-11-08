@@ -103,7 +103,8 @@
   // set when the service worker answered from its saved copy because there was no connection
   let weatherSavedAt = null;
   async function getJSON(url) {
-    const r = await fetch(url);
+    // no-store: every open of the page asks Open-Meteo again instead of reusing the browser's copy
+    const r = await fetch(url, { cache: "no-store" });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const saved = r.headers.get("x-fish-saved");
     if (saved) weatherSavedAt = saved;
@@ -233,6 +234,9 @@
     pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
     up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
     back: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+    chevL: '<path d="m15 18-6-6 6-6"/>',
+    chevR: '<path d="m9 18 6-6-6-6"/>',
+    refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     bolt: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
     compass: '<circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/>',
     trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
@@ -700,8 +704,9 @@
       return;
     }
     // The page scrolls past the map: the wheel zooms only with Ctrl, and on a phone one finger scrolls the page.
-    map = L.map("map", { zoomControl: true, attributionControl: true, scrollWheelZoom: false, dragging: !L.Browser.mobile }).setView([36.9, 127], 9);
-    map.zoomControl.setPosition("topleft");
+    // the map has its own screen now, so the mouse wheel zooms it directly
+    map = L.map("map", { zoomControl: true, attributionControl: true, scrollWheelZoom: true, wheelPxPerZoomLevel: 90, dragging: !L.Browser.mobile }).setView([36.9, 127], 9);
+    map.zoomControl.setPosition("topright");
     guardMapScroll();
     setTiles();
     PLACES.filter(hasPin).forEach(addMarker);
@@ -804,7 +809,7 @@
     hint.className = "map-hint";
     hint.setAttribute("aria-hidden", "true");
     box.append(hint);
-    let hinted = false, lastZoom = 0;
+    let hinted = false;
     const showHint = (text) => {
       if (hinted) return;
       hinted = true;
@@ -812,14 +817,6 @@
       hint.classList.add("on");
       setTimeout(() => hint.classList.remove("on"), 1800);
     };
-    box.addEventListener("wheel", (e) => {
-      if (!e.ctrlKey && !e.metaKey) { showHint("확대와 축소는 Ctrl을 누른 채 스크롤하세요"); return; }
-      e.preventDefault();
-      const now = Date.now();
-      if (now - lastZoom < 180 || !e.deltaY) return;
-      lastZoom = now;
-      map.setZoomAround(map.mouseEventToContainerPoint(e), map.getZoom() + (e.deltaY < 0 ? 1 : -1));
-    }, { passive: false, capture: true });
     if (L.Browser.mobile) box.addEventListener("touchmove", (e) => { if (e.touches.length === 1) showHint("지도를 움직이려면 두 손가락을 쓰세요"); }, { passive: true });
   }
 
@@ -921,6 +918,20 @@
     $("#topGo").innerHTML = r ? `<b class="tg-v tone-${scoreTone(r.score)}">${VERDICT[scoreTone(r.score)].replace(".", "")}</b><b class="mono tone-${scoreTone(r.score)}">${r.score}</b><span class="eyebrow">· 최고<br>${hhmm(r.from)}</span>` : "";
     $("#typeToggle").innerHTML = TYPES.map((t) => `<button data-type="${t}" class="${p.type === t ? "on" : ""}">${t}</button>`).join("");
   }
+  // Weather source and the time it was fetched, with a button to fetch it again.
+  function renderWxBtn(busy = false) {
+    const b = $("#wxBtn");
+    if (!b) return;
+    const t = state.wxAt ? `${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())}` : "–";
+    b.classList.toggle("busy", busy);
+    b.innerHTML = `${icon("refresh")}<span><small>날씨 출처 Open-Meteo</small><b>${busy ? "받는 중" : state.weather?.savedAt ? "저장본" : `${t} 갱신`}</b></span>`;
+    b.title = `날씨: Open-Meteo 예보(open-meteo.com, 여러 기상 모델을 합친 값). ${state.wxAt ? `마지막으로 ${t}에 받았습니다. ` : ""}누르면 지금 다시 받습니다.`;
+  }
+  function refreshWeather() {
+    [cacheW, outlookCache, dailyCache].forEach((c) => Object.keys(c).forEach((k) => delete c[k]));
+    renderWxBtn(true);
+    loadAll();
+  }
   function updateClock() {
     const d = new Date();
     $("#topClock").innerHTML = `${WEEK[d.getDay()]}요일, ${d.getMonth() + 1}월 ${d.getDate()}일<br><b class="mono">${pad(d.getHours())}:${pad(d.getMinutes())}</b>`;
@@ -966,12 +977,12 @@
     const temps = fin(w.temp), winds = fin(w.wind);
     const past = state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to);
     $("#ccMid").innerHTML = `
-      <p class="eyebrow">하루 24시간 · 점수 · ${p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6 ? "조위 · 파고" : "기온 · 바람"}</p>
+      <p class="eyebrow">하루 24시간 · 점수 · 기온 · 바람${p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6 ? " · 물때" : ""}</p>
       <h2 class="mid-title">가장 좋은 시간${past ? "은" : "은"} <em class="mono">${hhmm(r.from)}</em>${past ? "이었습니다" : "입니다"}.</h2>
       <p class="mid-sub" id="midSub">16일 전망을 불러오는 중입니다.</p>
       <div class="bigchart" id="bigChart"><div class="bc-read mono" id="bcRead"></div></div>
       <p class="bc-legend mono">${legendFor(p, w)}</p>
-      <p class="bc-src mono">날씨 OPEN-METEO · ${esc(p.id)} 좌표 기준${p.type === "바다" ? " · 해상 값은 모델" : ""}</p>`;
+      <p class="bc-src">날씨 출처: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> 예보 · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? " · 조위와 파고는 해상 모델 값" : ""}</p>`;
     bigChart = drawBigChart($("#bigChart"), r, w);
     renderMidSub();
 
@@ -1011,12 +1022,12 @@
   function legendFor(p, w) {
     const rng = (a, d = 1) => { const v = fin(a); return `${num(Math.min(...v), d)}~${num(Math.max(...v), d)}`; };
     const sea = p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6, wave = sea && state.marine.wave && fin(state.marine.wave).length;
-    return `<span class="k-bar"></span>점수 0-100 <span class="k-temp"></span>${sea ? `조위 ${rng(state.marine.sea, 1)}m` : `기온 ${rng(w.temp, 0)}℃`} <span class="k-wind"></span>${wave ? `파고 ${rng(state.marine.wave)}m` : `바람 ${rng(w.wind)}m/s`}`;
+    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃ <span class="k-wind"></span>바람 ${rng(w.wind)}m/s${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
   }
   // Score bars for each hour with temperature and wind drawn over them.
   let bigChart = null;
   function drawBigChart(host, r, w) {
-    const H = 280, m = { l: 34, r: 12, t: 26, b: 26 };
+    const H = 300, m = { l: 34, r: 12, t: 38, b: 26 };
     const svgBox = document.createElement("div");
     host.append(svgBox);
     let W = 0;
@@ -1024,8 +1035,10 @@
     const slot = () => (W - m.l - m.r) / 24;
     const Y = (v) => m.t + (H - m.t - m.b) * (1 - v / 100);
     const sea = placeById[state.place].type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6;
-    const blue = sea ? state.marine.sea : w.temp, dash = sea && state.marine.wave && fin(state.marine.wave).length ? state.marine.wave : w.wind;
-    const dashUnit = dash === w.wind ? "m/s" : "m";
+    const blue = w.temp, dash = w.wind, dashUnit = "m/s";
+    const tide = sea ? state.marine.sea : null;
+    const tv = tide ? fin(tide) : [], tdl = Math.min(...tv), tdh = Math.max(...tv);
+    const DY = (v) => m.t + (H - m.t - m.b) * (.92 - .5 * (v - tdl) / ((tdh - tdl) || 1));
     const bv = fin(blue), tlo = Math.min(...bv), thi = Math.max(...bv), pad = (thi - tlo) * .15 || 1;
     const TY = (t) => m.t + (H - m.t - m.b) * (.88 - .72 * (t - tlo + pad) / (thi - tlo + 2 * pad));
     const wmax = Math.max(dash === w.wind ? 6 : 2, ...fin(dash));
@@ -1069,8 +1082,37 @@
         P.push(`<path d="${tl}" class="l-temp"/>`);
       }
       P.push(`<path d="${smooth(dash, WY)}" class="l-wind"/>`);
-      const wi = dash.indexOf(Math.max(...fin(dash)));
-      P.push(`<text x="${X(wi)}" y="${WY(dash[wi]) - 8}" text-anchor="middle" class="lab wind">${num(dash[wi])}${dashUnit}</text>`);
+      // highest and lowest of temperature and wind, marked on their lines
+      const ext = (arr, fy, cls, unit, d) => {
+        const v = fin(arr);
+        if (!v.length) return;
+        const hi = arr.indexOf(Math.max(...v)), lo = arr.indexOf(Math.min(...v));
+        [[hi, "최고", -9], [lo, "최저", 17]].forEach(([i, word, dy]) => {
+          const x = X(i), y = fy(arr[i]);
+          const anchor = i < 2 ? "start" : i > 21 ? "end" : "middle";
+          P.push(`<circle cx="${x}" cy="${y}" r="3.2" class="pt ${cls}"/><text x="${x}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, y + dy))}" text-anchor="${anchor}" class="lab ${cls}">${word} ${num(arr[i], d)}${unit}</text>`);
+        });
+      };
+      ext(blue, TY, "temp", "℃", 1);
+      ext(dash, WY, "wind", dashUnit, 1);
+      // sunrise and sunset as thin vertical lines with their times
+      const xt = (t) => m.l + (W - m.l - m.r) * t / 24;
+      [[r.sunrise ?? w.sunrise, "일출"], [r.sunset ?? w.sunset, "일몰"]].forEach(([t, word]) => {
+        const f = hourFrac(t);
+        if (f == null) return;
+        P.push(`<line x1="${xt(f)}" x2="${xt(f)}" y1="${m.t - 14}" y2="${H - m.b}" class="sunline"/><text x="${xt(f) + (word === "일출" ? 4 : -4)}" y="${m.t - 6}" text-anchor="${word === "일출" ? "start" : "end"}" class="lab sun">${word} ${esc(t)}</text>`);
+      });
+      // at sea: the modelled tide as a third line, with high and low water times
+      if (tide) {
+        P.push(`<path d="${smooth(tide, DY)}" class="l-tide"/>`);
+        for (let h = 1; h < 23; h++) {
+          const [a, b, c] = [tide[h - 1], tide[h], tide[h + 1]];
+          if ([a, b, c].some((v) => v == null)) continue;
+          const high = b >= a && b > c, low = b <= a && b < c;
+          if (!high && !low) continue;
+          P.push(`<text x="${X(h)}" y="${DY(b) + (high ? -8 : 15)}" text-anchor="middle" class="lab tide">${high ? "▲만조" : "▼간조"} ${pad2(h)}:00</text>`);
+        }
+      }
       [0, 3, 6, 9, 12, 15, 18, 21].forEach((h) => P.push(`<text x="${m.l + slot() * h}" y="${H - 6}" class="ax">${pad2(h)}</text>`));
       P.push(`<line class="cur" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)" stroke-dasharray="2 3"/>`);
       P.push(`<rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`);
@@ -1088,7 +1130,7 @@
       if (!cur) return;
       cur.setAttribute("x1", X(h)); cur.setAttribute("x2", X(h));
       const rd = $("#bcRead");
-      if (rd) rd.innerHTML = `${pad2(h)}:00 · 점수 <b>${vals[h] ?? "–"}</b> · 기온 ${num(w.temp[h])}℃ · 바람 ${num(w.wind[h])}m/s${w.dir[h] != null ? ` ${compass(w.dir[h])}` : ""}${sea ? ` · 조위 ${num(state.marine.sea[h], 2)}m` : ""}${dash !== w.wind ? ` · 파고 ${num(dash[h])}m` : ""}${w.precip?.[h] ? ` · 비 ${num(w.precip[h])}mm` : ""}`;
+      if (rd) rd.innerHTML = `${pad2(h)}:00 · 점수 <b>${vals[h] ?? "–"}</b> · 기온 ${num(w.temp[h])}℃ · 바람 ${num(w.wind[h])}m/s${w.dir[h] != null ? ` ${compass(w.dir[h])}` : ""}${sea ? ` · 조위 ${num(state.marine.sea[h], 2)}m` : ""}${sea && state.marine.wave?.[h] != null ? ` · 파고 ${num(state.marine.wave[h])}m` : ""}${w.precip?.[h] ? ` · 비 ${num(w.precip[h])}mm` : ""}`;
     }
     draw();
     const ro = new ResizeObserver(() => { if (Math.abs(host.clientWidth - W) > 2) draw(); });
@@ -1170,10 +1212,10 @@
       if (!r) body = `<p class="mp-empty">날씨를 불러오면 조건이 나옵니다.</p>`;
       else {
         const curve = curveOf(p.type), ok = curve.filter((x) => x[1] === 1);
-        body = card("가장 좋은 시간", `${r.from}~${r.to}시, 점수 ${r.score}점`, btn(`data-hourset="${r.from}"`, "그 시각 지도 보기", state.hour >= r.from && state.hour < r.to))
+        body = card("가장 좋은 시간", `${r.from}~${r.to}시, 점수 ${r.score}점`, btn(`data-hourset="${r.from}" data-hourkey="best"`, state.hourPin === "best" ? "현재 시각으로 돌아가기" : "그 시각 지도 보기", state.hourPin === "best"))
           + card(r.water ? "알맞은 수온" : "알맞은 기온", r.water ? `지금 표층 ${num(r.water.surface)}℃, 송어 활성은 10~16℃` : `${num(r.temp)}℃, ${p.type}낚시 알맞은 범위 ${ok[0][0]}~${ok[ok.length - 1][0]}℃`, btn("data-wind-toggle", state.windOn ? "바람 흐름 숨기기" : "바람 흐름 보기", state.windOn))
           + card("조과 기록", catchSummary(p), btn("data-bubbles", state.bubbles ? "조과 크기 숨기기" : "지도에 조과 크기 보기", state.bubbles))
-          + card("기록상 입질 시간", r.prof ? `${r.prof.peak}시대에 가장 많이 잡힘, 조과 ${r.prof.total}수 기록` : "조과 시각 기록이 없습니다", r.prof ? btn(`data-hourset="${r.prof.peak}"`, "그 시각 지도 보기", state.hour === r.prof.peak) : "")
+          + card("기록상 입질 시간", r.prof ? `${r.prof.peak}시대에 가장 많이 잡힘, 조과 ${r.prof.total}수 기록` : "조과 시각 기록이 없습니다", r.prof ? btn(`data-hourset="${r.prof.peak}" data-hourkey="peak"`, state.hourPin === "peak" ? "현재 시각으로 돌아가기" : "그 시각 지도 보기", state.hourPin === "peak") : "")
           + `<div class="mp-rows">${[["바람", READ.wind(r)], ["강수", READ.rain(r)], ["기압", READ.press(r)], ...(r.wave != null ? [["파고", READ.wave(r)]] : []), ["위성 지도", state.satellite ? "켜짐" : "꺼짐"]].map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>`;
       }
     } else {
@@ -1182,7 +1224,7 @@
         + catchPanel(p).replace('style="grid-column:span 12"', "");
     }
     $("#mapPanel").innerHTML = `
-      <header class="mp-head"><button class="icon-btn" data-go="plan" aria-label="지금 화면으로">${icon("back")}</button><div><h2>${esc(p.name)}</h2><p>${esc(p.type)}낚시 · ${r ? `${r.score}점` : "점수 없음"} · ${fmtShort(state.date)}</p></div></header>
+      <header class="mp-head"><button class="icon-btn" data-panel-toggle aria-label="낚시터 정보 접기" title="왼쪽으로 접기">${icon("chevL")}</button><div><h2>${esc(p.name)}</h2><p>${esc(p.type)}낚시 · ${r ? `${r.score}점` : "점수 없음"} · ${fmtShort(state.date)}</p></div></header>
       <div class="seg"><button data-maptab="season" class="${tab === "season" ? "on" : ""}">이맘때</button><button data-maptab="ideal" class="${tab === "ideal" ? "on" : ""}">좋은 조건</button></div>
       <p class="mp-label">지도에 보일 낚시 종류</p>
       <div class="mp-chips">${["", ...TYPES].map((t) => `<button class="${state.mapType === t ? "on" : ""}" data-maptype="${t}">${t || "전체"}</button>`).join("")}</div>
@@ -1312,6 +1354,8 @@
         try { state.marine = await fetchMarine(p, state.date); } catch { state.marine = null; }
         if (token !== loadToken) return;
       }
+      state.wxAt = new Date();
+      renderWxBtn();
       computeScores();
       renderBrief();
       renderCharts();
@@ -1321,6 +1365,7 @@
     } catch (e) {
       if (token !== loadToken) return;
       state.scores = {};
+      renderWxBtn();
       renderBrief(e.message);
       $("#charts").innerHTML = "";
       const sim = $("#similarBody");
@@ -1628,17 +1673,53 @@
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
 
+  // Mouse wheel zooms around the pointer (1x to 8x); when zoomed in, dragging moves the picture.
+  function zoomable(img) {
+    if (img.dataset.zoomable) return img;
+    img.dataset.zoomable = "1";
+    let s = 1, x = 0, y = 0, drag = null;
+    const apply = () => { img.style.transform = `translate(${x}px, ${y}px) scale(${s})`; img.style.cursor = s > 1 ? (drag ? "grabbing" : "grab") : ""; };
+    img.resetZoom = () => { s = 1; x = 0; y = 0; apply(); };
+    img.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const r = img.getBoundingClientRect();
+      const ns = Math.min(8, Math.max(1, s * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
+      const qx = (e.clientX - (r.left + r.width / 2)) / s, qy = (e.clientY - (r.top + r.height / 2)) / s;
+      x += (s - ns) * qx; y += (s - ns) * qy; s = ns;
+      if (s === 1) { x = 0; y = 0; }
+      apply();
+    }, { passive: false });
+    img.addEventListener("pointerdown", (e) => {
+      if (s === 1) return;
+      e.preventDefault();
+      drag = { px: e.clientX, py: e.clientY, x, y, moved: false };
+      img.setPointerCapture(e.pointerId);
+      apply();
+    });
+    img.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.px, dy = e.clientY - drag.py;
+      if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+      x = drag.x + dx; y = drag.y + dy; apply();
+    });
+    const end = () => { if (drag?.moved) img.dataset.dragged = Date.now(); drag = null; apply(); };
+    img.addEventListener("pointerup", end);
+    img.addEventListener("pointercancel", end);
+    return img;
+  }
+  const justDragged = (img) => img && Date.now() - (+img.dataset.dragged || 0) < 350;
   function showFigure(src, page) {
     let box = $("#figDialog");
     if (!box) {
       box = document.createElement("dialog");
       box.id = "figDialog";
       box.className = "fig-dialog";
-      box.addEventListener("click", (e) => { if (!e.target.closest("a")) box.close(); });
+      box.addEventListener("click", (e) => { if (!e.target.closest("a") && !justDragged($("img", box))) box.close(); });
       document.body.append(box);
     }
     const pdf = window.FISH_BOOK_GUIDE.pdf;
-    box.innerHTML = `<img src="${esc(src)}" alt="원본 ${esc(page)}쪽 그림"><p><a href="${esc(pdf)}#page=${esc(page)}" target="_blank" rel="noopener noreferrer">원본 ${esc(page)}쪽 열기</a> · 그림을 한 번 더 누르면 닫힙니다</p>`;
+    box.innerHTML = `<div class="zoom-frame"><img src="${esc(src)}" alt="원본 ${esc(page)}쪽 그림"></div><p><a href="${esc(pdf)}#page=${esc(page)}" target="_blank" rel="noopener noreferrer">원본 ${esc(page)}쪽 열기</a> · 마우스 휠로 확대·축소, 확대한 뒤 끌어서 이동 · 그림을 누르면 닫힙니다</p>`;
+    zoomable($("img", box));
     box.showModal();
   }
 
@@ -1941,10 +2022,11 @@
     if (fig) { showFigure(fig.dataset.figSrc, fig.dataset.figPage); return; }
     if (bg.id === "drawerBack") return closeDrawer();
     if (bg.id === "searchLayer") { $("#searchLayer").hidden = true; return; }
-    if (bg.closest("#lightbox")) { $("#lightbox").hidden = true; return; }
+    if (bg.closest("#lightbox")) { if (!justDragged($("#lightbox img"))) $("#lightbox").hidden = true; return; }
     if (!t) return;
     if (t.tagName === "IMG" && t.closest(".drawer-body")) {
-      $("#lightbox img").src = t.src; $("#lightbox").hidden = false; return;
+      const lb = zoomable($("#lightbox img"));
+      lb.src = t.src; lb.resetZoom(); $("#lightbox").hidden = false; return;
     }
     const d = t.dataset;
     if (d.go) go(d.go);
@@ -1959,7 +2041,19 @@
     else if (d.alertClose) { state.alertClosed[d.alertClose] = true; renderBrief(); }
     else if (d.maptab) { state.mapTab = d.maptab; renderMapPanel(); }
     else if (d.maptype !== undefined) { state.mapType = d.maptype; updatePins(); drawBubbles(); renderMapPanel(); }
-    else if (d.hourset !== undefined) { stopPlay(); setHour(+d.hourset); renderMapPanel(); }
+    else if (d.hourset !== undefined) {
+      // a second press turns it off and puts the map back on the current hour
+      stopPlay();
+      if (state.hourPin === d.hourkey) { state.hourPin = null; setHour(new Date().getHours()); }
+      else { state.hourPin = d.hourkey; setHour(+d.hourset); }
+      renderMapPanel();
+    }
+    else if (d.panelToggle !== undefined) {
+      state.panelOff = !state.panelOff;
+      $(".mapview").classList.toggle("panel-off", state.panelOff);
+      $("#mpOpen").hidden = !state.panelOff;
+      if (map) setTimeout(() => map.invalidateSize(), 320);
+    }
     else if (d.bubbles !== undefined) { state.bubbles = !state.bubbles; drawBubbles(); renderMapPanel(); }
     else if (d.windToggle !== undefined) { state.windOn = !state.windOn; $("#windCanvas").hidden = !state.windOn; if (state.windOn) refreshWindField(); renderMapPanel(); }
     else if (d.jump) { if (state.view !== "plan") go("plan"); $(`#${d.jump}`)?.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" }); }
@@ -2010,7 +2104,7 @@
     if (d >= WEATHER_MIN) selectDate(d);
     else e.target.value = state.date;
   });
-  $("#hourRange").addEventListener("input", (e) => { stopPlay(); setHour(+e.target.value); });
+  $("#hourRange").addEventListener("input", (e) => { stopPlay(); setHour(+e.target.value); if (state.hourPin) { state.hourPin = null; renderMapPanel(); } });
   document.addEventListener("change", (e) => { if (e.target.id === "logYear") { state.log.year = e.target.value || null; renderLog(); } });
   $("#playBtn").addEventListener("click", togglePlay);
   $("#mapAll").addEventListener("click", fitAll);
@@ -2101,6 +2195,10 @@
   document.documentElement.dataset.theme = store.get("theme2", "dark");
   updateClock();
   setInterval(updateClock, 30000);
+  $("#wxBtn").addEventListener("click", refreshWeather);
+  // coming back to the tab after half an hour fetches the weather again
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && state.wxAt && Date.now() - state.wxAt > 30 * 60e3) refreshWeather(); });
+  setInterval(() => { if (!document.hidden && state.wxAt && Date.now() - state.wxAt > 30 * 60e3) refreshWeather(); }, 5 * 60e3);
   $("#dateInput").value = state.date;
   $("#dateInput").min = WEATHER_MIN;
   $("#dateRange").textContent = `예보: ${FORECAST_END.replaceAll("-", ".")}까지, 이후는 최근 3년 평균`;
