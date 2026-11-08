@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.9", date: "2026-11-08", title: "휴대폰: 홈 사진의 흐린 부분 숨김",
+    changes: [
+      "홈 맨 위 사진 양 끝의 흐리게 처리한 부분(원본 사진의 글씨를 지운 자리)이 휴대폰에서 오른쪽 위에 보이던 것을 고침. 휴대폰에서는 사진 가운데의 호수와 낚시꾼 부분만 보이도록 사진 크기와 위치를 맞춤(360·390·720 폭에서 계산으로 확인)",
+    ],
+  },
+  {
     version: "2.1.8", date: "2026-11-08", title: "휴대폰: 홈 머리 글과 정보 상자 가운데로",
     changes: [
       "휴대폰 화면 홈 맨 위 사진에서 FISHING INTELLIGENCE 글과 날짜·낚시터·기온 상자가 왼쪽으로 쏠려 있던 것을 가운데로 맞춤 (390×844에서 확인)",
