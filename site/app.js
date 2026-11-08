@@ -1531,6 +1531,20 @@
       <button data-go="notes">${icon("flask")}<span>연구 노트</span></button></div>`;
   }
 
+  // The fish logo: a short welcome over the dusk picture, then the 홈 screen.
+  function showWelcome() {
+    if ($(".welcome")) return;
+    const p = placeById[state.place], r = state.scores?.[p.id];
+    const w = document.createElement("div");
+    w.className = "welcome";
+    w.setAttribute("role", "status");
+    w.innerHTML = `<div class="wl-in"><span class="wl-logo">${icon("fish")}</span><h1>FISHING INTELLIGENCE</h1><p>데이터로 예측하고, 경험으로 완성하는 스마트 낚시</p>
+      ${r ? `<p class="wl-today">${esc(p.id)} · ${VERDICT[scoreTone(r.score)]} ${r.score}점 · 최고 ${hhmm(r.from)}</p>` : ""}<em>Good Fishing!</em></div>`;
+    document.body.append(w);
+    const done = () => { w.classList.add("out"); setTimeout(() => w.remove(), REDUCED ? 0 : 500); go("home"); };
+    w.addEventListener("click", done);
+    setTimeout(done, REDUCED ? 600 : 1800);
+  }
   // Map side panel: details of the chosen place, with buttons that change the map.
   function renderMapPanel() {
     const p = placeById[state.place], r = state.scores?.[p.id];
@@ -2387,6 +2401,7 @@
       $("#mpOpen").hidden = !state.panelOff;
       if (map) setTimeout(() => map.invalidateSize(), 320);
     }
+    else if (d.welcome !== undefined) showWelcome();
     else if (d.photoNext) { state.photoIdx = state.photoIdx || {}; state.photoIdx[d.photoNext] = (state.photoIdx[d.photoNext] || 0) + 1; renderHome(); }
     else if (d.homeFocus !== undefined) { homeFocus = d.homeFocus; renderHome(); }
     else if (d.homeOpen) { selectPlace(d.homeOpen, false); go("plan"); }

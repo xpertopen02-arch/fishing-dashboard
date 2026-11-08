@@ -1312,3 +1312,19 @@ body[data-view="home"] main { padding-bottom: 0; }
 .hcd-img .credit { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 6px 2px; font-size: 9.5px; line-height: 1.2; color: rgba(255, 255, 255, .85); background: linear-gradient(180deg, transparent, rgba(0, 0, 0, .55)); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
 .hcd-img .credit:hover { color: #fff; text-decoration: underline; }
 .hcd-img .ph-n { position: absolute; top: 6px; right: 6px; font-size: 10.5px; font-weight: 700; color: #fff; background: rgba(0, 0, 0, .5); border-radius: 6px; padding: 0 6px; pointer-events: none; }
+
+/* v2.1.3 welcome splash from the fish logo */
+.welcome { position: fixed; inset: 0; z-index: 5000; display: grid; place-items: center; cursor: pointer;
+  background: linear-gradient(180deg, rgba(10, 16, 28, .55), rgba(10, 16, 28, .82)), url("img/home/banner.jpg") center 55% / cover no-repeat, #141b26;
+  animation: wlIn .45s ease both; }
+.welcome.out { animation: wlOut .5s ease forwards; }
+.wl-in { text-align: center; color: #fff; padding: 20px; animation: wlRise .7s cubic-bezier(.2, .8, .2, 1) both .1s; }
+.wl-logo { display: inline-grid; place-items: center; width: 76px; height: 76px; border-radius: 20px; background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 40px rgba(47, 224, 191, .35); }
+.wl-logo .ico { width: 44px; height: 44px; }
+.wl-in h1 { margin: 18px 0 6px; font-size: clamp(28px, 5vw, 52px); font-weight: 800; letter-spacing: .04em; text-shadow: 0 2px 16px rgba(0, 0, 0, .5); }
+.wl-in p { margin: 0; font-size: clamp(14px, 1.6vw, 18px); color: #e6edf5; }
+.wl-in .wl-today { margin-top: 14px; display: inline-block; padding: 6px 16px; border-radius: 99px; background: rgba(14, 20, 32, .7); border: 1px solid rgba(255, 255, 255, .18); font-weight: 600; }
+.wl-in em { display: block; margin-top: 16px; font-family: "Brush Script MT", "Segoe Script", cursive; font-size: clamp(26px, 3.4vw, 40px); font-style: normal; color: #ffd9a0; }
+@keyframes wlIn { from { opacity: 0; } }
+@keyframes wlOut { to { opacity: 0; visibility: hidden; } }
+@keyframes wlRise { from { opacity: 0; transform: translateY(18px) scale(.98); } }

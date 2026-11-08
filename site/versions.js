@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.3", date: "2026-11-08", title: "물고기 로고: 환영 화면 뒤 홈으로",
+    changes: [
+      "왼쪽 위 물고기 로고를 누르면 노을 사진 위에 FISHING INTELLIGENCE 환영 화면(오늘 낚시터, 판단, 점수, 최고 시각, Good Fishing!)이 약 1.8초 떴다가 사라지고 홈 화면으로 이동. 환영 화면을 누르면 바로 넘어감",
+    ],
+  },
+  {
     version: "2.1.2", date: "2026-11-08", title: "낚시터 풍경 사진",
     changes: [
       "23개 낚시터마다 사용자가 고른 풍경 사진 2장씩(모두 46장)을 홈의 낚시터 카드에 넣음. 사진을 누르면 다음 사진으로 바뀌고(1/2, 2/2), 사진 아래에 아주 작게 출처(사이트 이름)를 표시하며 누르면 원래 글이 열림",
