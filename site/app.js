@@ -2321,6 +2321,10 @@
   document.documentElement.dataset.theme = store.get("theme2", "dark");
   updateClock();
   setInterval(updateClock, 30000);
+  // The columns of 지금 fill the window below the top bar; the bar's height changes when it wraps.
+  const setTopH = () => document.documentElement.style.setProperty("--topH", `${$(".top").offsetHeight}px`);
+  setTopH();
+  new ResizeObserver(setTopH).observe($(".top"));
   $("#wxBtn").addEventListener("click", refreshWeather);
   // Phone view: the same page in a 390 px wide frame, so the phone layout can be checked on a PC.
   // Inside the frame the button is hidden, so frames never nest.

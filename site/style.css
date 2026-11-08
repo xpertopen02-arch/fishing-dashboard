@@ -1082,3 +1082,16 @@ main { max-width: none; padding: 0 0 80px; }
 .chart .legend { flex-wrap: wrap; row-gap: 2px; }
 .chart .legend span, .wk { white-space: nowrap; }
 .chart-title { flex: 1; }
+
+/* v2.0.15: on wide screens each column of 지금 scrolls on its own, without a visible scrollbar.
+   When a column reaches its end, the wheel carries on to the page (세부 그래프 and 공략 자료 below). */
+.cc > div { scrollbar-width: none; -ms-overflow-style: none; }
+.cc > div::-webkit-scrollbar { display: none; }
+@media (min-width: 1281px) {
+  .cc { height: calc(100vh - var(--topH, 74px)); min-height: 0; }
+  .cc > div { overflow-y: auto; min-height: 0; }
+}
+@media (min-width: 981px) and (max-width: 1280px) {
+  .cc { grid-template-rows: calc(100vh - var(--topH, 74px)) auto; }
+  .cc-left, .cc-mid { overflow-y: auto; min-height: 0; }
+}
