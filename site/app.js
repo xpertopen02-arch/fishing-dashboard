@@ -66,6 +66,7 @@
     mapTab: "ideal",
     mapType: "",
     windOn: true,
+    bubbles: false,
     similar: null,
     playing: null,
     picking: false,
@@ -858,6 +859,7 @@
 
   // 입질 = how the fish should feed (temperature, time of day, pressure); 편의 = how easy the water is to fish (wind, rain, waves).
   // Both come from the same hourly factors as the score, so they never disagree with it.
+  const peakBite = (r) => Math.max(...r.hours.filter(Boolean).map((x) => Math.round(geo({ temp: x.f.temp, time: x.f.time, press: x.f.press }))));
   function subScores(r) {
     const span = r.hours.slice(r.from, r.to).filter(Boolean);
     const part = (keys) => Math.round(span.reduce((s, x) => s + geo(Object.fromEntries(keys.filter((k) => x.f[k] != null).map((k) => [k, x.f[k]]))), 0) / (span.length || 1));
@@ -916,7 +918,7 @@
 
   function renderTop() {
     const p = placeById[state.place], r = state.scores?.[p.id];
-    $("#topGo").innerHTML = r ? `<span class="eyebrow">점수</span><b class="mono tone-${scoreTone(r.score)}">${r.score}</b><span class="eyebrow">최고 ${hhmm(r.from)}</span>` : "";
+    $("#topGo").innerHTML = r ? `<b class="tg-v tone-${scoreTone(r.score)}">${VERDICT[scoreTone(r.score)].replace(".", "")}</b><b class="mono tone-${scoreTone(r.score)}">${r.score}</b><span class="eyebrow">· 최고<br>${hhmm(r.from)}</span>` : "";
     $("#typeToggle").innerHTML = TYPES.map((t) => `<button data-type="${t}" class="${p.type === t ? "on" : ""}">${t}</button>`).join("");
   }
   function updateClock() {
@@ -948,27 +950,27 @@
     $("#ccLeft").innerHTML = `
       ${a ? `<div class="alert"><button class="alert-x" data-alert-close="${esc(a.key)}" aria-label="알림 닫기">${icon("x")}</button>
         <b class="mono">${esc(a.t)}${alerts.length > 1 ? ` · 외 ${alerts.length - 1}건` : ""}</b><p>${esc(a.body)}</p><small>출처: <span>${esc(a.src)}</span></small></div>` : ""}
-      <p class="eyebrow accent">판단 · ${dayLabel()} · ${MODE_SHORT[state.weather.mode]}</p>
+      <p class="eyebrow accent">판단 · ${dayLabel()} · ${state.date === TODAY ? `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}` : MODE_SHORT[state.weather.mode]}</p>
       <div class="verdict-word tone-${tone}">${VERDICT[tone]}</div>
       <p class="lead">${esc(lead)}. ${state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to) ? `${mono(hhmm(r.from))}부터 ${r.to - r.from}시간이 가장 좋았습니다` : state.date === TODAY && new Date().getHours() >= r.from ? `좋은 시간이 ${mono(hhmm(r.to))}까지 이어집니다` : `${r.to - r.from}시간의 좋은 시간이 ${mono(hhmm(r.from))}에 열립니다`}.</p>
       <div class="kpis">
-        <div><span class="eyebrow">입질</span><strong>${sub.bite}</strong><small class="mono">${r.water ? `수온 ${num(r.water.surface)}℃` : `기온 ${num(r.temp)}℃`} · ${r.prof ? "기록 반영" : "기록 없음"}</small></div>
+        <div><span class="eyebrow">입질</span><strong>${sub.bite}</strong><small class="mono">하루 최고 · ${peakBite(r)}</small></div>
         <div><span class="eyebrow">편의</span><strong>${sub.access}</strong><small class="mono">바람 ${num(r.wind)}m/s ${r.dir != null ? compass(r.dir) : ""}</small></div>
       </div>
       <button class="cta" ${guide ? `data-open="${guide.id}"` : 'data-jump="docsSec"'}><span><small class="eyebrow">출조 준비</small><b>${guide ? "이 낚시터 공략법 보기" : "공략 자료 보기"}</b></span>${icon("play")}</button>
       <p class="eyebrow">${tt.title}</p>
-      <div class="tiles4">${tt.tiles.map((t) => `<div class="tile4 ${t.cls}"><i>${t.mark}</i><b class="mono">${esc(t.top)}</b><small class="mono">${esc(t.sub)}</small></div>`).join("")}</div>
+      <div class="tiles4">${(() => { const nowHm = `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}`; const nx = state.date === TODAY ? tt.tiles.findIndex((t) => /^\d\d:\d\d$/.test(t.top) && t.top >= nowHm) : -1; return tt.tiles.map((t, i) => `<div class="tile4 ${t.cls} ${i === nx ? "next" : ""}"><i>${t.mark}</i><b class="mono">${esc(t.top)}</b><small class="mono">${esc(t.sub)}</small></div>`).join(""); })()}</div>
       <div class="chips2"><span class="mono">${r.dir != null ? compass(r.dir) + "풍 " : ""}${num(r.wind)}m/s</span><span class="mono">${r.pressure != null ? `${Math.round(r.pressure)}hPa ${r.pTrend >= 0 ? "+" : "−"}${num(Math.abs(r.pTrend))}` : "기압 –"}</span></div>
       <ul class="todo">${v.act.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
 
     const temps = fin(w.temp), winds = fin(w.wind);
     const past = state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to);
     $("#ccMid").innerHTML = `
-      <p class="eyebrow">하루 24시간 · 점수 · 기온 · 바람</p>
+      <p class="eyebrow">하루 24시간 · 점수 · ${p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6 ? "조위 · 파고" : "기온 · 바람"}</p>
       <h2 class="mid-title">가장 좋은 시간${past ? "은" : "은"} <em class="mono">${hhmm(r.from)}</em>${past ? "이었습니다" : "입니다"}.</h2>
       <p class="mid-sub" id="midSub">16일 전망을 불러오는 중입니다.</p>
       <div class="bigchart" id="bigChart"><div class="bc-read mono" id="bcRead"></div></div>
-      <p class="bc-legend mono"><span class="k-bar"></span>점수 0-100 <span class="k-temp"></span>기온 ${Math.round(Math.min(...temps))}~${Math.round(Math.max(...temps))}℃ <span class="k-wind"></span>바람 ${num(Math.min(...winds))}~${num(Math.max(...winds))}m/s</p>
+      <p class="bc-legend mono">${legendFor(p, w)}</p>
       <p class="bc-src mono">날씨 OPEN-METEO · ${esc(p.id)} 좌표 기준${p.type === "바다" ? " · 해상 값은 모델" : ""}</p>`;
     bigChart = drawBigChart($("#bigChart"), r, w);
     renderMidSub();
@@ -998,10 +1000,19 @@
     if (!el) return;
     const days = (state.outlook || []).filter((d) => d.r);
     if (!days.length) { el.textContent = "16일 전망을 불러오지 못했습니다."; return; }
-    const best = days.reduce((a, b) => (b.r.score > a.r.score ? b : a));
-    el.innerHTML = best.date === state.date ? "앞으로 16일 중 이날이 가장 좋습니다." : `16일 중 가장 좋은 날은 ${fmtShort(best.date)}, ${best.r.score}점이고 ${mono(hhmm(best.r.from))}부터입니다.`;
+    const next = days.find((d) => d.date === addDays(state.date, 1));
+    const best = days.reduce((x, y) => (y.r.score > x.r.score ? y : x));
+    const parts = [];
+    if (next) parts.push(`${state.date === TODAY ? "내일" : "다음 날"} 최고는 ${mono(hhmm(next.r.from))}, ${next.r.score}점입니다.`);
+    parts.push(best.date === state.date ? "16일 중 이날이 가장 좋습니다." : `16일 중 가장 좋은 날은 ${fmtShort(best.date)}, ${best.r.score}점입니다.`);
+    el.innerHTML = parts.join(" ");
   }
 
+  function legendFor(p, w) {
+    const rng = (a, d = 1) => { const v = fin(a); return `${num(Math.min(...v), d)}~${num(Math.max(...v), d)}`; };
+    const sea = p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6, wave = sea && state.marine.wave && fin(state.marine.wave).length;
+    return `<span class="k-bar"></span>점수 0-100 <span class="k-temp"></span>${sea ? `조위 ${rng(state.marine.sea, 1)}m` : `기온 ${rng(w.temp, 0)}℃`} <span class="k-wind"></span>${wave ? `파고 ${rng(state.marine.wave)}m` : `바람 ${rng(w.wind)}m/s`}`;
+  }
   // Score bars for each hour with temperature and wind drawn over them.
   let bigChart = null;
   function drawBigChart(host, r, w) {
@@ -1012,9 +1023,12 @@
     const X = (i) => m.l + (W - m.l - m.r) * (i + .5) / 24;
     const slot = () => (W - m.l - m.r) / 24;
     const Y = (v) => m.t + (H - m.t - m.b) * (1 - v / 100);
-    const temps = fin(w.temp), tlo = Math.min(...temps) - 1, thi = Math.max(...temps) + 1;
-    const TY = (t) => m.t + (H - m.t - m.b) * (.85 - .7 * (t - tlo) / (thi - tlo || 1));
-    const wmax = Math.max(6, ...fin(w.wind));
+    const sea = placeById[state.place].type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6;
+    const blue = sea ? state.marine.sea : w.temp, dash = sea && state.marine.wave && fin(state.marine.wave).length ? state.marine.wave : w.wind;
+    const dashUnit = dash === w.wind ? "m/s" : "m";
+    const bv = fin(blue), tlo = Math.min(...bv), thi = Math.max(...bv), pad = (thi - tlo) * .15 || 1;
+    const TY = (t) => m.t + (H - m.t - m.b) * (.88 - .72 * (t - tlo + pad) / (thi - tlo + 2 * pad));
+    const wmax = Math.max(dash === w.wind ? 6 : 2, ...fin(dash));
     const WY = (v) => m.t + (H - m.t - m.b) * (1 - v / wmax * .9);
     const nowH = state.date === TODAY ? new Date().getHours() : -1;
     const vals = r.hours.map((x) => (x ? Math.round(x.s) : null));
@@ -1036,12 +1050,28 @@
         if (h === topAt && h !== nowH) P.push(`<text x="${X(h)}" y="${Y(v) - 6}" text-anchor="middle" class="lab acc">${v}</text>`);
         if (h === nowH) P.push(`<text x="${X(h)}" y="${Y(v) - 6}" text-anchor="middle" class="lab">지금</text>`);
       });
-      const path = (arr, fy) => arr.map((v, i) => (v == null ? "" : `${i && arr[i - 1] != null ? "L" : "M"}${X(i).toFixed(1)} ${fy(v).toFixed(1)}`)).join("");
-      P.push(`<path d="${path(w.temp, TY)}" class="l-temp"/>`);
-      P.push(`<path d="${path(w.wind, WY)}" class="l-wind"/>`);
-      const wi = w.wind.indexOf(Math.max(...fin(w.wind)));
-      P.push(`<text x="${X(wi)}" y="${WY(w.wind[wi]) - 8}" text-anchor="middle" class="lab wind">${num(w.wind[wi])}m/s</text>`);
-      [0, 3, 6, 9, 12, 15, 18, 21].forEach((h) => P.push(`<text x="${m.l + slot() * h}" y="${H - 6}" class="ax">${pad(h)}</text>`));
+      // Catmull-Rom through the hourly points, drawn as cubic Béziers, so the lines read as curves
+      const smooth = (arr, fy) => {
+        const pts = arr.map((v, i) => (v == null ? null : [X(i), fy(v)])).filter(Boolean);
+        if (pts.length < 2) return "";
+        let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+          d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+        }
+        return d;
+      };
+      const tl = smooth(blue, TY);
+      if (tl) {
+        const first = blue.findIndex((v) => v != null), last = blue.length - 1 - [...blue].reverse().findIndex((v) => v != null);
+        P.unshift(`<defs><linearGradient id="bcFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--line-temp)" stop-opacity=".28"/><stop offset="1" stop-color="var(--line-temp)" stop-opacity="0"/></linearGradient></defs>`);
+        P.push(`<path d="${tl}L${X(last).toFixed(1)} ${Y(0)}L${X(first).toFixed(1)} ${Y(0)}Z" fill="url(#bcFill)"/>`);
+        P.push(`<path d="${tl}" class="l-temp"/>`);
+      }
+      P.push(`<path d="${smooth(dash, WY)}" class="l-wind"/>`);
+      const wi = dash.indexOf(Math.max(...fin(dash)));
+      P.push(`<text x="${X(wi)}" y="${WY(dash[wi]) - 8}" text-anchor="middle" class="lab wind">${num(dash[wi])}${dashUnit}</text>`);
+      [0, 3, 6, 9, 12, 15, 18, 21].forEach((h) => P.push(`<text x="${m.l + slot() * h}" y="${H - 6}" class="ax">${pad2(h)}</text>`));
       P.push(`<line class="cur" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)" stroke-dasharray="2 3"/>`);
       P.push(`<rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`);
       svgBox.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="시간대별 점수와 기온, 바람">${P.join("")}</svg>`;
@@ -1058,7 +1088,7 @@
       if (!cur) return;
       cur.setAttribute("x1", X(h)); cur.setAttribute("x2", X(h));
       const rd = $("#bcRead");
-      if (rd) rd.innerHTML = `${pad(h)}:00 · 점수 <b>${vals[h] ?? "–"}</b> · 기온 ${num(w.temp[h])}℃ · 바람 ${num(w.wind[h])}m/s${w.dir[h] != null ? ` ${compass(w.dir[h])}` : ""}${w.precip?.[h] ? ` · 비 ${num(w.precip[h])}mm` : ""}`;
+      if (rd) rd.innerHTML = `${pad2(h)}:00 · 점수 <b>${vals[h] ?? "–"}</b> · 기온 ${num(w.temp[h])}℃ · 바람 ${num(w.wind[h])}m/s${w.dir[h] != null ? ` ${compass(w.dir[h])}` : ""}${sea ? ` · 조위 ${num(state.marine.sea[h], 2)}m` : ""}${dash !== w.wind ? ` · 파고 ${num(dash[h])}m` : ""}${w.precip?.[h] ? ` · 비 ${num(w.precip[h])}mm` : ""}`;
     }
     draw();
     const ro = new ResizeObserver(() => { if (Math.abs(host.clientWidth - W) > 2) draw(); });
@@ -1066,23 +1096,59 @@
     return { update, destroy: () => ro.disconnect() };
   }
 
-  // Sixteen days, each with its own best window from the hourly forecast.
+  // Two rings per day: outer = 입질, inner = 편의; the day's score sits in the middle.
+  function ringGauge(outer, inner, centre) {
+    const ring = (r, v, cls) => {
+      const C = 2 * Math.PI * r, len = Math.max(0, Math.min(100, v)) / 100 * C;
+      return `<circle r="${r}" cx="32" cy="32" class="rg-track"/><circle r="${r}" cx="32" cy="32" class="${cls}" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/>`;
+    };
+    return `<svg class="rg" viewBox="0 0 64 64" role="img" aria-label="입질 ${outer}, 편의 ${inner}, 점수 ${centre}">${ring(27, outer, "rg-o")}${ring(19.5, inner, "rg-i")}<text x="32" y="36.5" text-anchor="middle" class="rg-c">${centre}</text></svg>`;
+  }
+  // Sixteen days laid out on a week grid, each with its own best window from the hourly forecast.
   function renderDays() {
-    const el = $("#dayStrip"), days = state.outlook;
-    if (!days) { el.innerHTML = ""; return; }
-    el.innerHTML = days.filter((d) => d.r).map((d) => {
-      const r = d.r, t = scoreTone(r.score), sub = subScores(r), dt = parseISO(d.date);
-      return `<button class="dcard tone-${t} ${d.date === state.date ? "on" : ""}" data-date="${d.date}">
-        <span class="dc-d mono">${d.date === TODAY ? "오늘" : WEEK[dt.getDay()]}<b>${dt.getDate()}</b></span>
-        <span class="dc-v">${VERDICT[t]}</span>
-        <span class="dc-w mono">${hhmm(r.from)} –<br>${hhmm(r.to)}</span>
-        <span class="dc-k mono"><i>입질</i><i>편의</i></span>
-        <span class="dc-bars"><i style="--v:${sub.bite}%"></i><i style="--v:${sub.access}%"></i></span>
-        <span class="dc-n mono"><b>${sub.bite}</b><b>${sub.access}</b></span></button>`;
+    const el = $("#dayStrip"), days = (state.outlook || []).filter((d) => d.r);
+    if (!days.length) { el.innerHTML = ""; return; }
+    const lead = parseISO(days[0].date).getDay();
+    const tail = (7 - ((lead + days.length) % 7)) % 7;
+    const head = WEEK.map((w, i) => `<span class="cal-w ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${w}</span>`).join("");
+    const pad = (n) => Array.from({ length: n }, () => '<span class="cal-pad" aria-hidden="true"></span>').join("");
+    const cells = days.map((d) => {
+      const r = d.r, t = scoreTone(r.score), sub = subScores(r), dt = parseISO(d.date), wd = dt.getDay();
+      return `<button class="cday tone-${t} ${d.date === state.date ? "on" : ""} ${d.date === TODAY ? "today" : ""}" data-date="${d.date}" title="${fmtDate(d.date)} ${VERDICT[t]} 점수 ${r.score}, 입질 ${sub.bite}, 편의 ${sub.access}, 좋은 시간 ${r.from}~${r.to}시">
+        <span class="cd-top"><b class="mono ${wd === 0 ? "sun" : wd === 6 ? "sat" : ""}">${dt.getDate()}</b>${d.date === TODAY ? "<small>오늘</small>" : dt.getDate() === 1 ? `<small>${dt.getMonth() + 1}월</small>` : ""}</span>
+        ${ringGauge(sub.bite, sub.access, r.score)}
+        <span class="cd-v">${VERDICT[t]}</span>
+        <span class="cd-w mono">${pad2(r.from)}–${pad2(r.to)}시</span></button>`;
     }).join("");
+    el.innerHTML = `<div class="cal-top"><span class="eyebrow">앞으로 16일</span><span class="cal-key mono"><i class="k-o"></i>바깥 입질<i class="k-i"></i>안쪽 편의<i class="k-c">00</i>점수</span></div>
+      <div class="cal">${head}${pad(lead)}${cells}${pad(tail)}</div>`;
     renderMidSub();
   }
+  const pad2 = (n) => String(n).padStart(2, "0");
 
+  // Circles on the map sized by how many fish the log holds for each place.
+  let bubbleLayer = null;
+  function catchTotals() {
+    return PLACES.filter(hasPin).map((p) => {
+      const own = p.trips.filter((t) => !t.trip.other && t.trip.catch != null);
+      const total = own.reduce((s, t) => s + t.trip.catch, 0);
+      return { p, n: own.length, total, avg: own.length ? total / own.length : 0 };
+    }).filter((x) => x.n);
+  }
+  function catchSummary(p) {
+    const list = catchTotals().filter((x) => !state.mapType || placeTypes(x.p).includes(state.mapType));
+    const own = list.find((x) => x.p.id === p.id);
+    return own ? `${p.id} ${own.n}회, 모두 ${own.total.toLocaleString()}수, 한 번에 평균 ${Math.round(own.avg)}수` : `${p.id}는 조과 기록이 없습니다. 기록이 있는 곳 ${list.length}곳`;
+  }
+  function drawBubbles() {
+    if (bubbleLayer) { bubbleLayer.remove(); bubbleLayer = null; }
+    if (!map || !state.bubbles) return;
+    bubbleLayer = L.layerGroup(catchTotals().filter((x) => !state.mapType || placeTypes(x.p).includes(state.mapType)).map((x) => {
+      const color = x.avg >= 20 ? "#ef6a5b" : x.avg >= 10 ? "#f2b33d" : "#9ad05b";
+      return L.circleMarker([x.p.lat, x.p.lon], { radius: 8 + Math.sqrt(x.total) * 1.5, color, weight: 1, fillColor: color, fillOpacity: .32, interactive: true })
+        .bindTooltip(`${x.p.id}: ${x.n}회, ${x.total.toLocaleString()}수, 평균 ${Math.round(x.avg)}수`);
+    })).addTo(map);
+  }
   // Map side panel: details of the chosen place, with buttons that change the map.
   function renderMapPanel() {
     const p = placeById[state.place], r = state.scores?.[p.id];
@@ -1096,6 +1162,7 @@
         const curve = curveOf(p.type), ok = curve.filter((x) => x[1] === 1);
         body = card("가장 좋은 시간", `${r.from}~${r.to}시, 점수 ${r.score}점`, btn(`data-hourset="${r.from}"`, "그 시각 지도 보기", state.hour >= r.from && state.hour < r.to))
           + card(r.water ? "알맞은 수온" : "알맞은 기온", r.water ? `지금 표층 ${num(r.water.surface)}℃, 송어 활성은 10~16℃` : `${num(r.temp)}℃, ${p.type}낚시 알맞은 범위 ${ok[0][0]}~${ok[ok.length - 1][0]}℃`, btn("data-wind-toggle", state.windOn ? "바람 흐름 숨기기" : "바람 흐름 보기", state.windOn))
+          + card("조과 기록", catchSummary(p), btn("data-bubbles", state.bubbles ? "조과 크기 숨기기" : "지도에 조과 크기 보기", state.bubbles))
           + card("기록상 입질 시간", r.prof ? `${r.prof.peak}시대에 가장 많이 잡힘, 조과 ${r.prof.total}수 기록` : "조과 시각 기록이 없습니다", r.prof ? btn(`data-hourset="${r.prof.peak}"`, "그 시각 지도 보기", state.hour === r.prof.peak) : "")
           + `<div class="mp-rows">${[["바람", READ.wind(r)], ["강수", READ.rain(r)], ["기압", READ.press(r)], ...(r.wave != null ? [["파고", READ.wave(r)]] : []), ["위성 지도", state.satellite ? "켜짐" : "꺼짐"]].map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>`;
       }
@@ -1310,9 +1377,9 @@
       ${card("t-orange", "2위 조과", "두 번째로 많이 잡은 날", "medal", best(sorted[1], "c-orange", "2위 기록"))}
       ${card("t-plain wide", "낚시터별 출조", "누르면 그 낚시터 기록만 봅니다", "pin", donut)}
       ${card("t-blue", "출조 일수", "물가에 나간 날", "calendar", `${big(days, "c-blue", "일")}<p class="sc-foot">조행기 ${own.length}건</p>`)}
-      ${card("t-mint", "조과 있던 날", "한 마리 이상 잡은 날", "check", `${big(caught, "c-mint", "회")}<div class="sc-bar"><i style="width:${pct}%"></i></div><p class="sc-foot mono">${pct.toFixed(1)}%</p>`)}
+      ${card("t-mint", "조과 있던 날", "한 마리 이상 잡은 날", "check", `${big(caught, "c-mint", "회")}<div class="sc-barrow"><div class="sc-bar"><i style="width:${pct}%"></i></div><span class="mono c-mint">${pct.toFixed(1)}%</span></div>`)}
       ${card("t-red", "꽝 친 날", "한 마리도 못 잡은 날", "xcircle", `${big(skunk, "c-red", "회")}<p class="sc-foot">${skunk ? "다음엔 시간대를 바꿔 보세요" : "아직 없습니다"}</p>`)}
-      ${card("t-violet", "다녀온 낚시터", "한 번이라도 간 곳", "map", `${big(places.length, "c-violet", "곳")}<p class="sc-foot">가장 많이 간 곳 ${places[0] ? `${esc(places[0][0])} ${places[0][1]}회` : "–"}</p>`)}
+      ${card("t-violet", "하루 최다", "개인 최고 기록", "trophy", `${big(sorted[0] ? sorted[0].trip.catch : 0, "c-violet", "수")}<p class="sc-foot">${sorted[0] ? `${esc(sorted[0].place)}, ${fmtShort(sorted[0].trip.date)} ${sorted[0].trip.date.slice(0, 4)}` : "기록 없음"}</p>`)}
     </div>`;
   }
 
@@ -1880,8 +1947,9 @@
     }
     else if (d.alertClose) { state.alertClosed[d.alertClose] = true; renderBrief(); }
     else if (d.maptab) { state.mapTab = d.maptab; renderMapPanel(); }
-    else if (d.maptype !== undefined) { state.mapType = d.maptype; updatePins(); renderMapPanel(); }
+    else if (d.maptype !== undefined) { state.mapType = d.maptype; updatePins(); drawBubbles(); renderMapPanel(); }
     else if (d.hourset !== undefined) { stopPlay(); setHour(+d.hourset); renderMapPanel(); }
+    else if (d.bubbles !== undefined) { state.bubbles = !state.bubbles; drawBubbles(); renderMapPanel(); }
     else if (d.windToggle !== undefined) { state.windOn = !state.windOn; $("#windCanvas").hidden = !state.windOn; if (state.windOn) refreshWindField(); renderMapPanel(); }
     else if (d.jump) { if (state.view !== "plan") go("plan"); $(`#${d.jump}`)?.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" }); }
     else if (d.date) selectDate(d.date);

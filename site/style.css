@@ -783,3 +783,63 @@ main { max-width: none; padding: 0 0 80px; }
   .donut { margin: 0 auto; }
   .to-top { bottom: 80px; }
 }
+
+/* ================= v2.0.5 calendar of 16 days with double rings ================= */
+.days { display: block; }
+.cal-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.cal-key { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-2); letter-spacing: .06em; }
+.cal-key i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-left: 10px; font-style: normal; }
+.cal-key .k-o { border: 3px solid var(--accent); }
+.cal-key .k-i { border: 3px solid var(--line-temp); }
+.cal-key .k-c { width: auto; height: auto; border-radius: 0; font-size: 11px; font-weight: 700; color: var(--ink); }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.cal-w { text-align: center; font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: .1em; color: var(--muted); padding: 2px 0 4px; border-bottom: 1px solid var(--border); }
+.cal-w.sun, .cd-top b.sun { color: var(--bad); }
+.cal-w.sat, .cd-top b.sat { color: var(--line-temp); }
+.cal-pad { border-radius: 12px; border: 1px dashed var(--border); opacity: .5; min-height: 60px; }
+.cday { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px 9px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--tone) 28%, var(--border)); background: color-mix(in srgb, var(--tone) 7%, var(--surface)); min-width: 0; }
+.cday:hover { border-color: var(--tone); }
+.cday.on { border: 2px solid var(--tone); padding: 7px 5px 8px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 16%, transparent); }
+.cd-top { align-self: stretch; display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
+.cd-top b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.cd-top small { font-size: 10.5px; color: var(--accent); letter-spacing: .06em; white-space: nowrap; }
+.rg { width: min(64px, 100%); height: auto; display: block; margin: 2px 0; }
+.rg circle { fill: none; stroke-width: 6; stroke-linecap: round; }
+.rg .rg-track { stroke: var(--grid); stroke-linecap: butt; }
+.rg .rg-o { stroke: var(--accent); }
+.rg .rg-i { stroke: var(--line-temp); }
+.rg-c { font-family: "JetBrains Mono", monospace; font-size: 15px; font-weight: 700; fill: var(--tone); }
+.cd-v { font-size: 15px; font-weight: 800; letter-spacing: -.03em; color: var(--tone); line-height: 1.15; white-space: nowrap; }
+.cd-w { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+
+/* small details from the reference screens */
+.tile4.next { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tile4.next b { color: var(--accent); }
+.top-go { gap: 8px; }
+.top-go .tg-v { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--tone); }
+.top-go .eyebrow { line-height: 1.3; letter-spacing: .12em; }
+.sc-barrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; margin-top: 14px; }
+.sc-barrow .sc-bar { margin: 0; }
+.sc-barrow span { font-size: 14px; }
+
+@media (max-width: 720px) {
+  .cal { gap: 4px; }
+  .cday { padding: 6px 2px 7px; border-radius: 9px; }
+  .cday.on { padding: 5px 1px 6px; }
+  .cd-top { justify-content: center; }
+  .cd-top small { display: none; }
+  .cd-top b { font-size: 12.5px; }
+  .rg circle { stroke-width: 7; }
+  .rg-c { font-size: 17px; }
+  .cd-v { font-size: 11.5px; }
+  .cd-w { display: none; }
+  .cal-pad { border-radius: 9px; }
+  .cal-key i { margin-left: 6px; }
+}
+
+@media (max-width: 720px) {
+  .top .search-open { order: 2; flex: none; flex-basis: auto; width: 40px; height: 36px; padding: 0; margin: 0 0 0 6px; justify-content: center; border-radius: 10px; }
+  .top .search-open span, .top .search-open kbd { display: none; }
+  .top-date { order: 1; }
+  .type-toggle { order: 8; }
+}
