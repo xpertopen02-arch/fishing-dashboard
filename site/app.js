@@ -265,15 +265,16 @@
   const FACTOR_NAME = { wind: "바람", rain: "강수", press: "기압", temp: "기온", water: "수온", time: "시간대", wave: "파고" };
   // 공기 온도가 낚시에 알맞은 범위 (어종별 가정)
   const TEMP_CURVE = {
-    송어: [[-8, .3], [-2, .55], [3, .85], [6, 1], [16, 1], [22, .7], [28, .4]],
-    민물: [[0, .2], [6, .4], [12, .75], [16, 1], [26, 1], [30, .8], [34, .55]],
-    바다: [[0, .3], [6, .5], [12, .8], [16, 1], [27, 1], [32, .75]],
+    // v2.0.4: narrower comfortable ranges so ordinary days stop scoring like perfect ones
+    송어: [[-6, .25], [-2, .45], [2, .7], [6, .9], [9, 1], [14, 1], [18, .8], [24, .5]],
+    민물: [[0, .15], [6, .3], [10, .55], [14, .8], [18, 1], [25, 1], [29, .8], [33, .5]],
+    바다: [[0, .25], [6, .4], [10, .6], [14, .85], [18, 1], [26, 1], [30, .75]],
   };
   const curveOf = (type) => TEMP_CURVE[type] || TEMP_CURVE.민물;
   // 송어 수온: 덕봉 3D 모델과 같은 활성 곡선 (2℃에서 바닥, 10℃에서 최대), 16℃ 위로는 떨어집니다.
   const waterF = (T) => Math.min(Math.max((T - 2) / 8, .1), 1) * lerp([[16, 1], [20, .6], [23, .3]], T);
-  const windF = (ws, gust) => lerp([[0, 1], [2, 1], [4, .8], [6, .5], [8, .25], [12, .05]], ws) * (gust != null && ws != null && gust - ws > 5 ? .9 : 1);
-  const rainF = (mm, prob) => Math.min(lerp([[0, 1], [.2, .9], [1, .7], [3, .45], [8, .2]], mm ?? 0), prob == null ? 1 : 1 - .35 * prob / 100);
+  const windF = (ws, gust) => lerp([[0, 1], [1.5, 1], [3, .8], [5, .55], [7, .3], [10, .1]], ws) * (gust != null && ws != null && gust - ws > 5 ? .9 : 1);
+  const rainF = (mm, prob) => Math.min(lerp([[0, 1], [.1, .85], [.5, .65], [2, .4], [5, .2]], mm ?? 0), prob == null ? 1 : 1 - .5 * prob / 100);
   const pressF = (series, h) => {
     const a = series?.[Math.max(0, h - 3)], b = series?.[h];
     if (a == null || b == null) return 1;
@@ -286,7 +287,7 @@
     if (rise == null || set == null) return 1;
     const c = h + .5;
     if (c < rise - 1 || c > set + 1) return NIGHT[type] ?? .6;
-    return Math.min(Math.abs(c - rise), Math.abs(c - set)) <= 1.5 ? 1 : .85;
+    return Math.min(Math.abs(c - rise), Math.abs(c - set)) <= 1.5 ? 1 : .8;
   }
   // Hours with catches in this place's own trip logs (only trips of the place's main fishing type).
   function catchProfile(p) {
@@ -302,7 +303,13 @@
   const geo = (f) => {
     let lg = 0, tw = 0;
     Object.keys(f).forEach((k) => { lg += SCORE_W[k] * Math.log(Math.max(f[k], .02)); tw += SCORE_W[k]; });
-    return 100 * Math.exp(lg / tw);
+    // squared (v2.0.4): a merely decent factor now costs more, which spreads days apart
+    return 100 * Math.exp(2 * lg / tw);
+  };
+  const daylight = (hours, rise, set, fallback) => {
+    if (rise == null || set == null) return fallback;
+    const v = hours.slice(Math.ceil(rise), Math.floor(set)).filter(Boolean).map((x) => x.s);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : fallback;
   };
   function scorePlace(p, w, marine, date = state.date) {
     if (!w || !fin(w.temp).length) return null;
@@ -340,7 +347,8 @@
     const avg = (arr) => { const v = (arr || []).slice(a, b + 1).filter((x) => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
     const pr = fin(w.pressure);
     return {
-      id: p.id, type, hours, from: a, to: b + 1, score: Math.round(mean((x) => x.s)), factors, water, prof,
+      // the day: 70% its best window, 30% the average of the daylight hours, so one good hour cannot carry a poor day
+      id: p.id, type, hours, from: a, to: b + 1, score: Math.round(.7 * mean((x) => x.s) + .3 * daylight(hours, rise, set, mean((x) => x.s))), factors, water, prof,
       temp: avg(w.temp), wind: avg(w.wind), gust: w.gust ? Math.max(...fin(w.gust.slice(a, b + 1))) : null,
       dir: w.dir[Math.round((a + b) / 2)], pressure: avg(w.pressure), pTrend: pr.length ? pr[pr.length - 1] - pr[0] : 0,
       prob: w.prob ? Math.max(...fin(w.prob.slice(a, b + 1))) : null, rain: fin(w.precip).reduce((s, x) => s + x, 0),
@@ -966,7 +974,8 @@
     renderMidSub();
 
     const [ws, wcls] = windowState(r);
-    const list = Object.values(state.scores).filter((x) => placeTypes(placeById[x.id]).includes(p.type)).sort((x, y) => y.score - x.score);
+    // each place is scored as its main kind of fishing, so it is ranked only among places of that kind
+    const list = Object.values(state.scores).filter((x) => placeById[x.id].type === p.type).sort((x, y) => y.score - x.score);
     $("#ccRight").innerHTML = `
       <p class="eyebrow accent">최고 · ${dayLabel()}</p>
       <div class="peak mono">${hhmm(r.from)}<span>–</span>${hhmm(r.to)}</div>
@@ -981,7 +990,7 @@
         <span class="rn"><b>${esc(x.id)}</b><small>${x.from}~${x.to}시 · ${esc(whyText(x))}</small></span>
         <span class="rs mono tone-${scoreTone(x.score)}">${x.score}</span></button></li>`).join("")}</ol>
       ${p.id === "덕봉" ? `<a class="side-link" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}덕봉 3D 자리 분석</a>` : ""}
-      <details class="v-how"><summary>점수 계산 방법</summary><p>시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꿔 가중 기하평균을 냅니다. 하루 점수는 가장 좋은 연속 2~4시간의 평균입니다. 입질은 수온·시간대·기압만, 편의는 바람·강수${p.type === "바다" ? "·파고" : ""}만으로 같은 방식으로 낸 값입니다. 예보 신뢰도는 예보까지 남은 날수로 정한 어림값입니다. 가중치는 가정이며 실제 조과로 검증하지 않았습니다.</p></details>`;
+      <details class="v-how"><summary>점수 계산 방법</summary><p>시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꿔 가중 기하평균을 내고 제곱합니다. 하루 점수는 가장 좋은 연속 2~4시간(70%)과 해 있는 시간 전체(30%)의 평균입니다. 입질은 수온·시간대·기압만, 편의는 바람·강수${p.type === "바다" ? "·파고" : ""}만으로 같은 방식으로 낸 값입니다. 예보 신뢰도는 예보까지 남은 날수로 정한 어림값입니다. 가중치는 가정이며 실제 조과로 검증하지 않았습니다.</p></details>`;
   }
 
   function renderMidSub() {
