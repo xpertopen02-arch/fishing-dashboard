@@ -1328,3 +1328,7 @@ body[data-view="home"] main { padding-bottom: 0; }
 @keyframes wlIn { from { opacity: 0; } }
 @keyframes wlOut { to { opacity: 0; visibility: hidden; } }
 @keyframes wlRise { from { opacity: 0; transform: translateY(18px) scale(.98); } }
+
+/* v2.1.4 today button */
+#dToday { width: 30px; }
+#dToday.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }

@@ -267,6 +267,7 @@
     monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
     phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
+    today: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>',
     chevR2: '<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     bolt: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
@@ -1534,6 +1535,8 @@
   // The fish logo: a short welcome over the dusk picture, then the 홈 screen.
   function showWelcome() {
     if ($(".welcome")) return;
+    // the logo also brings the date back to today
+    if (state.date !== TODAY) selectDate(TODAY);
     const p = placeById[state.place], r = state.scores?.[p.id];
     const w = document.createElement("div");
     w.className = "welcome";
@@ -1737,6 +1740,7 @@
   function selectDate(date) {
     if (!date) return;
     state.date = date;
+    $("#dToday")?.classList.toggle("on", date === TODAY);
     $("#dateInput").value = date;
     if (date !== TODAY) setHour(7);
     $$(".day").forEach((d) => d.classList.toggle("on", d.dataset.date === date));
@@ -2585,6 +2589,7 @@
   // Date shortcuts, both counted from the date on screen: › one day on; » the next Saturday after it,
   // and if the date on screen is already a Saturday, the Sunday after it (so pressing twice gives Sat, then Sun).
   $("#dNext").addEventListener("click", () => selectDate(addDays(state.date, 1)));
+  $("#dToday").addEventListener("click", () => selectDate(TODAY));
   $("#dWeekend").addEventListener("click", () => {
     const wd = parseISO(state.date).getDay();
     selectDate(addDays(state.date, wd === 6 ? 1 : 6 - wd));

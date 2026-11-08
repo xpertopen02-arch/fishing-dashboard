@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.4", date: "2026-11-08", title: "오늘로 돌아가기",
+    changes: [
+      "왼쪽 위 물고기 로고를 누르면 날짜가 오늘로 돌아간 뒤 환영 화면과 홈으로 이동",
+      "위쪽 날짜 칸 왼쪽에 '오늘' 버튼(체크 달력 그림). 누르면 오늘 날짜로 가고, 오늘을 보고 있을 때는 초록으로 표시됨",
+    ],
+  },
+  {
     version: "2.1.3", date: "2026-11-08", title: "물고기 로고: 환영 화면 뒤 홈으로",
     changes: [
       "왼쪽 위 물고기 로고를 누르면 노을 사진 위에 FISHING INTELLIGENCE 환영 화면(오늘 낚시터, 판단, 점수, 최고 시각, Good Fishing!)이 약 1.8초 떴다가 사라지고 홈 화면으로 이동. 환영 화면을 누르면 바로 넘어감",
