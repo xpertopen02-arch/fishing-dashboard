@@ -2340,6 +2340,23 @@
   addEventListener("hashchange", () => go(location.hash.slice(1), false));
 
   /* ---------- start ---------- */
+  // Phone turned sideways: lay the page out at a PC width (1400 px) and let the browser shrink it to the
+  // screen, so it looks like the PC dashboard. Upright phones keep the phone layout.
+  (function landscapeAsDesktop() {
+    const vp = $('meta[name="viewport"]');
+    if (!vp) return;
+    const PHONE = "width=device-width, initial-scale=1";
+    // the zoom that makes 1400 px fit the long side of the screen
+    const desk = () => { const k = (Math.max(screen.width, screen.height) / 1400).toFixed(3); return `width=1400, initial-scale=${k}, minimum-scale=${k}`; };
+    const isPhone = () => matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) <= 600;
+    const apply = () => {
+      const want = isPhone() && matchMedia("(orientation: landscape)").matches ? desk() : PHONE;
+      if (vp.getAttribute("content") !== want) vp.setAttribute("content", want);
+    };
+    apply();
+    matchMedia("(orientation: landscape)").addEventListener?.("change", apply);
+    addEventListener("orientationchange", () => setTimeout(apply, 150));
+  })();
   fillIcons();
   $("#playBtn").innerHTML = icon("play");
   // v2.0.3: dark is the default look; light stays one tap away.
