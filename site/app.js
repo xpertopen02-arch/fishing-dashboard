@@ -262,6 +262,7 @@
     up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
     back: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
     chevL: '<path d="m15 18-6-6 6-6"/>',
+    home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
     rotate: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
     monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
     phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
@@ -1069,6 +1070,7 @@
   }
 
   function renderBrief(err) {
+    if (state.view === "home") setTimeout(renderHome, 0);
     const p = placeById[state.place];
     const w = state.weather?.data[p.id];
     const r = state.scores?.[p.id];
@@ -1391,6 +1393,138 @@
         .bindTooltip(`${x.p.id}: ${x.n}회, ${x.total.toLocaleString()}수, 평균 ${Math.round(x.avg)}수`);
     })).addTo(map);
   }
+  /* ---------- 홈 (v2.1.0 draft): one-screen overview in the layout of the reference dashboard ---------- */
+  const HOME_HEAD = { good: "출조하기 좋은 날!", info: "출조해 볼 만한 날", warn: "짧게 다녀오기 좋은 날", bad: "오늘은 쉬어 가는 날" };
+  let homeMap = null, homeMarkers = null, homeFocus = "";
+  // A satellite tile (Esri World Imagery) around a place, used as the card picture.
+  function satThumb(p, z = 16) {
+    const n = 2 ** z, rad = p.lat * Math.PI / 180;
+    const x = Math.floor((p.lon + 180) / 360 * n);
+    const y = Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n);
+    return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  }
+  const starRow = (score) => { const n = Math.max(1, Math.min(5, Math.round(score / 20))); return `<span class="h-stars">${"★".repeat(n)}<i>${"★".repeat(5 - n)}</i></span>`; };
+  function homeGauge(score, tone) {
+    // 270-degree arc, open at the bottom
+    const R = 70, C = 2 * Math.PI * R, arc = C * .75, len = arc * Math.max(0, Math.min(100, score)) / 100;
+    return `<svg class="h-gauge" viewBox="0 0 180 170" role="img" aria-label="출조 점수 ${score}점">
+      <defs><linearGradient id="hgGrad" x1="0" x2="1" y1="1" y2="0"><stop offset="0" stop-color="#2fd0ff"/><stop offset=".55" stop-color="#3ddc84"/><stop offset="1" stop-color="#b6f36a"/></linearGradient></defs>
+      <circle cx="90" cy="88" r="${R}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="14" stroke-dasharray="${arc} ${C}" transform="rotate(135 90 88)" stroke-linecap="round"/>
+      <circle cx="90" cy="88" r="${R}" fill="none" stroke="url(#hgGrad)" stroke-width="14" stroke-dasharray="${len} ${C}" transform="rotate(135 90 88)" stroke-linecap="round"/>
+      <text x="90" y="100" text-anchor="middle" class="hg-n">${score}</text><text x="90" y="128" text-anchor="middle" class="hg-d">/100</text></svg>`;
+  }
+  // Hourly score with water (or air) temperature on a second axis, best window shaded.
+  function homeActivity(r, p, w) {
+    const W = 360, H = 170, L = 30, RR = 30, T = 18, B = 24;
+    const X = (h) => L + (W - L - RR) * h / 23;
+    const sc = r.hours.map((x) => (x ? x.s : null));
+    const wsr = waterSeries(p), temp = wsr ? wsr.values : w.temp, tv = fin(temp);
+    const tlo = Math.floor(Math.min(...tv) - 1), thi = Math.ceil(Math.max(...tv) + 1);
+    const YS = (v) => T + (H - T - B) * (1 - v / 100), YT = (v) => T + (H - T - B) * (1 - (v - tlo) / ((thi - tlo) || 1));
+    const line = (arr, fy) => arr.map((v, i) => (v == null ? "" : `${i && arr[i - 1] != null ? "L" : "M"}${X(i).toFixed(1)} ${fy(v).toFixed(1)}`)).join("");
+    const bx0 = X(r.from), bx1 = X(Math.min(23, r.to));
+    return `<svg class="h-act" viewBox="0 0 ${W} ${H}" role="img" aria-label="시간대별 낚시 활성도">
+      ${[0, 50, 100].map((v) => `<line x1="${L}" x2="${W - RR}" y1="${YS(v)}" y2="${YS(v)}" stroke="rgba(255,255,255,.08)"/><text x="${L - 6}" y="${YS(v) + 3}" text-anchor="end" class="ha-ax">${v}</text>`).join("")}
+      ${[tlo, (tlo + thi) / 2, thi].map((v) => `<text x="${W - RR + 6}" y="${YT(v) + 3}" class="ha-ax">${Math.round(v)}</text>`).join("")}
+      <rect x="${bx0}" y="${T}" width="${Math.max(4, bx1 - bx0)}" height="${H - T - B}" fill="rgba(140,180,255,.14)"/>
+      <rect x="${(bx0 + bx1) / 2 - 46}" y="${T - 2}" width="92" height="30" rx="5" fill="#13274a" stroke="rgba(140,180,255,.35)"/>
+      <text x="${(bx0 + bx1) / 2}" y="${T + 10}" text-anchor="middle" class="ha-t1">최적 시간</text><text x="${(bx0 + bx1) / 2}" y="${T + 23}" text-anchor="middle" class="ha-t2">${hhmm(r.from)}~${hhmm(r.to)}</text>
+      <path d="${line(sc, YS)}" class="ha-score"/><path d="${line(temp, YT)}" class="ha-temp"/>
+      ${[0, 6, 12, 18, 23].map((h) => `<text x="${X(h)}" y="${H - 6}" text-anchor="middle" class="ha-ax">${pad2(h === 23 ? 24 : h)}시</text>`).join("")}
+    </svg><p class="h-legend"><i class="d1"></i>활성도 <i class="d2"></i>${wsr ? "수온(추정)" : "기온"}(℃)</p>`;
+  }
+  function renderHome() {
+    const host = $("#view-home");
+    const p = placeById[state.place], r = state.scores?.[p.id], w = state.weather?.data?.[p.id];
+    if (!host.dataset.built) {
+      host.dataset.built = "1";
+      host.innerHTML = `<div class="home">
+        <header class="h-banner"><div class="hb-sky"></div><svg class="hb-hills" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 80 C120 40 220 70 330 52 C450 30 560 74 690 50 C820 28 930 66 1040 46 C1110 34 1160 48 1200 44 V120 H0Z" fill="#0d1a33"/><path d="M0 96 C160 78 300 92 460 84 C640 74 820 96 1000 86 C1100 80 1160 88 1200 86 V120 H0Z" fill="#0a1428" opacity=".9"/></svg>
+          <div class="hb-text"><h1>FISHING INTELLIGENCE</h1><p>데이터로 예측하고, 경험으로 완성하는 스마트 낚시</p></div><div class="hb-chips" id="hChips"></div></header>
+        <div class="h-row r1"><section class="hc h-score" id="hScore"></section><section class="hc h-wx" id="hWx"></section><section class="hc h-chart" id="hChart"></section></div>
+        <div class="h-row r2"><section class="hc h-map"><header class="hc-h"><h2>${icon("pin")}추천 포인트</h2><div class="h-tabs" id="hTabs"></div><button class="h-link" data-go="map">지도 보기 ${icon("map")}</button></header><div id="homeMap"></div></section>
+          <section class="hc h-places"><header class="hc-h"><h2><span class="h-star">★</span>주요 낚시터 상세 정보</h2></header><div class="h-cards" id="hCards"></div></section></div>
+        <div class="h-row r3"><section class="hc h-past" id="hPast"></section><section class="hc h-keys" id="hKeys"></section><section class="hc h-quick" id="hQuick"></section></div>
+        <p class="h-note">v2.1.0 시안 화면입니다. 실제 자료로 채웠고, 수심처럼 자료가 없는 항목은 넣지 않았습니다. 기존 '지금' 화면은 그대로 있습니다.</p>
+      </div>`;
+      if (window.L) {
+        homeMap = L.map("homeMap", { zoomControl: true, attributionControl: true, scrollWheelZoom: true, dragging: !L.Browser.mobile }).setView([36.9, 127], 9);
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 18, attribution: "Imagery &copy; Esri" }).addTo(homeMap);
+        homeMarkers = L.layerGroup().addTo(homeMap);
+      }
+    }
+    $("#hChips").innerHTML = `<span>${icon("calendar")}${fmtDate(state.date)}</span><span>${icon("pin")}${esc(p.name)}</span>${w ? `<span>${icon("thermo")}${num(w.temp[new Date().getHours()] ?? r?.temp)}℃</span>` : ""}`;
+    if (!r || !w) {
+      ["#hScore", "#hWx", "#hChart", "#hCards", "#hPast", "#hKeys"].forEach((s) => { $(s).innerHTML = `<div class="skeleton" style="min-height:160px"></div>`; });
+      return;
+    }
+    const tone = scoreTone(r.score);
+    $("#hScore").innerHTML = `<div class="hs-g">${homeGauge(r.score, tone)}<span class="h-pill tone-${tone}">${icon("check")}${VERDICT[tone]}</span></div>
+      <div class="hs-t"><h2>오늘의 낚시 전망</h2><b class="hs-head tone-${tone}">${HOME_HEAD[tone]}</b><p>${esc(whyText(r))} 조건입니다. ${esc(READ.wind(r))}, 기압 ${esc(READ.press(r).split(",")[0])}.</p>
+        <button class="hs-best" data-go="plan"><span>${icon("clock")}BEST TIME</span><b>${hhmm(r.from)} ~ ${hhmm(r.to)}</b>${icon("chevR")}</button></div>`;
+    const water = waterSeries(p), wNow = water ? water.values[Math.min(23, r.from + 1)] : null;
+    const wx = [
+      ["thermo", water ? "수온" : "기온", water ? `${num(wNow)}<small>℃</small>` : `${num(r.temp)}<small>℃</small>`, water ? (wNow < 4 ? "활성 낮음" : wNow < 8 ? "활성 보통" : wNow <= 16 ? "활성도 양호" : "고수온 주의") : READ.temp(r), "c-red"],
+      ["wind", "바람", `${num(r.wind)}<small>m/s</small>`, READ.wind(r).replace("채비 운용 ", "채비 운용 "), "c-cyan"],
+      ["gauge", "기압", `${Math.round(r.pressure)}<small>hPa</small>`, READ.press(r).split(",")[0], "c-orange"],
+      ["rain", "강수확률", r.prob != null ? `${r.prob}<small>%</small>` : `${num(r.rainSpan)}<small>mm</small>`, (r.prob ?? 0) < 20 ? "낮음" : (r.prob ?? 0) < 50 ? "보통" : "높음", "c-blue"],
+    ];
+    $("#hWx").innerHTML = `<header class="hc-h"><h2><span class="h-sun">☀</span>오늘의 날씨 요약</h2></header><div class="hw-grid">${wx.map(([ic, k, val, read, c]) => `<div class="hw"><span class="hw-ic ${c}">${icon(ic)}</span><span class="hw-k">${k}</span><b>${val}</b><em>${esc(read)}</em></div>`).join("")}</div>`;
+    $("#hChart").innerHTML = `<header class="hc-h"><h2>${icon("trend")}시간대별 낚시 활성도</h2></header>${homeActivity(r, p, w)}`;
+
+    // top three of the same kind of fishing, on the map and as cards
+    const list = Object.values(state.scores).filter((x) => placeById[x.id].type === p.type).sort((a, b) => b.score - a.score);
+    const top = list.slice(0, 3);
+    if (!top.some((x) => x.id === p.id) && state.scores[p.id]) top[2] = state.scores[p.id];
+    $("#hTabs").innerHTML = ["", ...top.map((x) => x.id)].map((id) => `<button class="${homeFocus === id ? "on" : ""}" data-home-focus="${esc(id)}">${id || "전체"}</button>`).join("");
+    if (homeMap && homeMarkers) {
+      homeMarkers.clearLayers();
+      const colors = ["#3ddc84", "#ffb547", "#4f9bff"];
+      top.forEach((x, i) => {
+        const q = placeById[x.id];
+        if (!hasPin(q)) return;
+        homeMarkers.addLayer(L.marker([q.lat, q.lon], { icon: L.divIcon({ className: "", html: `<div class="hm-pin" style="--c:${colors[i]}"><i>★</i><span><b>${esc(x.id)}</b><em>${x.score}점</em></span></div>`, iconSize: [0, 0] }) }).on("click", () => selectPlace(x.id, false)));
+      });
+      setTimeout(() => {
+        homeMap.invalidateSize();
+        const pts = top.map((x) => placeById[x.id]).filter(hasPin).map((q) => [q.lat, q.lon]);
+        const f = homeFocus && placeById[homeFocus];
+        if (f && hasPin(f)) homeMap.setView([f.lat, f.lon], 14);
+        else if (pts.length > 1) homeMap.fitBounds(pts, { padding: [50, 50], maxZoom: 13 });
+        else if (pts.length) homeMap.setView(pts[0], 13);
+      }, 60);
+    }
+    const badge = ["#3ddc84", "#ffc94a", "#4f9bff"];
+    $("#hCards").innerHTML = top.map((x, i) => {
+      const q = placeById[x.id], ws = waterSeries(q);
+      return `<article class="h-card"><div class="hcd-img"${hasPin(q) ? ` style="background-image:url('${satThumb(q)}')"` : ""}></div>
+        <div class="hcd-b"><div class="hcd-t"><b>${i + 1}. ${esc(x.id)}</b><span class="hcd-s" style="--c:${badge[i]}">${x.score}점</span></div>${starRow(x.score)}
+        <ul><li>${icon("thermo")}${ws ? `수온 ${num(ws.values[Math.min(23, x.from + 1)])}℃` : `기온 ${num(x.temp)}℃`}</li><li>${icon("wind")}바람 ${num(x.wind)}m/s</li><li>${icon("clock")}추천시간 ${hhmm(x.from)}~${hhmm(x.to)}</li></ul>
+        <button class="hcd-more" data-home-open="${esc(x.id)}">상세보기 ${icon("chevR")}</button></div></article>`;
+    }).join("");
+
+    // the place's own record: trips around this time of year, catches and when they came
+    const seasonal = p.trips.filter((t) => !t.trip.other && seasonGap(t.trip.date, state.date) <= 30);
+    const withC = seasonal.filter((t) => t.trip.catch != null);
+    const avg = withC.length ? withC.reduce((s2, t) => s2 + t.trip.catch, 0) / withC.length : null;
+    const best = withC.length ? Math.max(...withC.map((t) => t.trip.catch)) : null;
+    const prof = catchProfile(p);
+    const bars = prof ? (() => { const hs = prof.sum.map((v2, h) => [v2, h]).filter(([, h]) => h >= 5 && h <= 20); const mx = Math.max(1, ...hs.map(([v2]) => v2)); return `<div class="hp-bars">${hs.map(([v2, h]) => `<i style="height:${Math.max(4, v2 / mx * 100)}%" title="${h}시 ${v2}수"></i>`).join("")}</div><div class="hp-x"><span>06시</span><span>12시</span><span>18시</span></div>`; })() : `<p class="hp-none">시간대 조과 기록이 없습니다</p>`;
+    $("#hPast").innerHTML = `<header class="hc-h"><h2>${icon("chart")}과거 출조 분석 <small>${esc(p.id)}, 이맘때 앞뒤 30일</small></h2></header>
+      <div class="hp-grid"><div class="hp"><span class="hp-ic">${icon("fish")}</span><b>${seasonal.length}<small>회</small></b><em>이맘때 출조</em></div>
+      <div class="hp"><span class="hp-ic">${icon("fish")}</span><em>평균 조과</em><b>${avg == null ? "–" : Math.round(avg)}<small>마리</small></b></div>
+      <div class="hp"><span class="hp-ic gold">${icon("trophy")}</span><em>최고 조과</em><b>${best ?? "–"}<small>마리</small></b></div>
+      <div class="hp-chart"><em>시간대별 조과 추이</em>${bars}</div></div>`;
+    const keys = [`${hhmm(r.from)}~${hhmm(r.to)}이 최적의 타임`, water ? `수온 ${num(wNow)}℃로 ${water && wNow >= 8 && wNow <= 16 ? "안정적" : "활성 약함"}` : `기온 ${num(r.temp)}℃, ${READ.temp(r)}`, `바람 ${num(r.wind)}m/s로 ${READ.wind(r)}`];
+    $("#hKeys").innerHTML = `<header class="hc-h"><h2><span class="h-bulb">💡</span>오늘의 핵심 포인트</h2></header><ul class="hk">${keys.map((k) => `<li>${icon("check")}${esc(k)}</li>`).join("")}</ul>`;
+    const guide = guideFor(p);
+    $("#hQuick").innerHTML = `<header class="hc-h"><h2>${icon("book")}바로가기</h2></header><div class="hq">
+      <button ${guide ? `data-open="${guide.id}"` : 'data-go="plan"'}>${icon("book")}<span>공략법</span></button>
+      <button data-go="map">${icon("map")}<span>낚시터 지도</span></button>
+      <button data-go="log">${icon("trophy")}<span>조행기</span></button>
+      <button data-go="notes">${icon("flask")}<span>연구 노트</span></button></div>`;
+  }
+
   // Map side panel: details of the chosen place, with buttons that change the map.
   function renderMapPanel() {
     const p = placeById[state.place], r = state.scores?.[p.id];
@@ -2182,15 +2316,16 @@
   }
   function go(view, push = true) {
     if (view === "library" && !IS_BETA) view = "plan";   // 자료 탐색은 베타에서만 엽니다.
-    const views = ["plan", "map", "log", ...(IS_BETA ? ["library"] : []), ...(window.FISH_NOTES || window.FISH_RESEARCH_GUIDE ? ["notes"] : [])];
+    const views = ["home", "plan", "map", "log", ...(IS_BETA ? ["library"] : []), ...(window.FISH_NOTES || window.FISH_RESEARCH_GUIDE ? ["notes"] : [])];
     if (!views.includes(view)) view = "plan";
     state.view = view;
-    ["plan", "map", "log", "library", "notes"].forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
+    ["home", "plan", "map", "log", "library", "notes"].forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
     document.body.dataset.view = view;
     const sec = $(`#view-${view}`);
     sec.style.animation = "none"; void sec.offsetWidth; sec.style.animation = "";
     $$(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.go === view));
     moveInk();
+    if (view === "home") renderHome();
     if (view === "log") renderLog();
     if (view === "library") renderLibrary();
     if (view === "notes") renderNotes();
@@ -2246,6 +2381,8 @@
       $("#mpOpen").hidden = !state.panelOff;
       if (map) setTimeout(() => map.invalidateSize(), 320);
     }
+    else if (d.homeFocus !== undefined) { homeFocus = d.homeFocus; renderHome(); }
+    else if (d.homeOpen) { selectPlace(d.homeOpen, false); go("plan"); }
     else if (d.bubbles !== undefined) { state.bubbles = !state.bubbles; drawBubbles(); renderMapPanel(); }
     else if (d.windToggle !== undefined) { state.windOn = !state.windOn; $("#windCanvas").hidden = !state.windOn; if (state.windOn) refreshWindField(); renderMapPanel(); }
     else if (d.jump) { if (state.view !== "plan") go("plan"); $(`#${d.jump}`)?.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" }); }
