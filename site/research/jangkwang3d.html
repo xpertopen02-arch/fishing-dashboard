@@ -379,7 +379,7 @@
   const wheelDir = D.wheels.map((w) => { let best = null; D.decks.forEach(([a, b]) => { const d = segDist(w[0], w[1], a, b); if (!best || d < best.d) best = { d, a, b }; });
     const dx = best.b[0] - best.a[0], dy = best.b[1] - best.a[1], l = Math.hypot(dx, dy) || 1; let nx = -dy / l, ny = dx / l;
     if (!inBox(w[0] + nx * 20, w[1] + ny * 20)) { nx = -nx; ny = -ny; } return [nx, ny]; });
-  const WHEEL_FWD = 2.5, WHEEL_LEN = 5, WHEEL_WID = 3;
+  const WHEEL_FWD = 4, WHEEL_LEN = 9, WHEEL_WID = 6;   // 물레방아 물보라: 앞쪽 약 9m, 옆 약 6m까지
   const WHEEL_RADIUS = 4.5;   // 물레방아형: 물을 튕겨 위로 쳐 올려 산소를 녹이고 주변을 섞는 범위 (가정)
   // 앞쪽으로 길게: 수차 앞 FWD m를 가운데로 앞뒤 LEN m, 옆 WID m 범위에 산소와 섞임이 늘어납니다.
   const wheelAt = (x, y) => Math.max(0, ...D.wheels.flatMap((w, i) => {
@@ -431,7 +431,7 @@
       if (q > e) { e = q; layer = z; bt = T; bo = O; }
     }
     if (c.z === "A") e *= .9;
-    let w = e * e * (c.cover ? 1.15 : 1) * (1 + .3 * c.wheel);   // 산소 많고 물이 흔들리는 수차 둘레로 조금 더 모입니다.
+    let w = e * e * (c.cover ? 1.15 : 1) * (1 + .8 * c.wheel);   // 산소 많고 물이 흔들리는 수차 둘레로 더 모입니다.
     if (st.k === 2 && !st.rain) w *= 1 + .6 * c.clean;   // 탁한 날은 맑은 물 쪽을 더 찾는다고 가정합니다.
     if (st.note) w *= (c.chan < 4 ? 1.3 : 1) * (c.spot < 5 ? 1.35 : 1);
     if (st.crowd && c.standDist < 12) w *= .7;
@@ -457,6 +457,7 @@
   // 반응성: 많이 있어도 모두 물지는 않습니다. 한 마리의 값 R = 활성 × (0.25 + 0.75 × 개체 차이)
   const HIGH = .66, LOW = .33, BITE = { high: 1, mid: .4, low: .08 };
   const activity = (T, h) => clamp((T - 2) / 8, .1, 1) * (h < 9 || h >= 16 ? 1.15 : h >= 11 && h <= 14 ? .85 : 1);
+  const WHEEL_ACT = 1;   // 수차 둘레: 산소와 수면의 움직임으로 활성도가 최대 2배까지 오릅니다 (가정).
   const levelOf = (R) => (R >= HIGH ? "high" : R >= LOW ? "mid" : "low");
   function reactShares(a) {   // 개체 차이가 고르게 퍼져 있을 때 높음, 보통, 낮음의 비율
     // 아무리 차가워도 먼저 무는 개체가 조금은 있습니다 (5%, 가정).
@@ -468,11 +469,15 @@
   // 방류어 흐름에 자극받는 기존 송어의 비율: 방류 지점에 가까울수록, 방류 직후일수록 큽니다.
   // 방류어가 퍼져 나가며 지나간 곳의 송어는 지나간 뒤 약 1시간 동안 반응이 살아납니다.
   // 방류어 무리의 끝은 10m에서 시작해 1시간에 15m씩, 최대 60m까지 퍼집니다(releaseState의 퍼짐과 같음).
-  const STIR_HOURS = 1;
+  // 방류어 무리는 방류 위치에서 10m로 시작해 1시간에 15m씩, 최대 60m까지 퍼집니다(releaseState와 같음).
+  // 움직이는 방류어 둘레 5m 안의 송어가 깨어납니다: 무리 끝 + 5m가 닿은 때부터 1.2시간은 그대로, 그 뒤 1시간마다 약 63%씩 서서히 떨어집니다.
+  const STIR_R = 5, STIR_HOLD = 1.2, STIR_FADE = 1, STIR_SHARE = .85;   // 깨어나는 범위 m, 유지 시간, 떨어지는 시간, 깨어나는 송어 비율
   const stirChance = (st, rel, metres) => {
-    if (st.stock !== 0 || rel.hours < 0 || metres > 60) return 0;
-    const passed = rel.hours - Math.max(0, (metres - 10) / 15);   // 무리 끝이 이 자리를 지난 뒤 흐른 시간
-    return passed < 0 || passed > STIR_HOURS ? 0 : .5 * (1 - passed / STIR_HOURS);
+    if (st.stock !== 0 || rel.hours < 0 || metres > 60 + STIR_R) return 0;
+    const passed = rel.hours - Math.max(0, (metres - STIR_R - 10) / 15);   // 방류어 둘레 5m가 이 자리에 닿은 뒤 흐른 시간
+    if (passed < 0) return 0;
+    const v = passed <= STIR_HOLD ? 1 : Math.exp(-(passed - STIR_HOLD) / STIR_FADE);
+    return v < .03 ? 0 : v;
   };
   const distCache = new Map();
   function dist(st) {
@@ -500,9 +505,9 @@
       w[i] = moving + res;
       lay[i] = ((base * evals[i].layer + fresh * Math.min(evals[i].layer, shallow)) / (free[i] || 1) * moving + Math.min(c.d * .7, 1.3) * res) / (w[i] || 1);
       // 이 칸의 반응성
-      const a = activity(evals[i].T, st.h), sh = reactShares(a);
+      const a = activity(evals[i].T, st.h) * (1 + WHEEL_ACT * c.wheel), sh = reactShares(a);
       stir[i] = stirChance(st, rel, Math.hypot(c.x - pt[0], c.y - pt[1]) * M);
-      const pHi = sh.hi + stir[i] * (1 - sh.hi), pLo = sh.lo * (1 - stir[i]), pMid = Math.max(0, 1 - pHi - pLo);
+      const sp = STIR_SHARE * stir[i], pHi = sh.hi + sp * (1 - sh.hi), pLo = sh.lo * (1 - sp), pMid = Math.max(0, 1 - pHi - pLo);
       const bE = pHi * BITE.high + pMid * BITE.mid + pLo * BITE.low;
       const fl = freshLevel(rel), Fs = free[i] ? fresh / free[i] : 0;
       freshP[i] = Fs;
@@ -646,7 +651,8 @@
     const rim = new THREE.Mesh(new THREE.BoxGeometry(size + .7, .3, size + .7), new THREE.MeshBasicMaterial({ color: 0xf1f1ea, wireframe: true })); rim.position.set(wx(c[0]), .2, wz(c[1])); rim.rotation.y = cageTurn(c); fac.add(rim);
   });
   const inflowArrow = new THREE.Mesh(new THREE.ConeGeometry(2.4, 7, 12), new THREE.MeshLambertMaterial({ color: 0x35c7e8 }));
-  inflowArrow.rotation.z = -Math.PI / 2; inflowArrow.position.set(wx(D.inflow[0]) + 3, 1, wz(D.inflow[1])); fac.add(inflowArrow);   // 계곡물은 동쪽(송어터 안)으로 들어옵니다.
+  inflowArrow.rotation.z = -Math.PI / 2; inflowArrow.rotation.y = Math.atan2(D.flow[0][1] - D.flow[1][1], D.flow[1][0] - D.flow[0][0]); inflowArrow.position.set(wx(D.inflow[0]) + 3, 1, wz(D.inflow[1]) - 1);   // 계곡물은 동쪽에서 약간 북쪽으로 들어옵니다 (물골 첫 구간 방향).
+  fac.add(inflowArrow);
 
   // 이름
   const texts = new THREE.Group(); scene.add(texts);
@@ -1071,8 +1077,9 @@ attribute vec2 aSwim;`)
         fishCell[k] = ci;
         const c = westCells[ci], cruise = role === "cruise";
         if (cruise) nCruise++;
-        let R = activity(info.evals[ci].T, st.h) * (.25 + .75 * S.t0);
-        if (S.t1 < .05 || S.t2 < info.stir[ci]) R = 1;
+        let R = activity(info.evals[ci].T, st.h) * (1 + WHEEL_ACT * c.wheel) * (.25 + .75 * S.t0);
+        if (S.t1 < .05) R = 1;
+        else if (info.stir[ci] && S.t2 < STIR_SHARE) R = Math.max(R, LOW + (1 - LOW) * info.stir[ci]);   // 방류어에 깨어난 송어: 높게 유지되다 서서히 떨어집니다.
         if (j >= st.total && info.rel.share) R = 1;   // 방류어
         else if (S.t3 < info.freshP[ci]) R = freshLevel(info.rel) === "high" ? 1 : .6;
         const dep = clamp(info.lay[ci] + S.dd, .25, Math.max(.3, c.d - .15));
@@ -1306,7 +1313,7 @@ attribute vec2 aSwim;`)
     $("fishKey").innerHTML = $("fishColor").value === "depth" ? '<b style="color:#d9b400">■</b> 1m 안 <b style="color:#35b86a">■</b> 1~2m <b style="color:#3f8fe0">■</b> 2~3m <b style="color:#b45fd6">■</b> 3m 아래 <b style="color:#8a7f73">■</b> 가두리 안' : $("fishColor").value === "react" ? '<b style="color:#2f6fe0">■</b> 반응 좋음 <b style="color:#d9a400">■</b> 보통 <b style="color:#e5392c">■</b> 낮음 <b style="color:#8a7f73">■</b> 가두리 안' : '<b style="color:#5fb6e6">■</b> 도는 송어 <b style="color:#b9b4a6">■</b> 머무는 송어 <b style="color:#8a7f73">■</b> 가두리 안';
     const relName = st.release === "center" ? "가두리" : "북쪽 부교 가운데";
     const near = nearSpots(list);
-    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip">${info.rel.during ? `<b>방류 중 ${Math.round(info.rel.hours * 60)}분째</b> ${relName}에서 20분 동안 넣는 ${st.stockN}마리 중 약 ${Math.round(st.stockN * info.rel.ramp)}마리가 들어와 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다.` : `<b>방류 ${(() => { const mm = Math.round(info.rel.hours * 60), hh = Math.floor(mm / 60); return mm < 60 ? `${mm}분` : `${hh}시간${mm % 60 ? ` ${mm % 60}분` : ""}`; })()} 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. 방류는 15~20분 동안 이어졌습니다.`} 방류어는 활성도가 높아 움직이는 루어에 빠르게 반응합니다. 방류어 무리가 지나간 곳의 기존 송어도 지나간 뒤 약 1시간 동안 반응이 살아납니다.${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
+    const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip">${info.rel.during ? `<b>방류 중 ${Math.round(info.rel.hours * 60)}분째</b> ${relName}에서 20분 동안 넣는 ${st.stockN}마리 중 약 ${Math.round(st.stockN * info.rel.ramp)}마리가 들어와 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다.` : `<b>방류 ${(() => { const mm = Math.round(info.rel.hours * 60), hh = Math.floor(mm / 60); return mm < 60 ? `${mm}분` : `${hh}시간${mm % 60 ? ` ${mm % 60}분` : ""}`; })()} 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. 방류는 15~20분 동안 이어졌습니다.`} 방류어는 활성도가 높아 움직이는 루어에 빠르게 반응합니다. 움직이는 방류어 둘레 5m 안의 기존 송어도 깨어나 약 1시간 넘게 반응이 높게 유지되다가 서서히 떨어집니다.${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
     $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${hourOf(st.h)}시대</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `부채꼴은 가두리 쪽으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : castInfo().mode === "front" ? `부채꼴은 자리별로 정한 정면 방향으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
     const sim = Object.fromEntries(Object.keys(D.zoneNames).map((k) => [k, zoneV(st, st.h, k)]));
     const alerts = [], ks = Object.keys(sim);
