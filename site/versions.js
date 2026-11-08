@@ -1,6 +1,12 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.7", date: "2026-11-08", title: "휴대폰: 날짜 줄 가운데로",
+    changes: [
+      "휴대폰 화면에서 날짜·검색·새로고침 줄이 왼쪽으로 쏠려 있던 것을 가운데로 맞춤 (390×844에서 양옆 여백 24px, 23px)",
+    ],
+  },
+  {
     version: "2.1.6", date: "2026-11-08", title: "휴대폰: 낚시 종류 버튼을 위로",
     changes: [
       "휴대폰 화면에서 민물/송어/바다 버튼을 맨 윗줄 낚시터 이름 오른쪽으로 옮김. 위쪽 머리 부분이 한 줄 줄어 아래 내용이 더 많이 보임",
