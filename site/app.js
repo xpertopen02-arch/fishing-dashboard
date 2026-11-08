@@ -188,18 +188,8 @@
   /* ---------- number helpers ---------- */
   const fin = (a) => (a || []).filter((v) => v != null);
   const num = (v, n = 1) => (v == null ? "–" : Number(v).toFixed(n));
-  function countUp(el) {
-    const target = parseFloat(el.dataset.to);
-    if (Number.isNaN(target) || REDUCED) return;
-    const digits = +el.dataset.d || 0;
-    const t0 = performance.now();
-    const step = (t) => {
-      const k = Math.min(1, (t - t0) / 650);
-      el.textContent = (target * (1 - Math.pow(1 - k, 3))).toFixed(digits);
-      if (k < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }
+  // v2.0.2: numbers simply appear; the old count-up animation read as decoration.
+  function countUp() {}
 
   /* ---------- icons (Lucide, ISC licence; only where the meaning is clear) ---------- */
   const ICONS = {
@@ -342,9 +332,7 @@
     return Math.round(geo({ wind: windF(d.wind_speed_10m_max[i] * .75), rain: rainF((d.precipitation_sum[i] || 0) / 6, null), temp: lerp(curveOf(type), t) }));
   }
   const scoreTone = (s) => (s >= 80 ? "good" : s >= 65 ? "info" : s >= 50 ? "warn" : "bad");
-  const SCORE_LABEL = { good: "출조하기 좋은 날", info: "출조할 만한 날", warn: "조건을 보고 짧게", bad: "출조를 미루는 편이 좋은 날" };
   const factorTone = (f) => (f >= .85 ? "good" : f >= .65 ? "info" : f >= .45 ? "warn" : "bad");
-  const stars = (f) => { const n = Math.max(1, Math.min(5, Math.round(f * 5))); return `<span class="stars" role="img" aria-label="5점 중 ${n}점">${"★".repeat(n)}<i>${"★".repeat(5 - n)}</i></span>`; };
   const hhmm = (h) => `${pad(h)}:00`;
   const spanText = (r) => `${hhmm(r.from)} ~ ${hhmm(r.to)}`;
 
@@ -376,7 +364,7 @@
     const list = named(r).sort((x, y) => y[1] - x[1]);
     const good = list.filter(([, f]) => f >= .85).slice(0, 2).map(([k]) => GOOD_WORD[k]);
     const bad = list.filter(([, f]) => f < .65).slice(-1).map(([k]) => BAD_WORD[k]);
-    return [...good, ...bad].join(" · ") || "무난함";
+    return [...good, ...bad].join(", ") || "무난함";
   };
   // Data, then what it means, then what to do.
   function verdictText(r, p) {
@@ -402,7 +390,7 @@
     if ((r.prob ?? 0) >= 50 || r.rainSpan > 1) act.push("비에 대비해 우비를 챙기세요.");
     else if (r.rain > 1) act.push(`비는 이 시간대 밖에 하루 ${num(r.rain)}mm 예보돼 있으니 늦어지지 않게 정리하세요.`);
     if (r.wave != null && r.wave > 1) act.push("파도가 높으니 갯바위와 방파제 끝은 피하세요.");
-    const close = r.score >= 65 ? `따라서 ${hhmm(r.from)} 전후 출조를 우선 추천합니다.` : r.score >= 50 ? `출조한다면 ${spanText(r)}에 짧게 노리세요.` : "무리하기보다 상세 분석의 16일 전망에서 다른 날을 고르는 편이 좋습니다.";
+    const close = r.score >= 65 ? `${r.from}시 전에 자리를 잡으세요.` : r.score >= 50 ? `나간다면 ${r.from}시부터 ${r.to}시 사이에 짧게 노리세요.` : "아래 16일 전망에서 점수가 높은 날을 고르는 편이 낫습니다.";
     return { lead: `${spanText(r)}이 가장 유리합니다.`, data: `${data}.`, meaning, act: [...act, close] };
   }
 
@@ -540,9 +528,9 @@
     if (r) {
       const word = { good: "좋음", info: "양호", warn: "주의", bad: "불리" };
       const vals = r.hours.map((x) => (x ? Math.round(x.s) : null));
-      charts.push(makeChart(chartShell(host, "시간대별 낚시 점수", i++, `<div class="legend"><span><i class="band"></i>BEST TIME ${hhmm(r.from)}~${hhmm(r.to)}</span></div>`, "full"), {
+      charts.push(makeChart(chartShell(host, "시간대별 낚시 점수", i++, `<div class="legend"><span><i class="band"></i>가장 좋은 시간 ${r.from}~${r.to}시</span></div>`, "full"), {
         ...sun, title: "시간대별 낚시 점수", unit: "점", digits: 0, zero: true, fixed: [0, 100], bars: true, band: [r.from, r.to - 1],
-        series: [{ label: "점수", color: accent, colorAt: (h) => (vals[h] == null ? accent : `var(--${scoreTone(vals[h])})`), values: vals }],
+        series: [{ label: "점수", color: accent, colorAt: (h) => (h >= r.from && h < r.to ? accent : "var(--bar)"), values: vals }],
         tick: (v) => Math.round(v),
         note: (h) => (vals[h] == null ? "" : word[scoreTone(vals[h])]),
       }));
@@ -845,7 +833,7 @@
 
         <div class="t">${Math.round(daily.temperature_2m_min[i])}° / ${Math.round(daily.temperature_2m_max[i])}°</div>
         <div class="w">바람 ${num(daily.wind_speed_10m_max[i])}</div>
-        <div class="w">비 ${num(daily.precipitation_sum[i])}mm</div>${ds == null ? "" : `<b class="ds tone-${scoreTone(ds)}" title="간이 점수">${ds}</b>`}</button>`;
+        <div class="w">비 ${num(daily.precipitation_sum[i])}mm</div>${ds == null ? "" : `<b class="ds tone-${scoreTone(ds)}" title="간이 점수">${ds}점</b>`}</button>`;
     }).join("");
     focusStripDay();
   }
@@ -859,16 +847,58 @@
       if (r) state.scores[p.id] = r;
     });
   }
-  const MODE_SHORT = { forecast: "예보 기준", archive: "과거 재분석 기준", climate: "평년값 기준 참고 점수" };
+  const MODE_SHORT = { forecast: "예보", archive: "과거 재분석", climate: "평년값으로 낸 참고 점수" };
+  const CALL = { good: "오늘은 나가도 좋습니다.", info: "나가 볼 만한 날입니다.", warn: "나간다면 짧게 다녀오세요.", bad: "오늘은 쉬는 편이 낫습니다." };
+
+  // The day as a tide-table: hourly score bars on top, 3-hour weather columns under the same clock.
+  function dayTable(p, r, w) {
+    const cols = [0, 3, 6, 9, 12, 15, 18, 21];
+    const rise = hourFrac(r.sunrise), set = hourFrac(r.sunset);
+    const bars = r.hours.map((x, h) => {
+      if (!x) return "";
+      const v = Math.max(2, x.s / 100 * 46), on = h >= r.from && h < r.to;
+      return `<rect x="${h * 10 + 1.5}" y="${50 - v}" width="7" height="${v}" fill="var(--${on ? "accent" : "bar"})"/>`;
+    }).join("");
+    const night = rise == null ? "" : `<rect x="0" y="0" width="${rise * 10}" height="50" fill="var(--night)"/><rect x="${set * 10}" y="0" width="${240 - set * 10}" height="50" fill="var(--night)"/>`;
+    const svg = `<svg viewBox="0 0 240 56" preserveAspectRatio="none" role="img" aria-label="시간대별 점수. 가장 좋은 시간 ${r.from}시부터 ${r.to}시">${night}<rect x="${r.from * 10}" y="0" width="${(r.to - r.from) * 10}" height="50" fill="var(--band)"/>${bars}<line x1="0" x2="240" y1="50.5" y2="50.5" stroke="var(--axis)"/></svg>`;
+    const seg = (arr, h) => (arr || []).slice(h, h + 3).filter((v) => v != null);
+    const mean = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : null);
+    const cell = (txt, cls = "") => `<span class="${cls}">${txt}</span>`;
+    const row = (label, fn, first = false) => `<span class="l${first ? " first" : ""}">${label}</span>` + cols.map((h) => fn(h)).join("");
+    const rows = [
+      `<span class="l first">점수</span><div class="svgcell">${svg}</div>`,
+      `<span class="hrow"></span>` + cols.map((h) => `<span class="hrow">${h}시</span>`).join(""),
+      row("기온", (h) => { const t = mean(seg(w.temp, h)); return cell(t == null ? "–" : `${Math.round(t)}°`); }),
+      row("바람", (h) => {
+        const v = mean(seg(w.wind, h)), d = w.dir[h + 1];
+        if (v == null) return cell("–");
+        return cell(`${d == null ? "" : `<i class="arw" style="--d:${(d + 180) % 360}deg">↑</i>`}${num(v)}`, v >= 7 ? "bad" : v >= 4 ? "warn" : "");
+      }),
+      row("비", (h) => {
+        const mm = seg(w.precip, h).reduce((s, v) => s + v, 0), pr = w.prob ? Math.max(0, ...seg(w.prob, h)) : null;
+        if (mm < .05 && (pr == null || pr < 30)) return cell("–", "nil");
+        return cell(mm >= .05 ? num(mm) : `${pr}%`, mm >= 3 ? "bad" : mm >= 1 || (pr ?? 0) >= 50 ? "warn" : "");
+      }),
+    ];
+    if (state.marine?.wave && p.type === "바다" && fin(state.marine.wave).length) rows.push(row("파고", (h) => { const m = mean(seg(state.marine.wave, h)); return m == null ? cell("–") : cell(num(m), m > 1.5 ? "bad" : m > 1 ? "warn" : ""); }));
+    const age = moonAge(state.date);
+    const foot = [
+      `진한 막대가 가장 좋은 시간 <b>${r.from}시부터 ${r.to}시</b>입니다.`,
+      r.sunrise ? `일출 ${esc(r.sunrise)}, 일몰 ${esc(r.sunset)}.` : "",
+      `월령 ${age.toFixed(1)}일(${moonName(age)})${p.type === "바다" ? `, ${tideHint(age)}` : ""}.`,
+      r.water ? `수온은 표층 ${num(r.water.surface)}℃, 바닥 ${num(r.water.bottom)}℃로 ${r.water.own && !r.water.outside ? "추정" : "참고값"}입니다.` : "",
+      "바람은 m/s, 비는 mm(없으면 확률)입니다.",
+    ].filter(Boolean).join(" ");
+    return `<div class="dg">${rows.join("")}</div><p class="dg-foot">${foot}</p>`;
+  }
 
   function renderBrief(err) {
     const p = placeById[state.place];
     const w = state.weather?.data[p.id];
     const r = state.scores?.[p.id];
-    const head = `<div class="hero-head"><span>${esc(p.name)}</span><span>${esc(p.type)}낚시</span><span>${fmtDate(state.date)}</span>${w ? `<span>${MODE_SHORT[state.weather.mode]}</span>` : ""}</div>`;
-    const info = `<p>${esc(p.address)}</p><p class="pin-fix">위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
-      <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}${p.id === "덕봉" ? `<a class="chip" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}덕봉 3D 자리 분석</a>` : ""}</div>`;
-    $("#placeInfo").innerHTML = info;
+    const head = `<p class="day-head"><b>${esc(p.name)}</b><span>${esc(p.type)}낚시</span><span>${fmtDate(state.date)}</span>${w ? `<span>${MODE_SHORT[state.weather.mode]}</span>` : ""}</p>`;
+    $("#placeInfo").innerHTML = `<p>${esc(p.address)}. 위치 정확도: ${esc(p.accuracy)}${pinOverrides[p.id] ? ` (${p.lat}, ${p.lon})` : ""}</p>
+      <div class="pin-actions"><button class="chip" data-pick="1">${state.picking ? "위치 지정 취소" : "지도에서 위치 지정"}</button>${pinOverrides[p.id] ? '<button class="chip" data-unpin="1">원래 위치로</button>' : ""}${p.id === "덕봉" ? '<a class="chip" href="research/deokbong3d.html" target="_blank" rel="noopener">덕봉 3D 자리 분석</a>' : ""}</div>`;
     const clear = () => { ["#metrics", "#verdict"].forEach((s) => { $(s).innerHTML = ""; }); $("#spotCard").hidden = true; };
     if (!hasPin(p) || err) {
       $("#hero").innerHTML = head + `<p class="hero-msg">${!hasPin(p)
@@ -886,43 +916,35 @@
     const tone = scoreTone(r.score);
     const notes = [
       state.weather.savedAt && `인터넷에 연결되어 있지 않아 ${new Date(state.weather.savedAt).toLocaleString("ko-KR")}에 저장된 날씨로 계산했습니다.`,
-      state.weather.mode === "climate" && `예보 범위 밖이라 ${state.weather.years.join("·")}년 같은 날짜의 평균 날씨로 계산했습니다. 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 나옵니다.`,
+      state.weather.mode === "climate" && `예보 범위 밖이라 ${state.weather.years.join(", ")}년 같은 날짜의 평균 날씨로 계산했습니다. 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 나옵니다.`,
       p.type === "바다" && "바다 값은 모델 참고치입니다. 출항 판단은 기상청 특보와 물때표로 다시 확인하세요.",
     ].filter(Boolean);
-    $("#hero").innerHTML = head + `<div class="hero-body">
-        <div class="hero-score tone-${tone}"><div class="big"><strong data-to="${r.score}">${r.score}</strong><span>/ 100</span></div><em>${SCORE_LABEL[tone]}</em></div>
-        <div class="hero-best"><small>BEST TIME</small><strong>${spanText(r)}</strong><span>${r.prof ? `조과 기록 ${r.prof.trips}회 반영` : "날씨와 해 뜨고 지는 시각 기준"}</span></div>
-      </div>
+    $("#hero").innerHTML = head + `<h1 class="call tone-${tone}">${CALL[tone]} ${r.from}시부터 ${r.to}시까지가 가장 낫습니다.</h1>
+      <p class="call-sub">점수 <b>${r.score}</b>점(100점 만점). ${esc(whyText(r))}.</p>
       ${notes.map((n) => `<p class="hero-note">${esc(n)}</p>`).join("")}`;
-    $$("[data-to]", $("#hero")).forEach(countUp);
+    $("#metrics").innerHTML = dayTable(p, r, w);
 
-    // one row per factor: value, what it means, and how much it helped
+    // what each value means for the best hours; colour only where it works against you
     const f = r.factors;
-    const row = (ic, label, value, unit, sub, read, fv) => `<div class="m-row${fv == null ? "" : ` tone-${factorTone(fv)}`}">
-        <span class="m-label">${icon(ic)}${label}</span>
-        <span class="m-val"><strong>${value}</strong><small>${unit}</small>${sub ? `<em>${sub}</em>` : ""}</span>
-        <span class="m-read">${read}</span>${fv == null ? '<span class="m-stars"></span>' : `<span class="m-stars">${stars(fv)}</span>`}</div>`;
+    const reason = (name, value, read, fv) => `<tr class="${fv == null ? "" : { warn: "warn", bad: "bad" }[factorTone(fv)] || ""}"><td>${name}</td><td>${value}</td><td>${read}</td></tr>`;
     const rows = [];
-    if (r.water) rows.push(row("thermo", "수온", num(r.water.surface), "℃", `바닥 ${num(r.water.bottom)}℃ · ${r.water.own && !r.water.outside ? "추정" : "참고"}`, READ.water(r), f.temp));
-    rows.push(row("thermo", "기온", num(r.temp), "℃", r.water ? "점수에는 수온을 씀" : "", READ.temp(r), r.water ? null : f.temp));
-    rows.push(row("wind", "바람", num(r.wind), "m/s", `${r.dir != null ? compass(r.dir) + "풍" : ""}${r.gust != null ? ` · 돌풍 ${num(r.gust)}` : ""}`, READ.wind(r), f.wind));
-    if (r.pressure != null) rows.push(row("gauge", "기압", Math.round(r.pressure), "hPa", `하루 변화 ${r.pTrend >= 0 ? "+" : "−"}${num(Math.abs(r.pTrend))}`, READ.press(r), f.press));
-    rows.push(row("rain", "강수", r.prob != null ? r.prob : num(r.rain), r.prob != null ? "%" : "mm", r.prob != null ? `하루 ${num(r.rain)}mm` : "확률 자료 없음", READ.rain(r), f.rain));
-    if (r.wave != null) rows.push(row("waves", "파고", num(r.wave), "m", "모델 참고값", READ.wave(r), f.wave));
-    rows.push(row("clock", "시간대", `${r.from}~${r.to}`, "시", r.prof ? `조과 기록 ${r.prof.total}수 반영` : "일출 일몰 기준", READ.time(r), f.time));
-    const age = moonAge(state.date);
-    const sky = `<div class="m-sky"><span>${icon("sunrise")}일출 ${esc(r.sunrise || "–")}</span><span>${icon("sunset")}일몰 ${esc(r.sunset || "–")}</span><span>${icon("moon")}월령 ${age.toFixed(1)} · ${moonName(age)}</span>${p.type === "바다" ? `<span>${tideHint(age)}</span>` : ""}</div>`;
-    $("#metrics").innerHTML = `<header class="blk-head"><h2>오늘의 낚시 전망</h2><span>${spanText(r)} 평균</span></header>${rows.join("")}${sky}`;
-
+    if (r.water) rows.push(reason("수온", `표층 ${num(r.water.surface)}℃`, READ.water(r), f.temp));
+    else rows.push(reason("기온", `${num(r.temp)}℃`, READ.temp(r), f.temp));
+    rows.push(reason("바람", `${r.dir != null ? compass(r.dir) + "풍 " : ""}${num(r.wind)}m/s${r.gust != null ? `, 돌풍 ${num(r.gust)}` : ""}`, READ.wind(r), f.wind));
+    rows.push(reason("강수", r.prob != null ? `확률 ${r.prob}%` : `${num(r.rainSpan)}mm`, READ.rain(r), f.rain));
+    if (r.pressure != null) rows.push(reason("기압", `${Math.round(r.pressure)}hPa, 하루 ${r.pTrend >= 0 ? "+" : "−"}${num(Math.abs(r.pTrend))}`, READ.press(r), f.press));
+    if (r.wave != null) rows.push(reason("파고", `${num(r.wave)}m`, READ.wave(r), f.wave));
+    rows.push(reason("시간대", r.prof ? `조과 기록 ${r.prof.total}수` : "기록 없음", READ.time(r), f.time));
     const v = verdictText(r, p);
-    $("#verdict").innerHTML = `<header class="blk-head"><h2>오늘의 출조 판단</h2></header>
-      <p class="v-lead">${esc(v.lead)}</p><p>${esc(v.data)} ${esc(v.meaning)}</p><ul>${v.act.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
-      <details class="v-how"><summary>점수는 어떻게 계산하나요?</summary><p>시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 그 기록을 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꾼 뒤 가중 기하평균을 냅니다. 한 항목이 나쁘면 점수가 크게 내려갑니다. 하루 점수는 가장 좋은 연속 2~4시간의 평균이고, 그 구간이 BEST TIME입니다. 가중치와 기준은 v2.0에서 새로 정한 가정이며 실제 조과로 검증하지 않았습니다.</p></details>`;
+    $("#verdict").innerHTML = `<header class="blk-head"><h2>${r.from}시부터 ${r.to}시의 조건</h2></header>
+      <table class="tbl"><tbody>${rows.join("")}</tbody></table>
+      <ul class="todo">${v.act.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+      <details class="v-how"><summary>점수 계산 방법</summary><p>시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 그 기록을 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꾼 뒤 가중 기하평균을 냅니다. 한 항목이 나쁘면 점수가 크게 내려갑니다. 하루 점수는 가장 좋은 연속 2~4시간의 평균입니다. 가중치와 기준은 v2.0에서 새로 정한 가정이며 실제 조과로 검증하지 않았습니다.</p></details>`;
     renderSpots();
     renderSpotCard();
   }
 
-  // The other places of the same kind, by their score for the chosen day.
+  // The other places of the same kind, ranked by their score for the chosen day, as a plain table.
   function renderSpots() {
     const p = placeById[state.place];
     const list = Object.values(state.scores || {}).filter((r) => placeTypes(placeById[r.id]).includes(p.type)).sort((a, b) => b.score - a.score);
@@ -930,14 +952,11 @@
     const pos = list.findIndex((r) => r.id === p.id);
     const shown = list.slice(0, 3);
     if (pos >= 3) shown.push(list[pos]);
-    $("#spots").innerHTML = `<header class="blk-head"><h2>추천 낚시터</h2><span>${esc(p.type)}낚시 ${list.length}곳 중 이날 점수순</span></header>
-      <ol class="spot-list">${shown.map((r) => {
-        const rank = list.indexOf(r) + 1, q = placeById[r.id];
-        return `<li><button class="spot ${r.id === p.id ? "sel" : ""}" data-place="${esc(r.id)}">
-          <span class="rank">${rank}</span><span class="nm"><b>${esc(r.id)}</b><small>${esc(whyText(r))}</small></span>
-          <span class="bt">${icon("clock")}${hhmm(r.from)}~${hhmm(r.to)}</span>
-          <span class="sc tone-${scoreTone(r.score)}">${stars(r.score / 100)}<b>${r.score}</b></span></button>${q.id === "덕봉" ? `<a class="spot-3d" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}자리별 분석</a>` : ""}</li>`;
-      }).join("")}</ol>`;
+    $("#spots").innerHTML = `<header class="blk-head"><h2>이날 갈 만한 ${esc(p.type)}낚시터</h2><span>${list.length}곳 중</span></header>
+      <table class="tbl rank"><thead><tr><th></th><th>낚시터</th><th class="num">점수</th><th>좋은 시간</th></tr></thead><tbody>${shown.map((r) => `<tr class="${r.id === p.id ? "sel" : ""}">
+        <td>${list.indexOf(r) + 1}</td>
+        <td class="nm"><button data-place="${esc(r.id)}">${esc(r.id)}</button><small>${esc(whyText(r))}</small>${r.id === "덕봉" ? '<a href="research/deokbong3d.html" target="_blank" rel="noopener">3D 자리 분석</a>' : ""}</td>
+        <td class="num">${r.score}</td><td>${r.from}~${r.to}시</td></tr>`).join("")}</tbody></table>`;
   }
 
   // The chosen place's card on the map.
@@ -946,13 +965,13 @@
     if (!r) { card.hidden = true; return; }
     const v = verdictText(r, p);
     const rows = [
-      ["BEST", spanText(r)],
-      r.water ? ["수온", `${num(r.water.surface)}℃ (바닥 ${num(r.water.bottom)}℃)`] : ["기온", `${num(r.temp)}℃`],
+      ["좋은 시간", `${r.from}~${r.to}시`],
+      r.water ? ["수온", `${num(r.water.surface)}℃`] : ["기온", `${num(r.temp)}℃`],
       ["바람", `${r.dir != null ? compass(r.dir) + "풍 " : ""}${num(r.wind)}m/s`],
       r.wave != null ? ["파고", `${num(r.wave)}m`] : null,
     ].filter(Boolean);
     card.hidden = false;
-    card.innerHTML = `<div class="sc-head"><b>${esc(p.id)}</b><span class="tone-${scoreTone(r.score)}">${r.score}<small>/100</small></span></div>
+    card.innerHTML = `<h3>${esc(p.id)}<span>${r.score}점</span></h3>
       <dl>${rows.map(([k, x]) => `<dt>${k}</dt><dd>${esc(x)}</dd>`).join("")}</dl><p>${esc(v.act[0])}</p>`;
   }
 

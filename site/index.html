@@ -5,26 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>낚시 브리핑</title>
 <meta name="robots" content="noindex, nofollow, noarchive, noimageindex">
-<meta name="theme-color" content="#0b1f3a">
+<meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
-  <button class="brand" data-go="plan"><i data-icon="fish" aria-hidden="true"></i><span class="brand-text"><b>FISHING INTELLIGENCE</b><small>낚시 브리핑</small></span></button>
+  <button class="brand" data-go="plan">낚시 브리핑</button>
   <nav class="tabs" aria-label="화면">
-    <button data-go="plan"><i data-icon="dashboard" aria-hidden="true"></i><span>출조 브리핑</span></button>
-    <div class="subnav" aria-label="브리핑 안에서 이동">
-      <button data-jump="analysisSec">상세 분석</button>
-      <button data-jump="mapSec">포인트 지도</button>
-      <button data-jump="docsSec">공략 자료</button>
-    </div>
-    <button data-go="log"><i data-icon="book" aria-hidden="true"></i><span>출조 기록</span></button>
-    <button data-go="library"><i data-icon="library" aria-hidden="true"></i><span>자료 탐색</span></button>
-    <button data-go="notes" hidden><i data-icon="flask" aria-hidden="true"></i><span>연구 노트</span></button>
+    <button data-go="plan">출조 브리핑</button>
+    <button data-go="log">출조 기록</button>
+    <button data-go="library">자료 탐색</button>
+    <button data-go="notes" hidden>연구 노트</button>
     <span class="tab-ink" aria-hidden="true"></span>
   </nav>
   <div class="top-actions">
@@ -38,11 +34,11 @@
   <section id="view-plan" class="view">
     <div class="picker-bar">
       <details class="place-pick" id="placePick">
-        <summary><i data-icon="pin" aria-hidden="true"></i><b id="placeName">낚시터</b><small id="placeType"></small><i data-icon="chev" class="chev" aria-hidden="true"></i></summary>
+        <summary><b id="placeName">낚시터</b><small id="placeType"></small><i data-icon="chev" class="chev" aria-hidden="true"></i></summary>
         <div class="place-box" id="placeChips"></div>
       </details>
       <div class="date-box">
-        <label for="dateInput"><i data-icon="calendar" aria-hidden="true"></i><span class="sr">낚시 날짜</span></label>
+        <label for="dateInput" class="sr">낚시 날짜</label>
         <input type="date" id="dateInput">
         <div class="quick" id="quickDates"></div>
       </div>
@@ -55,10 +51,10 @@
         <section class="metrics" id="metrics" aria-label="핵심 환경 지표"></section>
         <section class="verdict" id="verdict" aria-label="오늘의 판단"></section>
         <section class="spots" id="spots" aria-label="추천 낚시터"></section>
-        <div class="jump-row">
-          <button data-jump="analysisSec"><i data-icon="activity" aria-hidden="true"></i>상세 분석 보기</button>
-          <button data-jump="mapSec"><i data-icon="map" aria-hidden="true"></i>포인트 지도 보기</button>
-        </div>
+        <nav class="sec-links" aria-label="브리핑 안에서 이동">
+          <button data-jump="analysisSec">시간대별 그래프와 16일 전망</button>
+          <button data-jump="docsSec">공략 자료</button>
+        </nav>
       </div>
       <div class="plan-side" id="mapSec">
         <div class="map-card">
@@ -81,7 +77,7 @@
     </div>
 
     <section class="sec" id="analysisSec">
-      <header class="sec-head"><h2>상세 분석</h2><p>시간대별 점수와 그 근거가 된 날씨입니다. 그래프 위에서 움직이면 지도도 같은 시각으로 바뀝니다.</p></header>
+      <header class="sec-head"><h2>시간대별 그래프</h2><p>그래프 위에서 움직이면 지도도 같은 시각으로 바뀝니다. 음영은 해가 진 시간입니다.</p></header>
       <div class="charts" id="charts"></div>
       <h3 class="sub-head">앞으로 16일 <small>칸 안의 숫자는 하루 날씨만으로 낸 간이 점수입니다</small></h3>
       <div class="strip" id="dayStrip" aria-label="앞으로 16일 날씨"></div>
