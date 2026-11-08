@@ -170,9 +170,9 @@
     return { date, mode, years, savedAt: weatherSavedAt, data: out };
   }
   async function fetchMarine(place, date) {
-    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=wave_height,sea_level_height_msl&timezone=${TZ}&start_date=${date}&end_date=${date}`;
+    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=wave_height,sea_level_height_msl,ocean_current_velocity,ocean_current_direction&timezone=${TZ}&start_date=${date}&end_date=${date}`;
     const j = await getJSON(url);
-    return { wave: j.hourly.wave_height, sea: j.hourly.sea_level_height_msl };
+    return { wave: j.hourly.wave_height, sea: j.hourly.sea_level_height_msl, cur: (j.hourly.ocean_current_velocity || []).map((v) => (v == null ? null : v / 3.6)), curDir: j.hourly.ocean_current_direction || [] };
   }
   const outlookCache = {};
   async function fetchOutlook(place) {
@@ -402,7 +402,40 @@
   }
   const moonName = (a) => (a < 1.85 || a >= 27.7 ? "신월" : a < 5.5 ? "초승달" : a < 9.2 ? "상현달" : a < 13.8 ? "보름 전" : a < 15.7 ? "보름달" : a < 20.3 ? "보름 뒤" : a < 24 ? "하현달" : "그믐달");
   // Spring tides come about 1 to 3 days after new and full moon. A rough guide only, not a tide table.
-  const tideHint = (a) => { const x = a % 14.765; return x >= .5 && x <= 3.5 ? "사리 무렵(물살 셈)" : x >= 6.5 && x <= 9.5 ? "조금 무렵(물살 약함)" : "사리와 조금 사이"; };
+  // True new moon (Meeus, Astronomical Algorithms ch. 49, main periodic terms; good to a few minutes), as a JS time.
+  function newMoonTime(k) {
+    const T = k / 1236.85, rad = Math.PI / 180;
+    let jde = 2451550.09766 + 29.530588861 * k + .00015437 * T * T - .00000015 * T ** 3;
+    const E = 1 - .002516 * T - .0000074 * T * T;
+    const M = (2.5534 + 29.1053567 * k - .0000014 * T * T) * rad;
+    const Mp = (201.5643 + 385.81693528 * k + .0107582 * T * T) * rad;
+    const F = (160.7108 + 390.67050284 * k - .0016118 * T * T) * rad;
+    const Om = (124.7746 - 1.56375588 * k + .0020672 * T * T) * rad;
+    jde += -.4072 * Math.sin(Mp) + .17241 * E * Math.sin(M) + .01608 * Math.sin(2 * Mp) + .01039 * Math.sin(2 * F)
+      + .00739 * E * Math.sin(Mp - M) - .00514 * E * Math.sin(Mp + M) + .00208 * E * E * Math.sin(2 * M)
+      - .00111 * Math.sin(Mp - 2 * F) - .00057 * Math.sin(Mp + 2 * F) + .00056 * E * Math.sin(2 * Mp + M)
+      - .00042 * Math.sin(3 * Mp) + .00042 * E * Math.sin(M + 2 * F) + .00038 * E * Math.sin(M - 2 * F)
+      - .00024 * E * Math.sin(2 * Mp - M) - .00017 * Math.sin(Om);
+    return (jde - 2440587.5) * 864e5 - 69e3;   // TT to UT, roughly
+  }
+  // Day of the lunar month in Korea: the month starts on the KST calendar day of the new moon.
+  function lunarDay(iso) {
+    const KST = 9 * 36e5, endOfDay = parseISO(iso).getTime() + 864e5;   // local midnight after the date
+    let k = Math.floor((endOfDay / 864e5 - 10957.5) / 29.530588861) + 1;
+    while (newMoonTime(k) > endOfDay) k--;
+    const nm = new Date(newMoonTime(k) + KST), nmDay = Date.UTC(nm.getUTCFullYear(), nm.getUTCMonth(), nm.getUTCDate());
+    const d = parseISO(iso), day = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+    return Math.round((day - nmDay) / 864e5) + 1;
+  }
+  // 물때 as the West Sea counts it (7물때식): lunar 1st and 16th are 7물, 8th and 23rd 조금, 9th and 24th 무쉬.
+  const MUL = ["7물", "8물", "9물", "10물", "11물", "12물", "13물", "조금", "무쉬", "1물", "2물", "3물", "4물", "5물", "6물"];
+  function mulTae(iso) {
+    const ld = lunarDay(iso), name = MUL[(ld - 1) % 15];
+    const n = parseInt(name, 10);
+    const note = Number.isNaN(n) ? "물살 가장 약함" : n >= 6 && n <= 9 ? "사리 무렵, 물살 셈" : n >= 4 && n <= 11 ? "물살 강한 편" : "물살 보통";
+    return { name, note, lunar: ld };
+  }
+  const tideHint = (iso) => { const m = mulTae(iso); return `${m.name}(${m.note})`; };
 
   // What each value means for fishing.
   const READ = {
@@ -516,6 +549,11 @@
             if (v == null) { pen = false; return; }
             d += `${pen ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`; pen = true;
           });
+          if (s.bands) {
+            const gid = `bg${Math.random().toString(36).slice(2, 8)}`;
+            parts.push(`<defs>${bandGradient(gid, Y(0), Y(hi), hi, s.bands)}</defs><path d="${d}" fill="none" stroke="url(#${gid})" stroke-width="2.4"${s.dashed ? ' stroke-dasharray="6 4"' : ""} stroke-linecap="round" stroke-linejoin="round"/>`);
+            return;
+          }
           parts.push(s.dash
             ? `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.5" stroke-dasharray="4 4"/>`
             : `<path class="${animate ? "draw" : ""}" pathLength="1" d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
@@ -589,9 +627,9 @@
       series: [{ label: "기온", color: accent, values: w.temp }, ...(wsr ? [{ label: "수온", color: "var(--line-water)", values: wsr.values }] : [])],
       note: (h) => (w.code ? WX(w.code[h])[1] : "평균값"),
     }));
-    charts.push(makeChart(chartShell(host, "바람", i++, `<div class="legend"><span><i style="background:${accent}"></i>풍속</span><span><i class="dash"></i>돌풍</span></div>`), {
+    charts.push(makeChart(chartShell(host, "바람", i++, `<div class="legend"><span>풍속 <i class="wk g">~2</i><i class="wk o">2~5</i><i class="wk r">5~</i></span><span><i class="dash"></i>돌풍</span></div>`), {
       ...sun, title: "바람", unit: "m/s", digits: 1, zero: true, minTop: 5,
-      series: [{ label: "풍속", color: accent, values: w.wind }, { label: "돌풍", color: "var(--muted)", values: w.gust, dash: true }],
+      series: [{ label: "풍속", color: "#ff9f3a", values: w.wind, bands: [[2, WIND_COL[0]], [5, WIND_COL[1]], [99, WIND_COL[2]]], dashed: true }, { label: "돌풍", color: "var(--muted)", values: w.gust, dash: true }],
       arrows: w.dir,
       note: (h) => (w.dir[h] == null ? "" : `${compass(w.dir[h])}풍`),
     }));
@@ -609,9 +647,10 @@
     if (place.type === "바다") {
       const mr = state.marine;
       if (mr && fin(mr.wave).length) {
-        charts.push(makeChart(chartShell(host, "파고 (모델 참고값)", i++), {
+        charts.push(makeChart(chartShell(host, "파고 (모델 참고값)", i++, `<div class="legend"><span><i style="background:var(--accent)"></i>1m 이하</span><span><i style="background:#ff4f4f"></i>1m 넘음</span></div>`), {
           ...sun, title: "파고", unit: "m", digits: 1, zero: true, minTop: 1,
-          series: [{ label: "파고", color: accent, values: mr.wave }],
+          // over 1 m the line turns red
+          series: [{ label: "파고", color: accent, values: mr.wave, bands: [[1, "var(--accent)"], [99, "#ff4f4f"]] }],
           tick: (v) => v.toFixed(1),
         }));
         if (fin(mr.sea).length) charts.push(makeChart(chartShell(host, "해수면 높이 (조석 포함, 모델 참고값)", i++), {
@@ -884,6 +923,22 @@
   // v2.0.10: words that say what to do (score 80+, 65-79, 50-64, under 50)
   const VERDICT = { good: "출조 추천", info: "출조 가능", warn: "짧게 출조", bad: "출조 보류" };
   const mono = (t) => `<span class="mono">${t}</span>`;
+  // Wind colours: up to 2 m/s green, 2 to 5 m/s orange, 5 m/s and above red.
+  const WIND_COL = ["#2ee68f", "#ff9f3a", "#ff4f4f"];
+  const windCol = (v) => WIND_COL[v < 2 ? 0 : v < 5 ? 1 : 2];
+  // A gradient along the y axis (in the chart's own pixels) whose colour steps at the given values.
+  // bands: [[upTo, colour], ...] from the bottom; the last colour runs to the top.
+  function bandGradient(id, yAt0, yAtTop, top, bands) {
+    const f = (v) => Math.max(0, Math.min(1, v / top)).toFixed(4);
+    let stops = "", from = 0;
+    bands.forEach(([upTo, col]) => { stops += `<stop offset="${f(from)}" stop-color="${col}"/><stop offset="${f(Math.min(upTo, top))}" stop-color="${col}"/>`; from = upTo; });
+    return `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${yAt0}" y2="${yAtTop}">${stops}</linearGradient>`;
+  }
+  // The wind version: changes exactly at the 2 and 5 m/s lines.
+  function windGradient(id, yAt0, yAtTop, top) {
+    const f = (v) => Math.max(0, Math.min(1, v / top)).toFixed(4);
+    return `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${yAt0}" y2="${yAtTop}"><stop offset="0" stop-color="${WIND_COL[0]}"/><stop offset="${f(2)}" stop-color="${WIND_COL[0]}"/><stop offset="${f(2)}" stop-color="${WIND_COL[1]}"/><stop offset="${f(5)}" stop-color="${WIND_COL[1]}"/><stop offset="${f(5)}" stop-color="${WIND_COL[2]}"/><stop offset="1" stop-color="${WIND_COL[2]}"/></linearGradient>`;
+  }
   // A three-lamp traffic light beside the verdict: green for 출조 추천 and 출조 가능 (dimmer), yellow for 짧게 출조, red for 출조 보류.
   const LAMP = { good: 2, info: 2, warn: 1, bad: 0 };
   function signalLight(tone, cls = "") {
@@ -920,8 +975,9 @@
     const wmax = Math.max(...fin(w.wind)), gmax = w.gust ? Math.max(...fin(w.gust)) : 0, rain = fin(w.precip).reduce((a, b) => a + b, 0);
     if (state.weather.savedAt) out.push({ k: "offline", t: "인터넷 연결 없음", body: `${new Date(state.weather.savedAt).toLocaleString("ko-KR")}에 저장된 날씨로 계산했습니다. 최신 예보와 다를 수 있습니다.`, src: "저장된 예보" });
     if (state.weather.mode === "climate") out.push({ k: "climate", t: "예보 범위 밖", body: `${state.weather.years.join(", ")}년 같은 날짜의 평균 날씨로 낸 참고 점수입니다. 예보는 ${FORECAST_END.replaceAll("-", ".")}까지 나옵니다.`, src: "Open-Meteo 과거 자료" });
-    if (wmax >= 7 || gmax >= 12) out.push({ k: "wind", t: `강풍 주의 · ${w.wind.indexOf(wmax)}시 전후`, body: `바람이 최대 ${num(wmax)}m/s, 돌풍은 ${num(gmax)}m/s까지 붑니다. 보트와 갯바위 끝은 피하세요.`, src: "Open-Meteo 예보" });
-    if (rain >= 10) out.push({ k: "rain", t: "많은 비", body: `하루 ${num(rain)}mm의 비가 예보돼 있습니다. 물이 불고 흐려질 수 있습니다.`, src: "Open-Meteo 예보" });
+    // weather warning boxes are for sea spots only; at ponds strong wind and rain show in the score and the advice
+    if (p.type === "바다" && (wmax >= 7 || gmax >= 12)) out.push({ k: "wind", t: `강풍 주의 · ${w.wind.indexOf(wmax)}시 전후`, body: `바람이 최대 ${num(wmax)}m/s, 돌풍은 ${num(gmax)}m/s까지 붑니다. 보트와 갯바위 끝은 피하세요.`, src: "Open-Meteo 예보" });
+    if (p.type === "바다" && rain >= 10) out.push({ k: "rain", t: "많은 비", body: `하루 ${num(rain)}mm의 비가 예보돼 있습니다. 물이 불고 흐려질 수 있습니다.`, src: "Open-Meteo 예보" });
     const wave = state.marine?.wave ? Math.max(0, ...fin(state.marine.wave)) : 0;
     if (p.type === "바다" && wave > 1.5) out.push({ k: "wave", t: "높은 파도", body: `파고가 최대 ${num(wave)}m까지 오릅니다.`, src: "Open-Meteo 해상 모델" });
     if (p.type === "바다") out.push({ k: "sea", t: "해상 값은 참고치", body: "출항 판단은 기상청 특보와 물때표로 다시 확인하세요.", src: "기상청 해상특보" });
@@ -938,7 +994,7 @@
         if (b >= a && b > c) ext.push([h, "H", b]);
         else if (b <= a && b < c) ext.push([h, "L", b]);
       }
-      if (ext.length) return { title: `물때 · ${dayLabel()} (모델)`, tiles: ext.slice(0, 4).map(([h, k, v]) => ({ mark: k === "H" ? "▲" : "▼", cls: k === "H" ? "hi" : "lo", top: hhmm(h), sub: `${k === "H" ? "만조" : "간조"} ${v.toFixed(1)}m` })) };
+      if (ext.length) return { title: `물때 · ${dayLabel()} · ${tideHint(state.date)}`, tiles: ext.slice(0, 4).map(([h, k, v]) => ({ mark: k === "H" ? "▲" : "▼", cls: k === "H" ? "hi" : "lo", top: hhmm(h), sub: `${k === "H" ? "만조" : "간조"} ${v.toFixed(1)}m` })) };
     }
     const age = moonAge(state.date);
     return { title: `해와 달 · ${dayLabel()}`, tiles: [
@@ -1015,12 +1071,12 @@
     const temps = fin(w.temp), winds = fin(w.wind);
     const past = state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to);
     $("#ccMid").innerHTML = `
-      <p class="eyebrow">하루 24시간 · 점수 · 기온 · 바람${p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6 ? " · 물때" : ""}</p>
+      <p class="eyebrow">하루 24시간 · 점수 · 기온 · 바람${p.type === "바다" ? ` · 물때 ${mulTae(state.date).name}(${mulTae(state.date).note}) · 유속` : ""}</p>
       <h2 class="mid-title">가장 좋은 시간${past ? "은" : "은"} <em class="mono">${hhmm(r.from)}</em>${past ? "이었습니다" : "입니다"}.</h2>
       <p class="mid-sub" id="midSub">16일 전망을 불러오는 중입니다.</p>
       <div class="bigchart" id="bigChart"><div class="bc-read mono" id="bcRead"></div></div>
       <p class="bc-legend mono">${legendFor(p, w)}</p>
-      <p class="bc-src">날씨 출처: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> 예보 · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? " · 조위와 파고는 해상 모델 값" : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`;
+      <p class="bc-src">날씨 출처: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> 예보 · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? ` · 조위·파고·유속은 Open-Meteo 해상 모델 값 · 물때는 음력 ${mulTae(state.date).lunar}일 기준 서해 7물때식` : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`;
     bigChart = drawBigChart($("#bigChart"), r, w);
     renderMidSub();
 
@@ -1061,7 +1117,8 @@
     const rng = (a, d = 1) => { const v = fin(a); return `${num(Math.min(...v), d)}~${num(Math.max(...v), d)}`; };
     const sea = p.type === "바다" && state.marine?.sea && fin(state.marine.sea).length > 6, wave = sea && state.marine.wave && fin(state.marine.wave).length;
     const wsr = waterSeries(p);
-    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃ ${wsr ? `<span class="k-water"></span>수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"}) ` : ""}<span class="k-wind"></span>바람 ${rng(w.wind)}m/s${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
+    const curv = sea && state.marine.cur && fin(state.marine.cur).length;
+    return `<span class="k-bar"></span>점수 0~100 <span class="k-temp"></span>기온 ${rng(w.temp, 1)}℃ ${curv ? `<span class="k-cur"></span>유속 ${rng(state.marine.cur, 2)}m/s ` : ""}${wsr ? `<span class="k-water"></span>수온 ${rng(wsr.values, 1)}℃(${wsr.fitted ? "실측 곡선에 맞춘 추정" : "추정"}) ` : ""}<span class="k-wind"></span>바람 ${rng(w.wind)}m/s(<i class="wk g">~2</i><i class="wk o">2~5</i><i class="wk r">5~</i>)${sea ? ` <span class="k-tide"></span>조위 ${rng(state.marine.sea, 1)}m${wave ? `, 파고 ${rng(state.marine.wave)}m` : ""}` : ""} <span class="k-sun"></span>일출·일몰`;
   }
   // Score bars for each hour with temperature and wind drawn over them.
   let bigChart = null;
@@ -1078,6 +1135,9 @@
     const tide = sea ? state.marine.sea : null;
     const tv = tide ? fin(tide) : [], tdl = Math.min(...tv), tdh = Math.max(...tv);
     const DY = (v) => m.t + (H - m.t - m.b) * (.92 - .5 * (v - tdl) / ((tdh - tdl) || 1));
+    const cur = sea && state.marine.cur && fin(state.marine.cur).length ? state.marine.cur : null;
+    const cmax = cur ? Math.max(.3, ...fin(cur)) : 1;
+    const CY = (v) => m.t + (H - m.t - m.b) * (1 - v / cmax * .45);
     const wsr = waterSeries(placeById[state.place]), wat = wsr?.values || null;
     const bv = [...fin(blue), ...(wat ? fin(wat) : [])], tlo = Math.min(...bv), thi = Math.max(...bv), pad = (thi - tlo) * .15 || 1;
     const TY = (t) => m.t + (H - m.t - m.b) * (.88 - .72 * (t - tlo + pad) / (thi - tlo + 2 * pad));
@@ -1121,7 +1181,7 @@
         P.push(`<path d="${tl}L${X(last).toFixed(1)} ${Y(0)}L${X(first).toFixed(1)} ${Y(0)}Z" fill="url(#bcFill)"/>`);
         P.push(`<path d="${tl}" class="l-temp"/>`);
       }
-      P.push(`<path d="${smooth(dash, WY)}" class="l-wind"/>`);
+      P.push(`<defs>${windGradient("bcWind", WY(0), WY(wmax), wmax)}</defs><path d="${smooth(dash, WY)}" class="l-wind" stroke="url(#bcWind)"/>`);
       // highest and lowest of temperature and wind, marked on their lines
       const ext = (arr, fy, cls, unit, d) => {
         const v = fin(arr);
@@ -1130,7 +1190,8 @@
         [[hi, "최고", -9], [lo, "최저", 17]].forEach(([i, word, dy]) => {
           const x = X(i), y = fy(arr[i]);
           const anchor = i < 2 ? "start" : i > 21 ? "end" : "middle";
-          P.push(`<circle cx="${x}" cy="${y}" r="3.2" class="pt ${cls}"/><text x="${x}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, y + dy))}" text-anchor="${anchor}" class="lab ${cls}">${word} ${num(arr[i], d)}${unit}</text>`);
+          const col = cls === "wind" ? ` style="fill:${windCol(arr[i])}"` : "";
+          P.push(`<circle cx="${x}" cy="${y}" r="3.2" class="pt ${cls}"${col}/><text x="${x}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, y + dy))}" text-anchor="${anchor}" class="lab ${cls}"${col}>${word} ${num(arr[i], d)}${unit}</text>`);
         });
       };
       ext(blue, TY, "temp", "℃", 1);
@@ -1162,6 +1223,15 @@
           P.push(`<text x="${X(h)}" y="${DY(b) + (high ? -8 : 15)}" text-anchor="middle" class="lab tide">${high ? "▲만조" : "▼간조"} ${pad2(h)}:00</text>`);
         }
       }
+      // hourly current speed (model): fastest and slowest marked
+      if (cur) {
+        P.push(`<path d="${smooth(cur, CY)}" class="l-cur"/>`);
+        const cv = fin(cur), hi = cur.indexOf(Math.max(...cv)), lo = cur.indexOf(Math.min(...cv));
+        [[hi, "유속 최고", -8], [lo, "유속 최저", 15]].forEach(([i, word, dy]) => {
+          const anchor = i < 2 ? "start" : i > 21 ? "end" : "middle";
+          P.push(`<circle cx="${X(i)}" cy="${CY(cur[i])}" r="3" class="pt cur"/><text x="${X(i)}" y="${Math.max(m.t + 10, Math.min(H - m.b - 4, CY(cur[i]) + dy))}" text-anchor="${anchor}" class="lab cur">${word} ${num(cur[i], 2)}m/s</text>`);
+        });
+      }
       [0, 3, 6, 9, 12, 15, 18, 21].forEach((h) => P.push(`<text x="${m.l + slot() * h}" y="${H - 6}" class="ax">${pad2(h)}</text>`));
       P.push(`<line class="cur" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)" stroke-dasharray="2 3"/>`);
       P.push(`<rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`);
@@ -1179,7 +1249,7 @@
       if (!cur) return;
       cur.setAttribute("x1", X(h)); cur.setAttribute("x2", X(h));
       const rd = $("#bcRead");
-      if (rd) rd.innerHTML = `${pad2(h)}:00 · 점수 <b>${vals[h] ?? "–"}</b> · 기온 ${num(w.temp[h])}℃${wat?.[h] != null ? ` · 수온 ${num(wat[h])}℃` : ""} · 바람 ${num(w.wind[h])}m/s${w.dir[h] != null ? ` ${compass(w.dir[h])}` : ""}${sea ? ` · 조위 ${num(state.marine.sea[h], 2)}m` : ""}${sea && state.marine.wave?.[h] != null ? ` · 파고 ${num(state.marine.wave[h])}m` : ""}${w.precip?.[h] ? ` · 비 ${num(w.precip[h])}mm` : ""}`;
+      if (rd) rd.innerHTML = `${pad2(h)}:00 · 점수 <b>${vals[h] ?? "–"}</b> · 기온 ${num(w.temp[h])}℃${wat?.[h] != null ? ` · 수온 ${num(wat[h])}℃` : ""} · 바람 ${num(w.wind[h])}m/s${w.dir[h] != null ? ` ${compass(w.dir[h])}` : ""}${sea ? ` · 조위 ${num(state.marine.sea[h], 2)}m` : ""}${cur?.[h] != null ? ` · 유속 ${num(cur[h], 2)}m/s(${num(cur[h] * 1.944, 1)}노트${state.marine.curDir?.[h] != null ? ` ${compass(state.marine.curDir[h])}쪽` : ""})` : ""}${sea && state.marine.wave?.[h] != null ? ` · 파고 ${num(state.marine.wave[h])}m` : ""}${w.precip?.[h] ? ` · 비 ${num(w.precip[h])}mm` : ""}`;
     }
     draw();
     const ro = new ResizeObserver(() => { if (Math.abs(host.clientWidth - W) > 2) draw(); });
@@ -1219,7 +1289,7 @@
         <span class="cd-top"><b class="mono ${wd === 0 ? "sun" : wd === 6 ? "sat" : ""}">${dt.getDate()}${d.date === TODAY ? "<small>오늘</small>" : dt.getDate() === 1 ? `<small>${dt.getMonth() + 1}월</small>` : ""}</b><span class="cd-s mono">${r.score}</span></span>
         ${ringGauge(sub.bite, sub.access)}
         <span class="cd-v">${VERDICT[t]}</span>
-        <span class="cd-w mono">${pad2(r.from)}–${pad2(r.to)}시</span></button>`;
+        ${placeById[state.place].type === "바다" ? `<span class="cd-m">${mulTae(d.date).name}</span>` : ""}<span class="cd-w mono">${pad2(r.from)}–${pad2(r.to)}시</span></button>`;
     }).join("");
     el.innerHTML = `<div class="cal-top"><span class="eyebrow">앞으로 16일</span><span class="cal-key mono"><i class="k-grad"></i>낮음 → 높음 <span>· 위 숫자 입질(바깥 원) · 아래 숫자 편의(안쪽 원) · 오른쪽 위 하루 점수</span></span></div>
       <div class="cal">${head}${pad(lead)}${cells}${pad(tail)}</div>`;
@@ -1265,7 +1335,7 @@
           + card(r.water ? "알맞은 수온" : "알맞은 기온", r.water ? `지금 표층 ${num(r.water.surface)}℃, 송어 활성은 10~16℃` : `${num(r.temp)}℃, ${p.type}낚시 알맞은 범위 ${ok[0][0]}~${ok[ok.length - 1][0]}℃`, btn("data-wind-toggle", state.windOn ? "바람 흐름 숨기기" : "바람 흐름 보기", state.windOn))
           + card("조과 기록", catchSummary(p), btn("data-bubbles", state.bubbles ? "조과 크기 숨기기" : "지도에 조과 크기 보기", state.bubbles))
           + card("기록상 입질 시간", r.prof ? `${r.prof.peak}시대에 가장 많이 잡힘, 조과 ${r.prof.total}수 기록` : "조과 시각 기록이 없습니다", r.prof ? btn(`data-hourset="${r.prof.peak}" data-hourkey="peak"`, state.hourPin === "peak" ? "현재 시각으로 돌아가기" : "그 시각 지도 보기", state.hourPin === "peak") : "")
-          + `<div class="mp-rows">${[["바람", READ.wind(r)], ["강수", READ.rain(r)], ["기압", READ.press(r)], ...(r.wave != null ? [["파고", READ.wave(r)]] : []), ["위성 지도", state.satellite ? "켜짐" : "꺼짐"]].map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>`;
+          + `<div class="mp-rows">${[["바람", READ.wind(r)], ["강수", READ.rain(r)], ["기압", READ.press(r)], ...(p.type === "바다" ? [["물때", tideHint(state.date)]] : []), ...(r.wave != null ? [["파고", READ.wave(r)]] : []), ["위성 지도", state.satellite ? "켜짐" : "꺼짐"]].map(([k, x]) => `<div><span>${k}</span><b>${esc(x)}</b></div>`).join("")}</div>`;
       }
     } else {
       const seasonal = p.trips.filter((t) => seasonGap(t.trip.date, state.date) <= 30);

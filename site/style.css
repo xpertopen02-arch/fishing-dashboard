@@ -1056,3 +1056,20 @@ main { max-width: none; padding: 0 0 80px; }
 .cd-top { flex-wrap: nowrap; }
 .cd-top b small { display: none; }
 .cday.today .cd-top b { text-decoration: underline 2px var(--accent); text-underline-offset: 3px; }
+
+/* v2.0.13 current speed */
+:root, :root[data-theme="dark"] { --line-cur: #ff7ac8; }
+:root[data-theme="light"] { --line-cur: #c2257f; }
+.l-cur { fill: none; stroke: var(--line-cur); stroke-width: 2; stroke-linecap: round; }
+.bigchart .pt.cur { fill: var(--line-cur); stroke: var(--surface); stroke-width: 1.5; }
+.bigchart .lab.cur { fill: var(--line-cur); }
+.k-cur { background: var(--line-cur); }
+.cd-m { font-size: 12px; font-weight: 700; color: var(--line-cur); white-space: nowrap; line-height: 1.2; }
+@media (max-width: 720px) { .cd-m { font-size: 11px; } }
+
+/* v2.0.13 wind line coloured by speed */
+.l-wind { stroke-width: 2.2; stroke-dasharray: 6 4; }
+.k-wind { background: repeating-linear-gradient(90deg, #2ee68f 0 4px, transparent 4px 6px, #ff9f3a 6px 10px, transparent 10px 12px, #ff4f4f 12px 16px); width: 18px !important; }
+.wk { font-style: normal; font-weight: 700; margin: 0 2px; }
+.wk.g { color: #2ee68f; } .wk.o { color: #ff9f3a; } .wk.r { color: #ff4f4f; }
+:root[data-theme="light"] .wk.g { color: #129a5d; } :root[data-theme="light"] .wk.o { color: #d77a10; }
