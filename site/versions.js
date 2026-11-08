@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.1.13", date: "2026-11-08", title: "자료 안내 문장 두 줄로",
+    changes: [
+      "'자료' 화면 안내 문장을 '자료를 눌러 그 내용만 볼 수 있습니다.' 다음에서 줄을 바꿔 두 줄로 나눔",
+      "휴대폰 화면에서는 이 안내 문장을 오른쪽 정렬 (360×800에서 확인)",
+    ],
+  },
+  {
     version: "2.1.12", date: "2026-11-08", title: "휴대폰: 자료 탐색 머리 한 줄 정리",
     changes: [
       "휴대폰 화면 '자료'에서 페이지·이미지·글자 수가 두 줄로 나뉘던 것을 한 줄에 나오도록 글자 크기를 줄임. 제목 '자료 탐색'은 위 줄, 세 숫자는 아래 줄에 두고 모두 가운데 정렬, 안내 문장도 가운데로 (360×800에서 확인)",

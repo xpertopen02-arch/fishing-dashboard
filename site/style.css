@@ -1379,5 +1379,5 @@ body[data-view="home"] main { padding-bottom: 0; }
   #view-library .hero-line { display: grid; grid-template-columns: repeat(3, auto); justify-content: center; align-items: end; gap: 6px 28px; text-align: center; }
   #view-library .hero-line h1 { grid-column: 1 / -1; font-size: 26px; }
   #view-library .hero-line .stat strong { font-size: 24px; }
-  #view-library .source-hint { text-align: center; }
+  #view-library .source-hint { display: block; text-align: right; }
 }

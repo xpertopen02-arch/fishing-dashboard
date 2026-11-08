@@ -1877,7 +1877,7 @@
         <div class="stat"><strong>${pool.length}</strong><span>페이지</span></div>
         <div class="stat"><strong>${pool.reduce((a, p) => a + p.images, 0).toLocaleString()}</strong><span>이미지</span></div>
         <div class="stat"><strong>${(pool.reduce((a, p) => a + p.chars, 0) / 10000).toFixed(pool.length < 50 ? 1 : 0)}만</strong><span>글자</span></div></div>
-      <p class="source-hint">자료를 눌러 그 내용만 볼 수 있습니다. 여러 개를 함께 고를 수도 있습니다.${state.sources.length ? ' <button class="chip" data-source-all="1">전체 보기</button>' : ""}</p>
+      <p class="source-hint">자료를 눌러 그 내용만 볼 수 있습니다.<br>여러 개를 함께 고를 수도 있습니다.${state.sources.length ? ' <button class="chip" data-source-all="1">전체 보기</button>' : ""}</p>
       <div class="sources" aria-label="자료 출처와 반영일">${sources}</div>
       <div class="shelves">${shelves}</div><div class="tree">${tree}</div>`;
   }
