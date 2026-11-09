@@ -697,9 +697,10 @@
       series: [{ label: "강수량", color: "#ffd23f", colorAt: (h) => rainCol(w.precip[h] ?? 0), values: w.precip }],
       note: (h) => (w.prob ? `확률 ${w.prob[h] ?? "–"}%` : ""),
     }));
-    charts.push(makeChart(chartShell(host, "기압", i++), {
+    charts.push(makeChart(chartShell(host, "기압", i++, `<div class="legend"><span>기압 <i class="wk" style="color:#ff4f4f">1005 미만</i><i class="wk" style="color:#ff9f3a">1005~1013</i><i class="wk" style="color:#35c46a">1013~1020</i><i class="wk" style="color:#3f9bff">1020~</i></span></div>`), {
       ...sun, title: "기압", unit: "hPa", digits: 0, minSpan: 4,
-      series: [{ label: "기압", color: accent, values: w.pressure }],
+      // 저기압(1005hPa 미만) 빨강, 약한 저기압 주황, 보통 초록, 고기압(1020hPa 이상) 파랑
+      series: [{ label: "기압", color: accent, values: w.pressure, bands: [[1005, "#ff4f4f"], [1013, "#ff9f3a"], [1020, "#35c46a"], [9999, "#3f9bff"]] }],
       tick: (v) => Math.round(v),
     }));
     const place = placeById[state.place];
@@ -708,7 +709,7 @@
       const a = airFor(place, state.date);
       const empty = (title, msg) => { const el = chartShell(host, title, i++); $(".chart-now", el).remove(); el.insertAdjacentHTML("beforeend", `<p class="state-msg">${msg}</p>`); };
       if (a && a.pm10 && fin(a.pm10).length) {
-        charts.push(makeChart(chartShell(host, "먼지량", i++, `<div class="legend"><span>미세먼지 <i class="wk" style="background:#3f9bff">좋음</i><i class="wk" style="background:#35c46a">보통</i><i class="wk" style="background:#ff9f3a">나쁨</i><i class="wk" style="background:#ff4f4f">매우나쁨</i></span><span><i class="dash"></i>초미세먼지</span></div>`), {
+        charts.push(makeChart(chartShell(host, "먼지량", i++, `<div class="legend"><span>미세먼지 <i class="wk" style="color:#3f9bff">좋음</i><i class="wk" style="color:#35c46a">보통</i><i class="wk" style="color:#ff9f3a">나쁨</i><i class="wk" style="color:#ff4f4f">매우나쁨</i></span><span><i class="dash"></i>초미세먼지</span></div>`), {
           ...sun, title: "먼지량", unit: "㎍/㎥", digits: 0, zero: true, minTop: 40,
           series: [{ label: "미세먼지(PM10)", color: "#35c46a", values: a.pm10, bands: PM10_BANDS }, ...(a.pm25 ? [{ label: "초미세먼지(PM2.5)", color: "var(--muted)", values: a.pm25, dash: true }] : [])],
           note: (h) => `미세 ${PM10_GRADE(a.pm10[h])}${a.pm25 ? `, 초미세 ${PM25_GRADE(a.pm25[h])}` : ""}`,
@@ -716,7 +717,7 @@
         }));
       } else empty("먼지량", a ? "이 날짜의 먼지량 자료가 없습니다. 보통 지난 기록과 앞으로 4~5일까지 있습니다." : "먼지량 자료를 불러오는 중입니다.");
       if (a && a.vis && fin(a.vis).length) {
-        charts.push(makeChart(chartShell(host, "가시거리", i++, `<div class="legend"><span><i class="wk" style="background:#ff4f4f">안개 1km 미만</i><i class="wk" style="background:#ff9f3a">박무 1~5km</i><i class="wk" style="background:#ffd23f">5~10km</i><i class="wk" style="background:var(--accent)">10km~</i></span></div>`), {
+        charts.push(makeChart(chartShell(host, "가시거리", i++, `<div class="legend"><span><i class="wk" style="color:#ff4f4f">안개 1km 미만</i><i class="wk" style="color:#ff9f3a">박무 1~5km</i><i class="wk" style="color:#ffd23f">5~10km</i><i class="wk" style="color:var(--accent)">10km~</i></span></div>`), {
           ...sun, title: "가시거리", unit: "km", digits: 1, zero: true, minTop: 10,
           series: [{ label: "가시거리", color: "var(--accent)", values: a.vis, bands: VIS_BANDS }],
           note: (h) => VIS_GRADE(a.vis[h]),
