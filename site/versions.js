@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.3.10", date: "2026-11-09", title: "3D: 추천 자리를 재생 위로, 상자 정리",
+    changes: [
+      "덕봉, 한터, 장광 3D - 추천 자리(제목, 1~3위, 조건 설명)를 달력 아래, 재생 버튼 위로 옮김",
+      "'조건 설명'은 처음에 접혀 있게 함. 펼치면 그 상태를 이 브라우저에 기억함",
+      "'가두리와 부교 사이 수심별 수온'(한터·장광은 '송어터 가운데 수심별 수온')과 '시간대별 1순위'도 조건 설명과 같은 상자로 바꿈",
+    ],
+  },
+  {
     version: "2.3.9", date: "2026-11-09", title: "날씨 출처 선택과 연구 탭 PREFERENCE",
     changes: [
       "날씨 출처를 고를 수 있게 함: 기상청 단기예보(국내 낚시 앱이 가장 많이 쓰는 동네예보, 공공데이터포털 인증키 필요), ECMWF(유럽중기예보센터, Windy 등이 기본으로 씀, 인증키 없이), Open-Meteo 기본 혼합(이전 방식). 기본은 기상청이고 인증키가 없으면 ECMWF",

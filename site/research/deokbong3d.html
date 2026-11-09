@@ -85,6 +85,8 @@
   .condbox summary { cursor:pointer; font-size:13.5px; font-weight:700; }
   .condbox[open] summary { margin-bottom:4px; }
   .condbox .warn:last-child { margin-bottom:2px; }
+  .condbox > div, .condbox > p { margin-top:4px; }
+  #recTitle { margin-top:12px; }
   td.tcell { text-align:center; font-weight:600; font-variant-numeric:tabular-nums; }
   td.tcell.on { outline:2px solid var(--ink); outline-offset:-2px; }
   [hidden] { display:none !important; }   /* 숨긴 칸은 줄 정렬 규칙보다 우선합니다 */
@@ -178,6 +180,9 @@
       <p class="note" id="dayInfo"></p>
       <div id="dayHours"></div>
     </div>
+    <h2 id="recTitle">이 시각 추천 자리</h2>
+    <div id="recs"></div>
+    <details class="condbox" id="condBox"><summary>조건 설명</summary><div id="alerts"></div></details>
     <div class="time"><button id="play" aria-label="재생">재생</button><input id="hour" type="range" min="360" max="1140" step="10" value="780" aria-label="시각"><b id="hourLabel"></b><span class="spd"><button id="spdUp" aria-label="재생 빠르게" title="재생 빠르게">▲</button><button id="spdDown" aria-label="재생 느리게" title="재생 느리게">▼</button></span><span class="spdbar" id="spdBar" role="meter" aria-label="재생 속도" aria-valuemin="1" aria-valuemax="7"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
     <label class="f">새물 유입 성격 <select id="inflow"><option value="ground">지하수형 (10℃ 가정)</option><option value="stream">계곡수, 눈 녹은 물 (1.5℃ 가정)</option><option value="rain">비 온 다음날 (그날 기온 연동)</option></select></label>
     <label class="f wxsw"><input type="checkbox" id="recentWx" checked> 최근 날씨 반영 <small>(지난 7일 기온, 3일 비·눈)</small></label>
@@ -198,13 +203,10 @@
     <label class="f">송어 색 <select id="fishColor"><option value="react">반응성</option><option value="depth">수심</option><option value="group">도는 송어, 머무는 송어</option></select></label>
     <p class="note" id="fishKey"></p>
 
-    <h2 id="recTitle">이 시각 추천 자리</h2>
-    <div id="recs"></div>
-    <details class="condbox" id="condBox" open><summary>조건 설명</summary><div id="alerts"></div></details>
 
-    <details class="fold"><summary>가두리와 부교 사이 수심별 수온</summary><div id="profile"></div></details>
+    <details class="condbox"><summary>가두리와 부교 사이 수심별 수온</summary><div id="profile"></div></details>
 
-    <details class="fold"><summary>시간대별 1순위</summary><div id="matrix"></div><p class="note">칸을 누르면 그 날씨와 시각으로 이동합니다.</p></details>
+    <details class="condbox"><summary>시간대별 1순위</summary><div id="matrix"></div><p class="note">칸을 누르면 그 날씨와 시각으로 이동합니다.</p></details>
 
     <h2>화면</h2>
     <label class="f">표시 <select id="mode"><option value="depth">수심</option><option value="fish">송어 예상 밀도</option><option value="bite">반응 좋은 송어 밀도</option><option value="temp">수온 (윗층)</option><option value="tempb">수온 (바닥 쪽)</option><option value="dotop">용존산소 (윗층)</option><option value="do">용존산소 (바닥 쪽)</option><option value="clean">맑은 물 범위 (탁한 날)</option></select></label>
@@ -1583,8 +1585,8 @@ attribute vec2 aSwim;`)
   }
   addEventListener("resize", placeClock);
   // 조건 설명 상자: 펼치고 접은 상태를 이 브라우저에 기억합니다.
-  try { if (localStorage.getItem("condBoxOpen") === "0") $("condBox").open = false; } catch (e) { /* 저장을 못 읽으면 펼친 채로 */ }
-  $("condBox").addEventListener("toggle", () => { try { localStorage.setItem("condBoxOpen", $("condBox").open ? "1" : "0"); } catch (e) { /* 무시 */ } });
+  try { if (localStorage.getItem("condBoxOpen2") === "1") $("condBox").open = true; } catch (e) { /* 저장을 못 읽으면 접힌 채로 */ }   // 처음엔 접힘
+  $("condBox").addEventListener("toggle", () => { try { localStorage.setItem("condBoxOpen2", $("condBox").open ? "1" : "0"); } catch (e) { /* 무시 */ } });
   // 시계 아래 기호 버튼: 아래 '재생' 버튼과 같이 시간 진행을 켜고 끕니다.
   $("clock").addEventListener("click", (e) => { if (e.target.closest("#clockPlay")) { $("play").click(); panel(); } });
   // 재생 속도: 10분이 지나가는 데 걸리는 시간(ms). 기본은 0.5초(한 시간 3초)입니다.
