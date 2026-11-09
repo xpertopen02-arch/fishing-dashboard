@@ -279,6 +279,8 @@
     });
   });
   });
+  // 연구 탭 PREFERENCE의 3D 기본값 (대시보드와 같은 사이트에 저장됨)
+  const PREF = (() => { try { return (JSON.parse(localStorage.getItem("fishPrefs") || "{}") || {}).model3d || {}; } catch (e) { return {}; } })();
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sat = (t) => { const T = t + 273.15; return Math.exp(-139.34411 + 1.575701e5 / T - 6.642308e7 / T ** 2 + 1.2438e10 / T ** 3 - 8.621949e11 / T ** 4); };
   const solar = (h, c) => (h < 7.5 || h > 17.5) ? 0 : (120 + 430 * c) * Math.sin(Math.PI * (h - 7.5) / 10);
@@ -1454,8 +1456,9 @@ attribute vec2 aSwim;`)
     autoKey = key;
     const inf = inflowDefault(s);
     autoNote.inflow = inf ? inf[1] : "";
-    if (inf) $("inflow").value = inf[0];
-    if (/^\d\d-\d\d$/.test(s)) { const to = turnoverAt(state()); $("clarity").value = to ? "turbid" : "clear"; autoNote.clarity = to || "턴오버 없음"; }
+    if (inf && PREF.autoInflow !== false) $("inflow").value = inf[0];
+    if (PREF.autoInflow === false) autoNote.inflow = "";
+    if (/^\d\d-\d\d$/.test(s) && PREF.autoClarity !== false) { const to = turnoverAt(state()); $("clarity").value = to ? "turbid" : "clear"; autoNote.clarity = to || "턴오버 없음"; }
     else autoNote.clarity = "";
   }
   function panel() {
@@ -1721,6 +1724,9 @@ attribute vec2 aSwim;`)
     const o = JSON.parse(localStorage.getItem("jangkwangSettings") || "null");
     if (o) { if (o.sv !== 231) { o.mode = "bite"; o.crowd = "2"; o.sv = 231; } applySettings(o); }   // v2.3.1: 기본 표시를 '반응 좋은 송어 밀도'로
   } catch (e) { /* 저장값이 깨졌으면 기본값 */ }
+  // PREFERENCE 기본값은 열 때마다 씁니다 (이 화면에서 바꾼 값은 닫기 전까지만).
+  { const ids = { mode: "mode", rankBy: "rankBy", castMode: "castMode", castR: "castR", crowd: "crowd", mort: "mort", total: "total", recentWx: "recentWx" };
+    Object.entries(ids).forEach(([k, id]) => { const e = $(id); if (PREF[k] === undefined || !e) return; if (e.type === "checkbox") e.checked = !!PREF[k]; else e.value = String(PREF[k]); }); }
   $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; syncSpinBtn(); views.focus(); };
   document.querySelector(".side").addEventListener("input", saveSettings);
   controls.addEventListener("end", saveSettings);
@@ -1740,7 +1746,7 @@ attribute vec2 aSwim;`)
   $("wheelsOff").onclick = () => setAllWheels(false);
   refreshWheels();
   applyVe(); panel(); placeClock();
-  if (!playing) $("play").click();   // 재생을 기본으로 켭니다.
+  if (PREF.autoplay !== false && !playing) $("play").click();   // 재생을 기본으로 켭니다 (PREFERENCE에서 끌 수 있음).
   const clock = new THREE.Clock();
   (function loop() { requestAnimationFrame(loop);
     if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }

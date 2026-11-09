@@ -112,14 +112,91 @@
     return r.json();
   }
   const asList = (j) => (Array.isArray(j) ? j : [j]);
+  // ---------- 날씨 출처: 연구 탭 PREFERENCE에서 고릅니다 ----------
+  // kma: 기상청 단기예보(공공데이터포털 인증키 필요, 오늘~3일 기온·바람·강수확률·강수량) + 나머지는 ECMWF
+  // ecmwf: 유럽중기예보센터 모델(Open-Meteo 제공) · best: Open-Meteo 기본 혼합(이전 방식)
+  const PREFS_KEY = "fishPrefs";
+  const prefs = () => { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (e) { return {}; } };
+  const setPrefs = (fn) => { const o = prefs(); fn(o); try { localStorage.setItem(PREFS_KEY, JSON.stringify(o)); } catch (e) { /* 저장 못 해도 이번 화면에는 적용 */ } return o; };
+  const kmaKey = () => { try { return (localStorage.getItem("kmaKey") || "").trim(); } catch (e) { return ""; } };
+  const wxSourceWanted = () => prefs().weather?.source || (kmaKey() ? "kma" : "ecmwf");
+  const wxSource = () => { const w = wxSourceWanted(); return w === "kma" && !kmaKey() ? "ecmwf" : w; };
+  const omModels = () => (wxSource() === "best" ? "" : "&models=ecmwf_ifs025,best_match");
+  // 모델 두 개를 함께 받으면 열 이름 뒤에 _ecmwf_ifs025, _best_match가 붙습니다. ECMWF 값을 쓰고 비면 기본값으로 채웁니다.
+  function mergeH(h) {
+    if (!h) return {};
+    const out = {};
+    Object.keys(h).forEach((k) => {
+      const m = k.match(/^(.*)_(ecmwf_ifs025|best_match)$/);
+      if (!m) { out[k] = h[k]; return; }
+      if (out[m[1]]) return;
+      const a = h[`${m[1]}_ecmwf_ifs025`], b = h[`${m[1]}_best_match`];
+      out[m[1]] = a && b ? a.map((v, i) => (v == null ? b[i] : v)) : a || b;
+    });
+    return out;
+  }
+  // 기상청 격자(5km, 람베르트 정각원추) 변환: 기상청 공개 변환식
+  function kmaGrid(lat, lon) {
+    const RE = 6371.00877, GRID = 5, DEG = Math.PI / 180, re = RE / GRID, s1 = 30 * DEG, s2 = 60 * DEG, olon = 126 * DEG, olat = 38 * DEG;
+    let sn = Math.tan(Math.PI * .25 + s2 * .5) / Math.tan(Math.PI * .25 + s1 * .5);
+    sn = Math.log(Math.cos(s1) / Math.cos(s2)) / Math.log(sn);
+    const sf = Math.pow(Math.tan(Math.PI * .25 + s1 * .5), sn) * Math.cos(s1) / sn, ro = re * sf / Math.pow(Math.tan(Math.PI * .25 + olat * .5), sn);
+    const ra = re * sf / Math.pow(Math.tan(Math.PI * .25 + lat * DEG * .5), sn);
+    let th = lon * DEG - olon;
+    if (th > Math.PI) th -= 2 * Math.PI;
+    if (th < -Math.PI) th += 2 * Math.PI;
+    th *= sn;
+    return [Math.floor(ra * Math.sin(th) + 43 + .5), Math.floor(ro - ra * Math.cos(th) + 136 + .5)];
+  }
+  // 가장 최근 단기예보 발표: 2·5·8·11·14·17·20·23시 (발표 뒤 약 15분부터 받습니다)
+  function kmaBase() {
+    const k = new Date(Date.now() + 9 * 3600e3 - 15 * 60e3);
+    let d = k, h = [23, 20, 17, 14, 11, 8, 5, 2].find((x) => x <= k.getUTCHours());
+    if (h === undefined) { d = new Date(k.getTime() - 86400e3); h = 23; }
+    return { date: `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}`, time: `${pad2(h)}00` };
+  }
+  const kmaCache = {};
+  async function kmaItems(nx, ny) {
+    const b = kmaBase(), key = `${nx},${ny},${b.date}${b.time}`;
+    if (kmaCache[key]) return kmaCache[key];
+    const k = kmaKey(), sk = /%/.test(k) ? k : encodeURIComponent(k);   // 인코딩된 키는 그대로, 일반 키는 인코딩
+    const r = await fetch(`https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${sk}&numOfRows=1000&pageNo=1&dataType=JSON&base_date=${b.date}&base_time=${b.time}&nx=${nx}&ny=${ny}`, { cache: "no-store" });
+    const t = await r.text();
+    let j = null;
+    try { j = JSON.parse(t); } catch (e) { /* 오류는 XML로 옵니다 */ }
+    const head = j?.response?.header;
+    if (!head || head.resultCode !== "00") throw new Error(head?.resultMsg || (/SERVICE.?KEY/i.test(t) ? "인증키가 맞지 않거나 아직 쓸 수 없습니다" : `기상청 응답 오류 (${r.status})`));
+    return (kmaCache[key] = j.response.body.items.item || []);
+  }
+  const kmaRain = (v) => (v == null || /없음/.test(v) ? 0 : /미만/.test(v) ? .5 : /~/.test(v) ? v.split("~").map(parseFloat).reduce((a, b) => (a + b) / 2) : parseFloat(v) || 0);
+  function mergeKma(row, items, date) {
+    const ymd = date.replaceAll("-", ""), g = {};
+    items.forEach((it) => { if (it.fcstDate === ymd) (g[it.category] || (g[it.category] = []))[+it.fcstTime.slice(0, 2)] = it.fcstValue; });
+    const put = (arr, cat, f) => (g[cat] ? (arr || Array(24).fill(null)).map((v, h) => (g[cat][h] != null ? f(g[cat][h]) : v)) : arr);
+    return { ...row, temp: put(row.temp, "TMP", Number), wind: put(row.wind, "WSD", Number), dir: put(row.dir, "VEC", Number), prob: put(row.prob, "POP", Number), precip: put(row.precip, "PCP", kmaRain), kmaHours: (g.TMP || []).filter((v) => v != null).length };
+  }
+  async function applyKma(located, rows, date) {
+    const grids = located.map((p) => kmaGrid(p.lat, p.lon)), got = {};
+    await Promise.all([...new Set(grids.map((g) => g.join(",")))].map(async (g) => { const [nx, ny] = g.split(",").map(Number); got[g] = await kmaItems(nx, ny); }));
+    return rows.map((r, i) => mergeKma(r, got[grids[i].join(",")], date));
+  }
+  const WX_NAMES = { kma: "기상청 단기예보 + ECMWF", ecmwf: "ECMWF (Open-Meteo)", best: "Open-Meteo 기본 혼합" };
+  const WX_SHORT = { kma: "기상청", ecmwf: "ECMWF", best: "Open-Meteo" };
+  function wxSrcNow() {   // 지금 화면 날씨의 실제 출처
+    const W = state.weather;
+    if (W && W.mode !== "forecast") return { short: "Open-Meteo", name: W.mode === "archive" ? "Open-Meteo 과거 재분석" : "Open-Meteo 과거 재분석 (최근 3년 평균)" };
+    const s = W?.src || wxSource();
+    if (s === "kma" && W && W.kma !== "ok") return { short: "ECMWF", name: `ECMWF (기상청: ${W.kma || "이 날짜는 단기예보 범위 밖"})` };
+    return { short: WX_SHORT[s], name: WX_NAMES[s] };
+  }
   function normal(j) {
-    const h = j.hourly;
+    const h = mergeH(j.hourly), dl = mergeH(j.daily);
     return {
       time: h.time.map((t) => t.slice(11, 16)),
       temp: h.temperature_2m, precip: h.precipitation, prob: h.precipitation_probability || null,
       wind: h.wind_speed_10m, dir: h.wind_direction_10m, gust: h.wind_gusts_10m,
       pressure: h.pressure_msl, code: h.weather_code || null,
-      sunrise: j.daily?.sunrise?.[0]?.slice(11, 16), sunset: j.daily?.sunset?.[0]?.slice(11, 16),
+      sunrise: dl.sunrise?.[0]?.slice(11, 16), sunset: dl.sunset?.[0]?.slice(11, 16),
     };
   }
   async function fetchRange(host, path, located, date, extra = "") {
@@ -149,8 +226,12 @@
     weatherSavedAt = null;
     let rows;
     let years = null;
+    let kmaNote = "";
     if (mode === "forecast") {
-      rows = await fetchRange("api.open-meteo.com", "forecast", located, date, ",precipitation_probability");
+      rows = await fetchRange("api.open-meteo.com", "forecast", located, date, ",precipitation_probability" + omModels());
+      if (wxSource() === "kma" && date >= TODAY && date <= addDays(TODAY, 3)) {
+        try { rows = await applyKma(located, rows, date); kmaNote = "ok"; } catch (e) { kmaNote = String(e.message || e); }
+      }
     } else if (mode === "archive") {
       rows = await fetchRange("archive-api.open-meteo.com", "archive", located, date);
     } else {
@@ -167,7 +248,7 @@
     }
     const out = {};
     located.forEach((p, i) => { out[p.id] = rows[i]; });
-    return { date, mode, years, savedAt: weatherSavedAt, data: out };
+    return { date, mode, years, savedAt: weatherSavedAt, data: out, src: wxSource(), kma: kmaNote };
   }
   async function fetchMarine(place, date) {
     const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=wave_height,sea_level_height_msl,ocean_current_velocity,ocean_current_direction&timezone=${TZ}&start_date=${date}&end_date=${date}`;
@@ -176,14 +257,14 @@
   }
   const outlookCache = {};
   async function fetchOutlook(place) {
-    const key = `${place.id}:${place.lat},${place.lon}`;
+    const key = `${place.id}:${place.lat},${place.lon}:${wxSource()}`;
     if (outlookCache[key]) return outlookCache[key];
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&hourly=${HOURLY},precipitation_probability&daily=sunrise,sunset&wind_speed_unit=ms&timezone=${TZ}&past_days=10&forecast_days=16`;
-    const j = await getJSON(url), h = j.hourly;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&hourly=${HOURLY},precipitation_probability&daily=sunrise,sunset&wind_speed_unit=ms&timezone=${TZ}&past_days=10&forecast_days=16${omModels()}`;
+    const j = await getJSON(url), h = mergeH(j.hourly), dly = mergeH(j.daily);
     const water = waterFromAir(h.temperature_2m);
-    const days = j.daily.time.map((date, d) => {
+    const days = dly.time.map((date, d) => {
       const sl = (arr) => (arr ? arr.slice(d * 24, d * 24 + 24) : null);
-      return { date, w: { time: sl(h.time).map((t) => t.slice(11, 16)), temp: sl(h.temperature_2m), precip: sl(h.precipitation), prob: sl(h.precipitation_probability), wind: sl(h.wind_speed_10m), dir: sl(h.wind_direction_10m), gust: sl(h.wind_gusts_10m), pressure: sl(h.pressure_msl), code: sl(h.weather_code), sunrise: j.daily.sunrise[d]?.slice(11, 16), sunset: j.daily.sunset[d]?.slice(11, 16), water: sl(water) } };
+      return { date, w: { time: sl(h.time).map((t) => t.slice(11, 16)), temp: sl(h.temperature_2m), precip: sl(h.precipitation), prob: sl(h.precipitation_probability), wind: sl(h.wind_speed_10m), dir: sl(h.wind_direction_10m), gust: sl(h.wind_gusts_10m), pressure: sl(h.pressure_msl), code: sl(h.weather_code), sunrise: dly.sunrise[d]?.slice(11, 16), sunset: dly.sunset[d]?.slice(11, 16), water: sl(water) } };
     });
     return (outlookCache[key] = days);
   }
@@ -778,7 +859,7 @@
   function setTiles() {
     if (!map) return;
     tiles.forEach((layer) => layer.remove());
-    const weather = ' · 날씨 <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>';
+    const weather = ` · 날씨 <a href="https://open-meteo.com/" target="_blank" rel="noopener">${esc(wxSrcNow().name)}</a>`;
     const esri = (service, attribution = "") => L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 18, attribution });
     if (state.satellite) {
       tiles = [esri("World_Imagery", `Imagery &copy; Esri${weather}`), esri("Reference/World_Boundaries_and_Places")];
@@ -1104,8 +1185,8 @@
     if (!b) return;
     const t = state.wxAt ? `${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())}` : "–";
     b.classList.toggle("busy", busy);
-    b.innerHTML = `${icon("refresh")}<span><small>날씨 출처 Open-Meteo</small><b>${busy ? "받는 중" : state.weather?.savedAt ? "저장본" : `${t} 갱신`}</b></span>`;
-    b.title = `날씨: Open-Meteo 예보(open-meteo.com, 여러 기상 모델을 합친 값). ${state.wxAt ? `마지막으로 ${t}에 받았습니다. ` : ""}누르면 지금 다시 받습니다.`;
+    b.innerHTML = `${icon("refresh")}<span><small>날씨 출처 ${esc(wxSrcNow().short)}</small><b>${busy ? "받는 중" : state.weather?.savedAt ? "저장본" : `${t} 갱신`}</b></span>`;
+    b.title = `날씨: ${wxSrcNow().name} (연구 탭 PREFERENCE에서 바꿀 수 있습니다). ${state.wxAt ? `마지막으로 ${t}에 받았습니다. ` : ""}누르면 지금 다시 받습니다.`;
   }
   function refreshWeather() {
     [cacheW, outlookCache, dailyCache].forEach((c) => Object.keys(c).forEach((k) => delete c[k]));
@@ -1163,7 +1244,7 @@
       <p class="mid-sub" id="midSub">16일 전망을 불러오는 중입니다.</p>
       <div class="bigchart" id="bigChart"><div class="bc-read mono" id="bcRead"></div></div>
       <p class="bc-legend mono">${legendFor(p, w)}</p>
-      <p class="bc-src">날씨 출처: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> 예보 · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? ` · 조위·파고·유속은 Open-Meteo 해상 모델 값 · 물때는 음력 ${mulTae(state.date).lunar}일 기준 서해 7물때식` : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`;
+      <p class="bc-src">날씨 출처: ${esc(wxSrcNow().name)} · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? ` · 조위·파고·유속은 Open-Meteo 해상 모델 값 · 물때는 음력 ${mulTae(state.date).lunar}일 기준 서해 7물때식` : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`;
     bigChart = drawBigChart($("#bigChart"), r, w);
     renderMidSub();
 
@@ -2071,7 +2152,7 @@
   try { IS_BETA = localStorage.getItem("fishBeta") === "2"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [["study", "수집 자료"], ["model", "덕봉 3D"], ["hanteo", "한터 3D"], ["jangkwang", "장광 3D"], ...(IS_BETA ? [["summary", "3D 정리·문헌"]] : []), ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];   // 3D 정리·문헌, 북가이드, 버전 기록은 베타에서만
+    const tabs = [["study", "수집 자료"], ["model", "덕봉 3D"], ["hanteo", "한터 3D"], ["jangkwang", "장광 3D"], ...(IS_BETA ? [["summary", "3D 정리·문헌"]] : []), ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : []), ["prefs", "PREFERENCE"]];   // 3D 정리·문헌, 북가이드, 버전 기록은 베타에서만
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -2130,6 +2211,76 @@
 
   const notesTag = () => (IS_BETA ? "비공개 자료 포함" : "공개 자료");
 
+  // ---------- 연구 탭 PREFERENCE: 날씨 출처와 3D 모델 기본값 ----------
+  const PREF3D_DEFAULT = { mode: "bite", rankBy: "react", castMode: "circle", castR: "15", crowd: "2", mort: "3", total: "600", recentWx: true, autoInflow: true, autoClarity: true, autoplay: true };
+  let kmaStatusText = "";
+  function renderPrefs() {
+    const P = prefs(), want = wxSourceWanted(), key = kmaKey(), m = { ...PREF3D_DEFAULT, ...(P.model3d || {}) };
+    const opt = (cur, list) => list.map(([v, t]) => `<option value="${v}" ${String(cur) === String(v) ? "selected" : ""}>${t}</option>`).join("");
+    const sel = (k, label, list) => `<label class="pref-field">${label}<select data-pref3d="${k}">${opt(m[k], list)}</select></label>`;
+    const chk = (k, label) => `<label class="pref-check"><input type="checkbox" data-pref3d="${k}" ${m[k] ? "checked" : ""}> ${label}</label>`;
+    const SRC = [
+      ["kma", "기상청 단기예보", "국내 낚시 앱이 가장 많이 쓰는 기상청 동네예보(5km 격자). 오늘부터 3일의 기온·바람·강수확률·강수량을 기상청 값으로 쓰고, 기압·돌풍·날씨 그림과 그 밖의 날짜는 ECMWF로 채웁니다. 공공데이터포털 인증키가 필요합니다."],
+      ["ecmwf", "ECMWF", "유럽중기예보센터 모델. Windy 같은 낚시·바다 앱이 기본으로 많이 씁니다. 인증키 없이 앞으로 15일까지."],
+      ["best", "Open-Meteo 기본 혼합", "Open-Meteo가 지역마다 골라 섞은 여러 모델 (이전 방식)."],
+    ];
+    const status = kmaStatusText || (key ? "인증키가 저장되어 있습니다." : "인증키가 없습니다. 기상청을 고르면 인증키를 넣기 전까지 ECMWF를 씁니다.");
+    notesFrame(`<h2>PREFERENCE</h2><p class="sub">날씨 자료와 3D 모델의 기본 설정입니다. 이 기기의 이 브라우저에 저장되고 바로 적용됩니다. 지금 화면 날씨: ${esc(wxSrcNow().name)}</p>
+      <div class="pref-grid">
+        <section class="pref-box"><h3>날씨 자료</h3>
+          ${SRC.map(([v, t, d]) => `<label class="pref-radio"><input type="radio" name="wxsrc" value="${v}" data-pref="wxsrc" ${want === v ? "checked" : ""}><span><b>${t}${v === "kma" && !key ? " <em>(인증키 필요)</em>" : ""}</b><small>${d}</small></span></label>`).join("")}
+          <label class="pref-field">기상청 인증키 <small>(공공데이터포털 '기상청_단기예보 조회서비스'의 일반 인증키)</small><input type="password" id="kmaKeyIn" value="${esc(key)}" placeholder="인증키를 붙여 넣으세요" autocomplete="off" spellcheck="false"></label>
+          <div class="pref-row"><button class="chip" data-pref-action="kmaSave">저장하고 확인</button><button class="chip" data-pref-action="kmaClear">인증키 지우기</button><a class="chip" href="https://www.data.go.kr/data/15084084/openapi.do" target="_blank" rel="noopener">인증키 받는 곳</a></div>
+          <p class="pref-status">${esc(status)}</p>
+          <p class="pref-note">3달이 넘은 과거 날짜와 16일 뒤 날짜는 출처와 관계없이 Open-Meteo 과거 재분석 자료(최근 3년 평균)를 씁니다. 인증키는 이 브라우저에만 저장되고 공개 파일에는 들어가지 않습니다.</p>
+        </section>
+        <section class="pref-box"><h3>3D 모델 기본값 <small>(덕봉·한터·장광)</small></h3>
+          ${sel("mode", "화면 표시", [["bite", "반응 좋은 송어 밀도"], ["fish", "송어 예상 밀도"], ["depth", "수심"], ["temp", "수온 (윗층)"], ["tempb", "수온 (바닥 쪽)"], ["dotop", "용존산소 (윗층)"], ["do", "용존산소 (바닥 쪽)"], ["clean", "맑은 물 범위"]])}
+          ${sel("rankBy", "추천 기준", [["react", "반응 좋은 송어 수"], ["flux", "활성 송어가 지나가는 빈도"]])}
+          ${sel("castMode", "캐스팅", [["circle", "사방 (원)"], ["front", "정면 (부채꼴)"], ["cage", "가두리 쪽 (부채꼴)"]])}
+          ${sel("castR", "캐스팅 거리", [5, 10, 15, 20, 25, 30, 40, 50, 60].map((v) => [v, `${v}m`]))}
+          ${sel("crowd", "전날 인원 (주말 스트레스)", [["0", "없음"], ["1", "하"], ["2", "중"], ["3", "상"]])}
+          ${sel("mort", "폐사율", Array.from({ length: 11 }, (_, i) => [i, `${i}%`]))}
+          ${sel("total", "송어 총 마릿수", [100, 300, 600, 1000, 1500, 2000, 3000].map((v) => [v, `${v.toLocaleString()}마리`]))}
+          <div class="pref-checks">${chk("recentWx", "최근 날씨 반영 (지난 7일 기온, 3일 비·눈)")}${chk("autoInflow", "날짜별 새물 자동 (월, 전날 비·눈)")}${chk("autoClarity", "턴오버 예상 때 물색 탁함 자동")}${chk("autoplay", "열면 재생")}</div>
+          <div class="pref-row"><button class="chip" data-pref-action="pref3dReset">3D 기본값으로</button></div>
+          <p class="pref-note">3D를 열 때마다 이 값으로 시작합니다. 3D 화면에서 바꾼 값은 그 화면을 닫기 전까지만 씁니다.</p>
+        </section>
+      </div>`);
+  }
+  document.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t.dataset.pref === "wxsrc") {
+      setPrefs((o) => { o.weather = { ...(o.weather || {}), source: t.value }; });
+      kmaStatusText = t.value === "kma" && !kmaKey() ? "인증키를 넣기 전까지 ECMWF를 씁니다." : "";
+      toast(`날씨 출처: ${WX_NAMES[wxSource()]}. 날씨를 다시 받습니다.`);
+      refreshWeather(); renderPrefs();
+    } else if (t.dataset.pref3d) {
+      setPrefs((o) => { o.model3d = { ...(o.model3d || {}), [t.dataset.pref3d]: t.type === "checkbox" ? t.checked : t.value }; });
+      toast("3D 기본값을 저장했습니다. 3D를 다시 열 때부터 적용됩니다.");
+    }
+  });
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-pref-action]");
+    if (!b) return;
+    const act = b.dataset.prefAction;
+    if (act === "pref3dReset") { setPrefs((o) => { delete o.model3d; }); toast("3D 기본값을 처음으로 돌렸습니다."); renderPrefs(); return; }
+    if (act === "kmaClear") { try { localStorage.removeItem("kmaKey"); } catch (er) { /* 무시 */ } kmaStatusText = "인증키를 지웠습니다."; refreshWeather(); renderPrefs(); return; }
+    if (act === "kmaSave") {
+      const v = ($("#kmaKeyIn")?.value || "").trim();
+      if (!v) { kmaStatusText = "인증키를 붙여 넣어 주세요."; renderPrefs(); return; }
+      try { localStorage.setItem("kmaKey", v); } catch (er) { /* 무시 */ }
+      kmaStatusText = "기상청에 확인하는 중입니다…"; renderPrefs();
+      try {
+        const p = placeById[state.place], g = kmaGrid(p.lat, p.lon);
+        Object.keys(kmaCache).forEach((k) => delete kmaCache[k]);
+        const items = await kmaItems(g[0], g[1]);
+        kmaStatusText = `연결됨: ${p.id} 격자(${g.join(", ")}) 단기예보 ${items.length}개 값을 받았습니다.`;
+        if (!prefs().weather?.source) setPrefs((o) => { o.weather = { source: "kma" }; });
+      } catch (er) { kmaStatusText = `연결 안 됨: ${er.message || er}. 새로 받은 인증키는 쓰기까지 1~2시간 걸릴 수 있습니다.`; }
+      refreshWeather(); renderPrefs();
+    }
+  });
   function notesFrame(body) {
     $("#view-notes").innerHTML = `
       <div class="hero-line"><h1>연구 노트</h1><div class="stat"><span class="private-tag">${notesTag()}</span></div></div>
@@ -2178,6 +2329,7 @@
     if (state.notes.tab === "model") { renderModel(); return; }
     if (state.notes.tab === "hanteo") { renderModel("hanteo"); return; }
     if (state.notes.tab === "jangkwang") { renderModel("jangkwang"); return; }
+    if (state.notes.tab === "prefs") { renderPrefs(); return; }
     if (state.notes.tab === "summary") {
       const d = window.FISH_DEOKBONG_GUIDE, r = window.FISH_RESEARCH_GUIDE, m = window.FISH_MODEL3D_GUIDE || { sub: "", chapters: [] };
       renderChapterGuide({ title: "3D 정리와 문헌", sub: `${m.sub} ${d.sub} ${r.sub}`, chapters: [...m.chapters, ...d.chapters, ...r.chapters] });   // 맨 앞: 3D 모델 조건
