@@ -2132,8 +2132,8 @@
     if (state.notes.tab === "hanteo") { renderModel("hanteo"); return; }
     if (state.notes.tab === "jangkwang") { renderModel("jangkwang"); return; }
     if (state.notes.tab === "summary") {
-      const d = window.FISH_DEOKBONG_GUIDE, r = window.FISH_RESEARCH_GUIDE;
-      renderChapterGuide({ title: "3D 정리와 문헌", sub: `${d.sub} ${r.sub}`, chapters: [...d.chapters, ...r.chapters] });
+      const d = window.FISH_DEOKBONG_GUIDE, r = window.FISH_RESEARCH_GUIDE, m = window.FISH_MODEL3D_GUIDE || { sub: "", chapters: [] };
+      renderChapterGuide({ title: "3D 정리와 문헌", sub: `${m.sub} ${d.sub} ${r.sub}`, chapters: [...m.chapters, ...d.chapters, ...r.chapters] });   // 맨 앞: 3D 모델 조건
       return;
     }
     // 공개판은 공개 자료만, 이 PC의 베타는 비공개 자료까지 합쳐 보여 줍니다.
@@ -2242,7 +2242,7 @@
     const refresh = () => { if (!$("#view-notes").hidden) renderNotes(); };
     (async () => {
       if (IS_BETA && CAN_LOAD_PRIVATE && await load("private/notes.js") && window.FISH_NOTES) renderBrief();
-      await Promise.all(["research_guide", "deokbong_guide", "video_guide", "collected_guide", "collected_data"].map((name) => load(`research/${name}.js`)));
+      await Promise.all(["research_guide", "deokbong_guide", "model3d_guide", "video_guide", "collected_guide", "collected_data"].map((name) => load(`research/${name}.js`)));
       if (window.FISH_NOTES || window.FISH_RESEARCH_GUIDE) {
         $('.tabs [data-go="notes"]').hidden = false;
         moveInk();

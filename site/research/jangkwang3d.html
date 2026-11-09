@@ -144,10 +144,9 @@
   .clock .clockSub { margin-top:4px; text-align:right; white-space:nowrap; line-height:1.15; font:700 20px/1.15 "Malgun Gothic", sans-serif; color:#ffd93b;
     text-shadow:0 0 2px #39ff6a, 0 0 6px rgba(57,255,106,.75), 0 0 1px #000; }   /* 시계의 절반 크기, 같은 노란 글자 + 초록 네온 */
   .clock .clockSub small { font-size:.7em; }
-  .clock .cplay { pointer-events:auto; display:block; margin:6px 0 0 auto; width:34px; height:34px; padding:0; border-radius:50%; border:2px solid #ffd93b; background:rgba(10,14,18,.45); color:#ffd93b; font-size:13px; line-height:1; cursor:pointer;
-    text-shadow:0 0 3px #39ff6a; box-shadow:0 0 6px rgba(57,255,106,.55); }   /* 시간 진행 켜기·끄기 (재생 중 ❚❚, 멈춤 ▶) */
-  .clock .cplay:hover { background:rgba(57,255,106,.25); }
-  @media (max-width: 760px) { .clock .cplay { width:28px; height:28px; font-size:11px; } }
+  .clock .cplay { pointer-events:auto; display:block; margin:6px 0 0 auto; width:26px; height:26px; padding:0; font-size:11px; line-height:1; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:6px; cursor:pointer; }   /* 왼쪽 도구 버튼과 같은 모양 */
+  .clock .cplay:hover { border-color:var(--accent); }
+  .clock .cplay.on { background:var(--accent); color:#fff; border-color:var(--accent); font-size:9px; letter-spacing:-1px; }   /* 재생 중 */
   @media (max-width: 760px) { .clock svg { height:30px; } .clock .clockSub { font-size:15px; } }
 </style>
 </head>
