@@ -2024,7 +2024,7 @@
   try { IS_BETA = localStorage.getItem("fishBeta") === "2"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [["study", "수집 자료"], ["model", "덕봉 3D"], ["hanteo", "한터 3D"], ["jangkwang", "장광 3D"], ["summary", "덕봉 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
+    const tabs = [["study", "수집 자료"], ["model", "덕봉 3D"], ["hanteo", "한터 3D"], ["jangkwang", "장광 3D"], ["summary", "3D 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -2133,7 +2133,7 @@
     if (state.notes.tab === "jangkwang") { renderModel("jangkwang"); return; }
     if (state.notes.tab === "summary") {
       const d = window.FISH_DEOKBONG_GUIDE, r = window.FISH_RESEARCH_GUIDE;
-      renderChapterGuide({ title: "덕봉 정리와 문헌", sub: `${d.sub} ${r.sub}`, chapters: [...d.chapters, ...r.chapters] });
+      renderChapterGuide({ title: "3D 정리와 문헌", sub: `${d.sub} ${r.sub}`, chapters: [...d.chapters, ...r.chapters] });
       return;
     }
     // 공개판은 공개 자료만, 이 PC의 베타는 비공개 자료까지 합쳐 보여 줍니다.
@@ -2758,6 +2758,7 @@
       if (!next) return;
       slideDir = dx < 0 ? "next" : "prev";
       go(next);
+      window.scrollTo({ left: 0, top: 0 });   // 넘긴 뒤 가로 위치를 늘 처음으로
     }, { passive: true });
   })();
   if (document.fonts?.ready) document.fonts.ready.then(moveInk);
