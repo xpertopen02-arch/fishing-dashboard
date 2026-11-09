@@ -81,6 +81,10 @@
   .fold[open] summary { margin-bottom:6px; }
   label.wxsw { display:flex; gap:6px; align-items:center; } label.wxsw small { color:var(--ink2); }
   .row select { width:auto; }
+  .condbox { border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin:8px 0; background:color-mix(in srgb, var(--accent) 4%, var(--panel)); }   /* 조건 설명 상자 */
+  .condbox summary { cursor:pointer; font-size:13.5px; font-weight:700; }
+  .condbox[open] summary { margin-bottom:4px; }
+  .condbox .warn:last-child { margin-bottom:2px; }
   td.tcell { text-align:center; font-weight:600; font-variant-numeric:tabular-nums; }
   td.tcell.on { outline:2px solid var(--ink); outline-offset:-2px; }
   [hidden] { display:none !important; }   /* 숨긴 칸은 줄 정렬 규칙보다 우선합니다 */
@@ -198,7 +202,7 @@
 
     <h2 id="recTitle">이 시각 추천 자리</h2>
     <div id="recs"></div>
-    <div id="alerts"></div>
+    <details class="condbox" id="condBox" open><summary>조건 설명</summary><div id="alerts"></div></details>
 
     <details class="fold"><summary>송어터 가운데 수심별 수온</summary><div id="profile"></div></details>
 
@@ -446,7 +450,7 @@
 
   // ---------- 점수 ----------
   let calDate = "";
-  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: Math.round(+$("hour").value / 10) / 6, f: $("inflow").value, stock: +$("stock").value, crowd: +$("crowd").value, mort: +$("mort").value / 100, rankBy: $("rankBy").value, cruise: +$("cruise").value / 100, castMode: $("castMode").value, castR: +$("castR").value, wheels: wheelMask, total: +$("total").value, stockN: +$("stockN").value, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2, wx: $("recentWx").checked });
+  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: Math.round(+$("hour").value / 10) / 6, f: $("inflow").value, stock: +$("stock").value, crowd: +$("crowd").value, mort: +$("mort").value / 100, rankBy: $("rankBy").value, cruise: +$("cruise").value / 100, castMode: $("castMode").value, castR: +$("castR").value, wheels: wheelMask, total: +$("total").value, stockN: +$("stockN").value, note: false,   /* 이 낚시터는 개인 공략법 자료가 없습니다 */ rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2, wx: $("recentWx").checked });
   // 맑은 날 낮에 물이 받은 햇빛 (℃·m). 해가 진 뒤에는 빠르게 사라집니다.
   function sunEnergy(h, clear) {
     const S0 = 120 + 430 * clear, hh = clamp(h, 7.5, 17.5);
@@ -1498,7 +1502,7 @@ attribute vec2 aSwim;`)
     const wa = st.wx ? wxAdjust(st.s) : null, wr = st.wx && !st.rain ? rainAuto(st.s, baseInflow(st)) : null;
     if (wa) alerts.push(`최근 1주 기온 반영: 지난 ${wa.n}일 평균 최고 ${wa.hi.toFixed(1)}℃, 최저 ${wa.lo.toFixed(1)}℃로 평년보다 ${sgn(wa.anom)}℃. 표층 수온 ${sgn(wa.top)}℃, 바닥 쪽 ${sgn(wa.bot)}℃로 보정해 송어 분포와 추천에 넣었습니다.`);
     if (wr) alerts.push(`최근 비·눈 반영: ${wr.parts.join(" · ")}. 비·눈 물(약 ${wr.Te.toFixed(1)}℃)이 약 ${Math.round(wr.f * 100)}% 섞여 그날 들어오는 새물을 약 ${wr.T.toFixed(1)}℃로 어림하고, 새물이 들어오는 쪽부터 퍼지게 계산했습니다.`);
-    else if (st.wx && /^\d\d-\d\d$/.test(st.s) && WX.ver && WX.days[realDate(st.s)]) alerts.push("최근 3일 비·눈 없음: 새물은 평소 성격대로 계산합니다.");
+    else if (st.wx && !st.rain && /^\d\d-\d\d$/.test(st.s) && WX.ver && WX.days[realDate(st.s)]) alerts.push("최근 3일 비·눈 없음: 새물은 평소 성격대로 계산합니다.");
     { const k = CROWD[st.crowd] || 0, r = weekendRamp(st); if (k && r) alerts.push(`주말 낚시 스트레스: 전날 인원 ${"없음 하 중 상".split(" ")[st.crowd]} → 낚시 자리 20m 안 송어의 약 ${Math.round(k * r * 100)}%가 바늘을 피하고 활성이 떨어졌다고 계산합니다 (토요일 오후 ~ 월요일 오전).`); }
     if (st.mort) { let mx = 0; westCells.forEach((c) => { if (c.cw) mx = Math.max(mx, carcDO(c, st, zoneV(st, st.h, c.z)[2])); }); alerts.push(`폐사 ${st.mort * 100}%: 약 ${Math.round(st.total * st.mort)}마리(약 ${(st.total * st.mort * CARC_KG).toFixed(0)}kg)가 깊은 바닥과 부교 아래에 가라앉아 썩는다고 보고, 가장 많이 모인 바닥의 산소가 약 ${mx.toFixed(2)}mg/L 줄어든다고 계산합니다.${mx < .2 ? " 찬물에서는 천천히 썩어 영향이 작습니다." : ""}`); }
     if (autoNote.inflow || autoNote.clarity) alerts.push(`날짜 기본값: 새물 '${$("inflow").selectedOptions[0].text.split(" (")[0]}'${autoNote.inflow ? ` (${autoNote.inflow})` : ""}, 물색 '${st.k === 2 ? "탁함" : "맑음"}'${autoNote.clarity ? ` (${autoNote.clarity === "턴오버 없음" ? autoNote.clarity : `턴오버 예상: ${autoNote.clarity}`})` : ""}. 손으로 바꾸면 날짜를 바꾸기 전까지 그대로 둡니다.`);
@@ -1587,6 +1591,9 @@ attribute vec2 aSwim;`)
     if (hit) c.style.top = `${v.getBoundingClientRect().bottom - stage.top + 6}px`;
   }
   addEventListener("resize", placeClock);
+  // 조건 설명 상자: 펼치고 접은 상태를 이 브라우저에 기억합니다.
+  try { if (localStorage.getItem("condBoxOpen") === "0") $("condBox").open = false; } catch (e) { /* 저장을 못 읽으면 펼친 채로 */ }
+  $("condBox").addEventListener("toggle", () => { try { localStorage.setItem("condBoxOpen", $("condBox").open ? "1" : "0"); } catch (e) { /* 무시 */ } });
   // 시계 아래 기호 버튼: 아래 '재생' 버튼과 같이 시간 진행을 켜고 끕니다.
   $("clock").addEventListener("click", (e) => { if (e.target.closest("#clockPlay")) { $("play").click(); panel(); } });
   // 재생 속도: 10분이 지나가는 데 걸리는 시간(ms). 기본은 0.5초(한 시간 3초)입니다.
