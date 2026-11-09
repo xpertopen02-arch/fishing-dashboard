@@ -81,6 +81,8 @@
   .fold[open] summary { margin-bottom:6px; }
   label.wxsw { display:flex; gap:6px; align-items:center; } label.wxsw small { color:var(--ink2); }
   .row select { width:auto; }
+  td.tcell { text-align:center; font-weight:600; font-variant-numeric:tabular-nums; }
+  td.tcell.on { outline:2px solid var(--ink); outline-offset:-2px; }
   [hidden] { display:none !important; }   /* 숨긴 칸은 줄 정렬 규칙보다 우선합니다 */
   .wheelbox { margin:7px 0; font-size:13px; color:var(--ink2); }
   .caltable { table-layout:fixed; }
@@ -138,6 +140,10 @@
   .clock .clockSub { margin-top:4px; text-align:right; white-space:nowrap; line-height:1.15; font:700 20px/1.15 "Malgun Gothic", sans-serif; color:#ffd93b;
     text-shadow:0 0 2px #39ff6a, 0 0 6px rgba(57,255,106,.75), 0 0 1px #000; }   /* 시계의 절반 크기, 같은 노란 글자 + 초록 네온 */
   .clock .clockSub small { font-size:.7em; }
+  .clock .cplay { pointer-events:auto; display:block; margin:6px 0 0 auto; width:34px; height:34px; padding:0; border-radius:50%; border:2px solid #ffd93b; background:rgba(10,14,18,.45); color:#ffd93b; font-size:13px; line-height:1; cursor:pointer;
+    text-shadow:0 0 3px #39ff6a; box-shadow:0 0 6px rgba(57,255,106,.55); }   /* 시간 진행 켜기·끄기 (재생 중 ❚❚, 멈춤 ▶) */
+  .clock .cplay:hover { background:rgba(57,255,106,.25); }
+  @media (max-width: 760px) { .clock .cplay { width:28px; height:28px; font-size:11px; } }
   @media (max-width: 760px) { .clock svg { height:30px; } .clock .clockSub { font-size:15px; } }
 </style>
 </head>
@@ -1009,10 +1015,13 @@ attribute vec2 aSwim;`)
   const probe = cells.reduce((b, c) => (Math.hypot(c.x - BOX_C[0], c.y - BOX_C[1]) < Math.hypot(b.x - BOX_C[0], b.y - BOX_C[1]) ? c : b), cells[0]);
   function profile(st) {
     const hours = [7, 9, 11, 13, 15, 17], depths = [.3, 1, 2, 3, 4, 5].filter((z) => z < probe.d);
-    const row = (z) => `<tr><th>${z}m</th>${hours.map((h) => `<td class="${h === Math.round(st.h) ? "on" : ""}">${tempAt(vAt(zoneV(st, h, probe.z), probe.rainF, st), probe.d, z, { ...st, h }, kOf(probe.clean, st), probe.wheel).toFixed(1)}</td>`).join("")}</tr>`;
+    const vals = depths.map((z) => hours.map((h) => tempAt(vAt(zoneV(st, h, probe.z), probe.rainF, st), probe.d, z, { ...st, h }, kOf(probe.clean, st), probe.wheel)));
+    const flat = vals.flat(), tLo = Math.min(...flat), tHi = Math.max(tLo + .5, ...flat);
+    const paintT = (T) => { const c = lerpCol(RAMP.temp, (T - tLo) / (tHi - tLo)).map((x) => Math.round(x * 255)), dark = .299 * c[0] + .587 * c[1] + .114 * c[2] < 140; return `background:rgb(${c.join(",")});color:${dark ? "#fff" : "#16191d"}`; };
+    const row = (z, zi) => `<tr><th>${z}m</th>${hours.map((h, hi) => `<td class="tcell ${h === Math.round(st.h) ? "on" : ""}" style="${paintT(vals[zi][hi])}">${vals[zi][hi].toFixed(1)}</td>`).join("")}</tr>`;
     const top = zoneV(st, st.h, probe.z)[0];
     $("profile").innerHTML = `<table><tr><th>수심</th>${hours.map((h) => `<th>${h}시</th>`).join("")}</tr><tr><th>햇빛</th>${hours.map((h) => `<td>${Math.round(solar(h, D.weather[st.s].clear))}</td>`).join("")}</tr>${depths.map(row).join("")}</table>
-      <p class="note">햇빛은 W/㎡입니다. ${top < 3.5 ? "지금은 4℃ 아래라 데워진 물이 가라앉으면서 섞여, 표층의 따뜻한 층은 약합니다. 대신 얕은 곳이 바닥까지 먼저 데워집니다." : "4℃ 위에서는 데워진 물이 위에 머물러 바람이 약하면 표층이 먼저 따뜻해집니다."}</p>`;
+      <p class="note">칸 색은 수온입니다 (파랑 ${tLo.toFixed(1)}℃ ~ 빨강 ${tHi.toFixed(1)}℃, 굵은 테두리가 지금 시각). 햇빛은 W/㎡입니다. ${top < 3.5 ? "지금은 4℃ 아래라 데워진 물이 가라앉으면서 섞여, 표층의 따뜻한 층은 약합니다. 대신 얕은 곳이 바닥까지 먼저 데워집니다." : "4℃ 위에서는 데워진 물이 위에 머물러 바람이 약하면 표층이 먼저 따뜻해집니다."}</p>`;
   }
 
   // 추천
@@ -1407,7 +1416,47 @@ attribute vec2 aSwim;`)
     $("cond").innerHTML = `<div class="ctext"><span><b>${esc(day)} ${fmtH(st.h)}</b> · ${md ? (f ? "예보" : "평년") : "예시"} ${sky}</span><span>${air}</span><span class="${ws >= 4 ? "windy" : ""}">바람 ${wName}풍 <i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i> ${ws.toFixed(1)}m/s (돌풍 ${wg.toFixed(1)})</span><span>수온 윗층 ${up.toFixed(1)}℃ · 바닥 ${down.toFixed(1)}℃</span><span>1순위 ${esc(top.short)} ${top.t.toFixed(1)}℃${extra ? ` · ${extra}` : ""}</span></div><div class="cicon" title="${sky}, 바람 ${wName}풍 ${ws.toFixed(1)}m/s">${skyIcon(sky, st.h)}<div class="cwind ${ws >= 4 ? "windy" : ""}"><i class="arrow" style="transform:rotate(${wd + 180}deg)">↑</i>${ws.toFixed(1)}m/s</div></div>`;
     $("cond").title = `${md ? (f ? "날씨는 Open-Meteo 예보" : "날씨는 지난 3년 같은 날짜 평균(평년)") : "날씨 흐름 예시"}. 수온은 송어터 가운데 추정값이며 평년 날씨로 계산했습니다.`;
   }
+  // 날짜별 기본값. 새물: 11월·3~4월 지하수형, 12~2월 계곡수. 전날 눈이 오면 계곡수, 전날 비가 오면 '비 온 다음날'(비와 눈이 함께면 눈 녹은 찬물을 우선).
+  // 물색: 턴오버(위아래 물이 뒤섞임)가 예상되면 탁함, 아니면 맑음. 손으로 바꾼 값은 날짜를 바꾸기 전까지 그대로 둡니다.
+  let autoKey = "";
+  const autoNote = { inflow: "", clarity: "" };
+  function inflowDefault(md) {
+    if (!/^\d\d-\d\d$/.test(md)) return null;
+    const m = +md.slice(0, 2), prev = WX.days[addDays(realDate(md), -1)];
+    if (prev && prev.snow >= .5) return ["stream", `전날 눈 ${prev.snow.toFixed(1)}cm`];
+    if (prev && prev.rain >= 1) return ["rain", `전날 비 ${prev.rain.toFixed(1)}mm`];
+    return m === 12 || m <= 2 ? ["stream", "12~2월"] : ["ground", m === 11 ? "11월" : m <= 4 ? "3~4월" : `${m}월`];
+  }
+  // 턴오버: 가장 깊은 구역의 새벽 수온으로 봅니다. 가을·초겨울에는 표층이 바닥 쪽만큼 식으면(바닥 3.5℃ 이상) 위아래가 섞이고,
+  // 봄에는 위아래가 모두 4℃ 가까이(가장 무거운 물) 되면 섞입니다. 최근 1주 기온 보정이 들어간 수온을 씁니다.
+  const DEEP_Z = Object.keys(D.zoneNames).filter((k) => !D.inside || D.inside.includes(k)).reduce((a, k) => ((D.zoneDepth[k] || 0) > (D.zoneDepth[a] || 0) ? k : a));
+  // 낚시터에서 물이 실제로 뒤집혀 탁해지는 것은 갑자기 추워진 뒤입니다: 지난주가 평년보다 크게 추웠거나(표층 보정 -1.5℃ 이하),
+  // 고른 날 기온이 앞 3일보다 3℃ 이상 떨어진 때만 봅니다. 날씨 자료가 없는 날은 표층이 바닥보다 1℃ 이상 찰 때만 봅니다.
+  function coldDrop(md) {
+    const iso = realDate(md), d0 = WX.days[iso], prev = [1, 2, 3].map((k) => WX.days[addDays(iso, -k)]).filter(Boolean);
+    return d0 && prev.length ? prev.reduce((a, d) => a + (d.hi + d.lo) / 2, 0) / prev.length - (d0.hi + d0.lo) / 2 : null;
+  }
+  function turnoverAt(st) {
+    if (!/^\d\d-\d\d$/.test(st.s)) return null;
+    const m = +st.s.slice(0, 2), v = zoneV({ ...st, h: 7 }, 7, DEEP_Z), top = v[0], bot = v[2];
+    const wa = st.wx ? wxAdjust(st.s) : null, drop = coldDrop(st.s), known = wa || drop != null;
+    const why = wa && wa.top <= -1.5 ? `지난주가 평년보다 ${(-wa.anom).toFixed(1)}℃ 추워` : drop != null && drop >= 3 ? `기온이 앞 3일보다 ${drop.toFixed(1)}℃ 떨어져` : !known && top <= bot - 1 ? "표층이 크게 식어" : "";
+    if ((m >= 10 || m === 1) && bot >= 3.5 && top <= bot + .3 && why) return `${why} 새벽 표층 ${top.toFixed(1)}℃가 바닥 쪽 ${bot.toFixed(1)}℃보다 차가워지며 위아래 물이 섞입니다`;
+    if ((m === 3 || m === 4) && Math.abs(top - 4) < 1 && Math.abs(bot - 4) < 1.5) return `표층 ${top.toFixed(1)}℃와 바닥 쪽 ${bot.toFixed(1)}℃가 모두 4℃ 가까이 되어 위아래 물이 섞입니다`;
+    return null;
+  }
+  function autoDefaults() {
+    const s = $("scenario").value === "cal" ? calDate : $("scenario").value, key = `${s}|${WX.ver}`;
+    if (key === autoKey) return;
+    autoKey = key;
+    const inf = inflowDefault(s);
+    autoNote.inflow = inf ? inf[1] : "";
+    if (inf) $("inflow").value = inf[0];
+    if (/^\d\d-\d\d$/.test(s)) { const to = turnoverAt(state()); $("clarity").value = to ? "turbid" : "clear"; autoNote.clarity = to || "턴오버 없음"; }
+    else autoNote.clarity = "";
+  }
   function panel() {
+    autoDefaults();
     const st = state(), list = ranks(st), best = list[0].score || 1;
     $("hourLabel").textContent = fmtH(st.h);
     $("recTitle").textContent = `${nice(st.s)} ${fmtH(st.h)} 추천 자리`;
@@ -1415,7 +1464,8 @@ attribute vec2 aSwim;`)
     const info = dist(st);
     setRelease(st, info.rel);
     const hd = hotDepth(info);
-    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응 좋은 송어의 주요 공략 수심: 반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "–"}</div>`;
+    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응 좋은 송어의 주요 공략 수심: 반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "–"}</div>`
+      + `<button type="button" class="cplay ${playing ? "on" : ""}" id="clockPlay" aria-label="${playing ? "시간 진행 멈추기" : "시간 진행 켜기"}" title="${playing ? "시간 진행 멈추기" : "시간 진행 켜기"}">${playing ? "❚❚" : "▶"}</button>`;   // 시계 아래 시간 진행 켜기·끄기
     mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
     drawIce(st);
     water.material.color.setHex(st.k === 2 ? 0x8f7c52 : 0x2f7fa3);
@@ -1451,6 +1501,7 @@ attribute vec2 aSwim;`)
     else if (st.wx && /^\d\d-\d\d$/.test(st.s) && WX.ver && WX.days[realDate(st.s)]) alerts.push("최근 3일 비·눈 없음: 새물은 평소 성격대로 계산합니다.");
     { const k = CROWD[st.crowd] || 0, r = weekendRamp(st); if (k && r) alerts.push(`주말 낚시 스트레스: 전날 인원 ${"없음 하 중 상".split(" ")[st.crowd]} → 낚시 자리 20m 안 송어의 약 ${Math.round(k * r * 100)}%가 바늘을 피하고 활성이 떨어졌다고 계산합니다 (토요일 오후 ~ 월요일 오전).`); }
     if (st.mort) { let mx = 0; westCells.forEach((c) => { if (c.cw) mx = Math.max(mx, carcDO(c, st, zoneV(st, st.h, c.z)[2])); }); alerts.push(`폐사 ${st.mort * 100}%: 약 ${Math.round(st.total * st.mort)}마리(약 ${(st.total * st.mort * CARC_KG).toFixed(0)}kg)가 깊은 바닥과 부교 아래에 가라앉아 썩는다고 보고, 가장 많이 모인 바닥의 산소가 약 ${mx.toFixed(2)}mg/L 줄어든다고 계산합니다.${mx < .2 ? " 찬물에서는 천천히 썩어 영향이 작습니다." : ""}`); }
+    if (autoNote.inflow || autoNote.clarity) alerts.push(`날짜 기본값: 새물 '${$("inflow").selectedOptions[0].text.split(" (")[0]}'${autoNote.inflow ? ` (${autoNote.inflow})` : ""}, 물색 '${st.k === 2 ? "탁함" : "맑음"}'${autoNote.clarity ? ` (${autoNote.clarity === "턴오버 없음" ? autoNote.clarity : `턴오버 예상: ${autoNote.clarity}`})` : ""}. 손으로 바꾸면 날짜를 바꾸기 전까지 그대로 둡니다.`);
     if (minO < 7) alerts.push("바닥 쪽 산소가 7mg/L 아래로 계산됩니다. 깊은 곳을 피해 보세요.");
     const others = ks.filter((k) => k !== "A").map((k) => sim[k][0]);
     if (st.rain) { /* 새물 안내는 아래에 따로 표시합니다. */ }
@@ -1536,6 +1587,8 @@ attribute vec2 aSwim;`)
     if (hit) c.style.top = `${v.getBoundingClientRect().bottom - stage.top + 6}px`;
   }
   addEventListener("resize", placeClock);
+  // 시계 아래 기호 버튼: 아래 '재생' 버튼과 같이 시간 진행을 켜고 끕니다.
+  $("clock").addEventListener("click", (e) => { if (e.target.closest("#clockPlay")) { $("play").click(); panel(); } });
   // 재생 속도: 10분이 지나가는 데 걸리는 시간(ms). 기본은 0.5초(한 시간 3초)입니다.
   const SPEEDS = [1500, 1000, 700, 500, 350, 200, 120];
   // 속도 막대: 칸이 높아질수록 초록에서 빨강으로 바뀝니다. 켜진 칸까지만 색을 칠합니다.
@@ -1681,6 +1734,7 @@ attribute vec2 aSwim;`)
   $("wheelsOff").onclick = () => setAllWheels(false);
   refreshWheels();
   applyVe(); panel(); placeClock();
+  if (!playing) $("play").click();   // 재생을 기본으로 켭니다.
   const clock = new THREE.Clock();
   (function loop() { requestAnimationFrame(loop);
     if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }
