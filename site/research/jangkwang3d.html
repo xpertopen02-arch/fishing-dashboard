@@ -80,6 +80,8 @@
   .fold summary { cursor:pointer; font-size:14px; font-weight:700; }
   .fold[open] summary { margin-bottom:6px; }
   label.wxsw { display:flex; gap:6px; align-items:center; } label.wxsw small { color:var(--ink2); }
+  .row select { width:auto; }
+  [hidden] { display:none !important; }   /* 숨긴 칸은 줄 정렬 규칙보다 우선합니다 */
   .wheelbox { margin:7px 0; font-size:13px; color:var(--ink2); }
   .caltable { table-layout:fixed; }
   .caltable td.day { white-space:nowrap; overflow:hidden; font-size:9.5px; line-height:1.15; text-align:center; padding:2px 0; cursor:pointer; border:1px solid var(--line); }
@@ -175,12 +177,14 @@
     <label class="f">방류 위치 <select id="release"><option value="center">가두리 (송어터 쪽으로 퍼짐)</option><option value="bridge">북쪽 부교 가운데</option></select></label>
     <label class="f">방류 시각 (당일) <select id="relH"><option value="6">6시</option><option value="7">7시</option><option value="8">8시</option><option value="9">9시</option><option value="10" selected>10시</option><option value="11">11시</option><option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option><option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option></select></label>
     <label class="f">캐스팅 <select id="castMode"><option value="circle">사방 (원)</option><option value="front">정면 (부채꼴)</option><option value="cage">가두리 쪽 (부채꼴)</option></select></label>
+    <label class="f">추천 기준 <select id="rankBy"><option value="react">반응 좋은 송어 수</option><option value="flux">활성 송어가 지나가는 빈도</option></select></label>
     <label class="f">캐스팅 거리 <span id="castLabel"></span><input id="castR" type="range" min="5" max="60" step="5" value="15" aria-label="캐스팅 거리"></label>
     
     <div class="f wheelbox">물레방아형 수차 <div class="row"><label><input type="checkbox" id="wheel1" class="wheel-sw" checked> 1 (동남쪽 데크)</label><label><input type="checkbox" id="wheel2" class="wheel-sw" checked> 2 (남쪽 데크 동측)</label><label><input type="checkbox" id="wheel3" class="wheel-sw" checked> 3 (남쪽 데크 서측)</label><button id="wheelsOn">모두 켜기</button><button id="wheelsOff">모두 끄기</button></div></div>
     <label class="f">물색 <select id="clarity"><option value="clear">맑음</option><option value="turbid">탁함</option></select></label>
-    <div class="row"><label hidden><input type="checkbox" id="note"> 공략법 켜기</label><label hidden><input type="checkbox" id="worm"> 웜 내용</label><label><input type="checkbox" id="crowd"> 사람 많음</label><label><input type="checkbox" id="spin"> 자동 회전</label><span class="spdgroup" id="spinCtl"></span><span class="spdgroup">송어 속도<span class="spdgroup" id="fishCtl"></span></span><input type="hidden" id="spinSpd" value="3"><input type="hidden" id="fishSpd" value="3"></div>
+    <div class="row"><label hidden><input type="checkbox" id="note"> 공략법 켜기</label><label hidden><input type="checkbox" id="worm"> 웜 내용</label><label>전날 인원 <select id="crowd" title="토요일 오후 ~ 월요일 오전 낚시 스트레스 정도"><option value="0">없음</option><option value="1">하</option><option value="2" selected>중</option><option value="3">상</option></select></label><label><input type="checkbox" id="spin"> 자동 회전</label><span class="spdgroup" id="spinCtl"></span><span class="spdgroup">송어 속도<span class="spdgroup" id="fishCtl"></span></span><input type="hidden" id="spinSpd" value="3"><input type="hidden" id="fishSpd" value="3"></div>
     <label class="f">송어 총 마릿수 <span id="totalLabel"></span><input id="total" type="range" min="100" max="3000" step="100" value="600" aria-label="송어 총 마릿수"></label>
+    <label class="f">폐사율 <span id="mortLabel"></span><input id="mort" type="range" min="0" max="10" step="1" value="3" aria-label="폐사율"></label>
     <label class="f">도는 송어 비율 <span id="cruiseLabel"></span><input id="cruise" type="range" min="0" max="100" step="5" value="50" aria-label="도는 송어 비율"></label>
     <p class="note" id="cruiseNote"></p>
     <label class="f">송어 색 <select id="fishColor"><option value="react">반응성</option><option value="depth">수심</option><option value="group">도는 송어, 머무는 송어</option></select></label>
@@ -418,12 +422,25 @@
     c.chan = chanDist(c.x, c.y);
     c.spot = Math.min(...D.mapSpots.map((s) => Math.hypot(c.x - s[0], c.y - s[1]))) * M;
     const m = Math.min(...ring.map((p, i) => segDist(c.x, c.y, p, ring[(i + 1) % ring.length]))) * M;
-    c.ring = Math.exp(-m * m / 128); ringSum += c.ring;   // 경로 양옆 약 8m
+    c.ring = Math.exp(-m * m / 128); ringSum += c.ring;
+    // 이 자리에서 도는 송어가 가는 방향: 가장 가까운 회유 길 구간의 방향
+    let bi = 0, bd = 1e9; ring.forEach((p, k) => { const d = segDist(c.x, c.y, p, ring[(k + 1) % ring.length]); if (d < bd) { bd = d; bi = k; } });
+    const q0 = ring[bi], q1 = ring[(bi + 1) % ring.length], ql = Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) || 1; c.tx = (q1[0] - q0[0]) / ql; c.ty = (q1[1] - q0[1]) / ql;   // 경로 양옆 약 8m
   });
+
+  // 폐사: 아픈 송어가 죽어 바닥에 가라앉아 썩으며 바닥 쪽 산소를 씁니다 (호수 송어 사체가 썩으며 산소를 낮춘다는 보고: Briggs 등 2022).
+  // 폐사체는 깊은 곳(가장 깊은 곳의 60%보다 깊은 바닥)과 부교·가두리 아래에 모인다고 봅니다. 한 마리 약 0.45kg (가정).
+  // 썩는 속도: 하루 약 3.3%(연어 사체 분해 상수 -0.033/일)를 10℃ 기준으로 두고 1℃마다 약 7%씩 달라집니다 (가정).
+  // 산소: 송어 살(단백질 약 18%, 지방 약 5%)이 썩으면 무게 1g당 산소 약 0.4g이 듭니다 (계산). 바닥 0.5m 층의 물은 하루 약 1.5번, 수차 곁은 더 자주 바뀐다고 봅니다 (가정).
+  const CARC_KG = .45, CARC_OD = .4, CARC_K10 = .033, CELL_A = (G.step * M) ** 2;
+  let carcSum = 0;
+  { const dmax = Math.max(...westCells.map((c) => c.d)); westCells.forEach((c) => { c.cw = Math.max(0, c.d - .6 * dmax) ** 2 * (c.cover ? 1.6 : 1); carcSum += c.cw; }); }
+  const carcG = (c, st) => (st.mort && c.west && carcSum ? st.mort * st.total * CARC_KG * 1000 * c.cw / carcSum / CELL_A : 0);   // 폐사체 g/㎡
+  const carcDO = (c, st, T) => { const g = carcG(c, st); return g ? g * CARC_OD * CARC_K10 * Math.pow(1.07, T - 10) / (.5 * 1.5 * (1 + 2 * (c.wheel || 0))) : 0; };   // 줄어드는 산소 mg/L
 
   // ---------- 점수 ----------
   let calDate = "";
-  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: Math.round(+$("hour").value / 10) / 6, f: $("inflow").value, stock: +$("stock").value, crowd: $("crowd").checked, cruise: +$("cruise").value / 100, castMode: $("castMode").value, castR: +$("castR").value, wheels: wheelMask, total: +$("total").value, stockN: +$("stockN").value, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2, wx: $("recentWx").checked });
+  const state = () => ({ s: $("scenario").value === "cal" ? calDate : $("scenario").value, h: Math.round(+$("hour").value / 10) / 6, f: $("inflow").value, stock: +$("stock").value, crowd: +$("crowd").value, mort: +$("mort").value / 100, rankBy: $("rankBy").value, cruise: +$("cruise").value / 100, castMode: $("castMode").value, castR: +$("castR").value, wheels: wheelMask, total: +$("total").value, stockN: +$("stockN").value, note: $("note").checked, rain: $("inflow").value === "rain", release: $("release").value, relH: +$("relH").value, k: $("clarity").value === "clear" ? .8 : 2, wx: $("recentWx").checked });
   // 맑은 날 낮에 물이 받은 햇빛 (℃·m). 해가 진 뒤에는 빠르게 사라집니다.
   function sunEnergy(h, clear) {
     const S0 = 120 + 430 * clear, hh = clamp(h, 7.5, 17.5);
@@ -449,17 +466,18 @@
     const n = c.d < 1 ? 2 : 4;
     for (let i = 0; i < n; i++) {
       const z = c.d * (i + .5) / n, T = tempAt(v, c.d, z, st, k, c.wheel), O0 = z <= 1.2 ? v[1] : v[3], O = O0 + Math.max(0, sat(T) * 1.05 - O0) * .85 * c.wheel * (z <= 1.2 ? 1 : .4);   // 수차 둘레: 산소가 많이 녹아듭니다.
+      const Oc = i === n - 1 ? Math.max(0, O - carcDO(c, st, T)) : O;   // 바닥 층: 폐사체가 썩으며 산소를 씁니다.
       const I = S * Math.exp(-k * z) * (c.cover ? .6 : 1);   // 맑은 물, 얕은 층, 강한 해를 피합니다.
-      let q = fT(T) * fO(O, T) * (1 - .3 * Math.min(I, 400) / 400) * (c.d < .6 ? .5 : 1);
+      let q = fT(T) * fO(Oc, T) * (1 - .3 * Math.min(I, 400) / 400) * (c.d < .6 ? .5 : 1);
       if (st.note && i === n - 1) q *= st.h < 8 ? 1.2 : st.h <= 11 ? .8 : st.h >= 15 ? 1.1 : 1;   // 노트: 해 뜨기 전 바닥, 해 뜬 뒤 바닥을 벗어남, 오후 바닥 스테이
-      if (q > e) { e = q; layer = z; bt = T; bo = O; }
+      if (q > e) { e = q; layer = z; bt = T; bo = Oc; }
     }
     if (c.z === "A") e *= .9;
     let w = e * e * (c.cover ? 1.15 : 1) * (1 + .8 * c.wheel);   // 산소 많고 물이 흔들리는 수차 둘레로 더 모입니다.
     if (st.k === 2 && !st.rain) w *= 1 + .6 * c.clean;   // 탁한 날은 맑은 물 쪽을 더 찾는다고 가정합니다.
     if (st.note) w *= (c.chan < 4 ? 1.3 : 1) * (c.spot < 5 ? 1.35 : 1);
-    if (st.crowd && c.standDist < 12) w *= .7;
-    return { w, layer, T: bt, O: bo, top: tempAt(v, c.d, .2, st, k, c.wheel), bot: tempAt(v, c.d, c.d * .9, st, k, c.wheel), botO: v[3] + Math.max(0, sat(v[2]) - v[3]) * .4 * c.wheel, ice: v[4] };
+    { const sf = stressAt(c, st); if (sf) w *= 1 - .35 * sf; }   // 스트레스 받은 송어는 낚시 자리 앞을 조금 피합니다.
+    return { w, layer, T: bt, O: bo, top: tempAt(v, c.d, .2, st, k, c.wheel), bot: tempAt(v, c.d, c.d * .9, st, k, c.wheel), botO: Math.max(0, v[3] + Math.max(0, sat(v[2]) - v[3]) * .4 * c.wheel - carcDO(c, st, v[2])), ice: v[4] };
   }
   // 송어는 부교 서쪽에만 있습니다. 머무는 무리는 살기 좋은 곳에, 도는 무리는 못 둘레 경로에 나뉩니다.
   // 방류: 부교 가두리는 그물 동쪽에 있어, 방류어는 그 앞 부교 서쪽면으로 들어온다고 봅니다.
@@ -481,6 +499,21 @@
   // 반응성: 많이 있어도 모두 물지는 않습니다. 한 마리의 값 R = 활성 × (0.25 + 0.75 × 개체 차이)
   const HIGH = .66, LOW = .33, BITE = { high: 1, mid: .4, low: .08 };
   const activity = (T, h) => clamp((T - 2) / 8, .1, 1) * (h < 9 || h >= 16 ? 1.15 : h >= 11 && h <= 14 ? .85 : 1);
+  // 주말 낚시 스트레스: 토요일 오후부터 월요일 오전까지, 낚시 자리에서 20m(보통 캐스팅 거리) 안의 송어 일부가 활성도가 떨어집니다.
+  // 낚시 압력이 계속되면 무지개송어는 바늘을 피하는 법을 배워 잘 물지 않고(Askey 등 2006), 스트레스 물질(코르티솔)은 하루 넘게 높게 남습니다(Clements·Hicks 2002).
+  // 전날 인원 하·중·상: 송어의 15%·30%·50%가 스트레스를 받는다고 봅니다 (가정). 20m 밖은 35m까지 서서히 줄고, 토요일 12~18시에 쌓이고 월요일 6~12시에 풀립니다.
+  const CROWD = [0, .15, .3, .5];
+  function weekendRamp(st) {
+    if (!/^\d\d-\d\d$/.test(st.s)) return 0;
+    const dow = new Date(realDate(st.s) + "T00:00:00").getDay();
+    return dow === 6 ? clamp((st.h - 12) / 6, 0, 1) : dow === 0 ? 1 : dow === 1 ? clamp((12 - st.h) / 6, 0, 1) : 0;
+  }
+  const stressAt = (c, st) => {
+    const k = CROWD[st.crowd] || 0;
+    if (!k || !c.west) return 0;
+    const r = weekendRamp(st);
+    return r ? k * r * (c.standDist <= 20 ? 1 : clamp(1 - (c.standDist - 20) / 15, 0, 1)) : 0;
+  };
   const WHEEL_ACT = 1;   // 수차 둘레: 산소와 수면의 움직임으로 활성도가 최대 2배까지 오릅니다 (가정).
   const levelOf = (R) => (R >= HIGH ? "high" : R >= LOW ? "mid" : "low");
   function reactShares(a) {   // 개체 차이가 고르게 퍼져 있을 때 높음, 보통, 낮음의 비율
@@ -505,7 +538,7 @@
   };
   const distCache = new Map();
   function dist(st) {
-    const key = [st.s, st.h, st.f, st.stock, st.crowd, st.k, st.cruise, st.note, st.rain, st.release, st.relH, st.total, st.stockN, st.wheels, st.wx, WX.ver].join();
+    const key = [st.s, st.h, st.f, st.stock, st.crowd, st.k, st.cruise, st.note, st.rain, st.release, st.relH, st.total, st.stockN, st.wheels, st.wx, WX.ver, st.mort].join();
     let r = distCache.get(key);
     if (r) return r;
     if (distCache.size > 800) distCache.clear();
@@ -529,7 +562,7 @@
       w[i] = moving + res;
       lay[i] = ((base * evals[i].layer + fresh * Math.min(evals[i].layer, shallow)) / (free[i] || 1) * moving + Math.min(c.d * .7, 1.3) * res) / (w[i] || 1);
       // 이 칸의 반응성
-      const a = activity(evals[i].T, st.h) * (1 + WHEEL_ACT * c.wheel), sh = reactShares(a);
+      const a = activity(evals[i].T, st.h) * (1 + WHEEL_ACT * c.wheel) * (1 - .6 * stressAt(c, st)), sh = reactShares(a);
       stir[i] = stirChance(st, rel, Math.hypot(c.x - pt[0], c.y - pt[1]) * M);
       const sp = STIR_SHARE * stir[i], pHi = sh.hi + sp * (1 - sh.hi), pLo = sh.lo * (1 - sp), pMid = Math.max(0, 1 - pHi - pLo);
       const bE = pHi * BITE.high + pMid * BITE.mid + pLo * BITE.low;
@@ -540,7 +573,10 @@
       bite[i] = moving * (Fs * BITE[fl] + (1 - Fs) * bE) + res * bR;
       hiW[i] = moving * (Fs * (fl === "high" ? 1 : 0) + (1 - Fs) * pHi) + res * shRes.hi;
     });
-    r = { evals, w, free, lay, eff, act, Tm, depth: dm, rel, resident, pop, bite, hiW, stir, freshP };
+    // 지나가는 빈도: 칸마다 반응 좋은 송어가 얼마나 자주 지나가는지 (도는 송어는 빠르게, 머무는 송어는 느리게 움직입니다).
+    const vC = .25 + .75 * act, flux = new Float64Array(n), crD = new Float64Array(n);
+    westCells.forEach((c, i) => { crD[i] = (1 - resident) * eff * c.ring / ringSum; flux[i] = (w[i] ? hiW[i] / w[i] : 0) * (crD[i] * vC + Math.max(0, w[i] - crD[i]) * .08); });
+    r = { evals, w, free, lay, eff, act, Tm, depth: dm, rel, resident, pop, bite, hiW, stir, freshP, flux, crD };
     distCache.set(key, r);
     return r;
   }
@@ -571,10 +607,13 @@
   function ranks(st) {
     const r = dist(st), reach = reachFor(st);
     return stands.flatMap((s, k) => {
-      let sum = 0, t = 0, o = 0, dep = 0, cl = 0, bt = 0, hi = 0; const zw = {};
-      reach[k].forEach((c) => { const e = r.evals[c.wi], w = r.w[c.wi]; sum += w; t += w * e.T; o += w * e.O; dep += w * r.lay[c.wi]; cl += w * c.clean; bt += r.bite[c.wi]; hi += r.hiW[c.wi]; zw[c.z] = (zw[c.z] || 0) + w; });
+      let sum = 0, t = 0, o = 0, dep = 0, cl = 0, bt = 0, hi = 0, fx = 0;
+      const cast = { mode: st.castMode, R: st.castR }, fan = cast.mode !== "circle", [vx, vy] = castVec(s, cast); const zw = {};
+      reach[k].forEach((c) => { const e = r.evals[c.wi], w = r.w[c.wi]; sum += w;
+        // 정면(부채꼴)으로 던질 때 송어가 가는 방향과 던지는 방향이 같을수록 입질이 잦다고 봅니다 (경험).
+        fx += r.flux[c.wi] * (fan ? 1 + .8 * Math.max(0, vx * c.tx + vy * c.ty) * (r.crD[c.wi] / (r.w[c.wi] || 1)) : 1); t += w * e.T; o += w * e.O; dep += w * r.lay[c.wi]; cl += w * c.clean; bt += r.bite[c.wi]; hi += r.hiW[c.wi]; zw[c.z] = (zw[c.z] || 0) + w; });
       const n = reach[k].length || 1, zone = Object.keys(zw).sort((a, b) => zw[b] - zw[a])[0];
-      return [{ key: s.key, name: s.name, short: s.short, x: s.x, y: s.y, nx: s.nx, ny: s.ny, fx: s.fx, fy: s.fy, a: s.a, b: s.b, share: sum, hiShare: hi, clean: cl / (sum || 1), score: bt / n * (st.note ? notePrior(s.key, st) : 1), t: t / (sum || 1), o: o / (sum || 1), dep: dep / (sum || 1), zone: zone || "D" }];
+      return [{ key: s.key, name: s.name, short: s.short, x: s.x, y: s.y, nx: s.nx, ny: s.ny, fx: s.fx, fy: s.fy, a: s.a, b: s.b, share: sum, hiShare: hi, clean: cl / (sum || 1), score: (st.rankBy === "flux" ? fx * 1000 : bt / n) * (st.note ? notePrior(s.key, st) : 1), flux: fx, t: t / (sum || 1), o: o / (sum || 1), dep: dep / (sum || 1), zone: zone || "D" }];
     }).sort((a, b) => b.score - a.score);
   }
 
@@ -1007,7 +1046,7 @@ attribute vec2 aSwim;`)
       else if (mode === "temp") rgb = lerpCol(RAMP.temp, (tempAt(v, c.d, .2, st, kOf(c.clean, st), c.wheel) - tLo) / (tHi - tLo));
       else if (mode === "tempb") rgb = lerpCol(RAMP.temp, (tempAt(v, c.d, c.d * .9, st, kOf(c.clean, st), c.wheel) - tLo) / (tHi - tLo));
       else if (mode === "clean") rgb = lerpCol(RAMP.clean, st.k === 2 ? c.clean : 1);
-      else if (mode === "do") rgb = lerpCol(RAMP.do, (v[3] + Math.max(0, sat(v[2]) - v[3]) * .4 * c.wheel - 6) / 8);
+      else if (mode === "do") rgb = lerpCol(RAMP.do, (v[3] + Math.max(0, sat(v[2]) - v[3]) * .4 * c.wheel - carcDO(c, st, v[2]) - 6) / 8);
       else if (mode === "dotop") rgb = lerpCol(RAMP.do, (v[1] + Math.max(0, sat(v[0]) * 1.05 - v[1]) * .85 * c.wheel - 6) / 8);
       else rgb = lerpCol(RAMP.fish, Math.pow(ev[n] / maxW, .6));
       col[n * 3] = rgb[0]; col[n * 3 + 1] = rgb[1]; col[n * 3 + 2] = rgb[2];
@@ -1101,7 +1140,7 @@ attribute vec2 aSwim;`)
         fishCell[k] = ci;
         const c = westCells[ci], cruise = role === "cruise";
         if (cruise) nCruise++;
-        let R = activity(info.evals[ci].T, st.h) * (1 + WHEEL_ACT * c.wheel) * (.25 + .75 * S.t0);
+        let R = activity(info.evals[ci].T, st.h) * (1 + WHEEL_ACT * c.wheel) * (1 - .6 * stressAt(c, st)) * (.25 + .75 * S.t0);
         if (S.t1 < .05) R = 1;
         else if (info.stir[ci] && S.t2 < STIR_SHARE) R = Math.max(R, LOW + (1 - LOW) * info.stir[ci]);   // 방류어에 깨어난 송어: 높게 유지되다 서서히 떨어집니다.
         if (j >= st.total && info.rel.share) R = 1;   // 방류어
@@ -1385,6 +1424,7 @@ attribute vec2 aSwim;`)
     $("stockN").disabled = st.stock === 2;
     $("castLabel").textContent = `${st.castR}m`;
     $("stockLabel").textContent = `${st.stockN}마리`;
+    $("mortLabel").textContent = `${$("mort").value}% (약 ${Math.round(st.total * st.mort)}마리)`;
     $("totalLabel").textContent = `${(+$("total").value).toLocaleString()}마리`;
     $("cruiseLabel").textContent = `${Math.round(st.cruise * 100)}%`;
     $("cruiseNote").textContent = `지금 물 온도에서 실제로 도는 송어는 약 ${Math.round(info.eff * 100)}%입니다.`;
@@ -1392,7 +1432,7 @@ attribute vec2 aSwim;`)
     const relName = st.release === "center" ? "가두리" : "북쪽 부교 가운데";
     const near = nearSpots(list);
     const relText = st.stock !== 0 ? "" : info.rel.before ? `<p class="tip"><b>방류 전</b> ${st.relH}시 ${relName} 방류를 기다리는 시각입니다.</p>` : `<p class="tip">${info.rel.during ? `<b>방류 중 ${Math.round(info.rel.hours * 60)}분째</b> ${relName}에서 20분 동안 넣는 ${st.stockN}마리 중 약 ${Math.round(st.stockN * info.rel.ramp)}마리가 들어와 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다.` : `<b>방류 ${(() => { const mm = Math.round(info.rel.hours * 60), hh = Math.floor(mm / 60); return mm < 60 ? `${mm}분` : `${hh}시간${mm % 60 ? ` ${mm % 60}분` : ""}`; })()} 뒤</b> ${relName}에 넣은 ${st.stockN}마리가 약 ${Math.round(info.rel.sigma)}m까지 퍼졌다고 계산합니다. 방류는 15~20분 동안 이어졌습니다.`} 방류어는 활성도가 높아 움직이는 루어에 빠르게 반응합니다. 움직이는 방류어 둘레 5m 안의 기존 송어도 깨어나 약 1시간 넘게 반응이 높게 유지되다가 서서히 떨어집니다.${st.note ? (st.release === "center" ? " 공략법: 가두리 정면이 가장 좋습니다." : " 공략법: 방류 위치 좌우 1~2자리가 가장 좋습니다.") + " 2.5g 스푼 10카운트, 오렌지와 오렌지+초록을 먼저 씁니다." : ""}</p>`;
-    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${hourOf(st.h)}시대</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${castInfo().mode === "cage" ? `부채꼴은 가두리 쪽으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : castInfo().mode === "front" ? `부채꼴은 자리별로 정한 정면 방향으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
+    $("recs").innerHTML = relText + (st.note ? `<p class="tip"><b>공략법 ${hourOf(st.h)}시대</b> ${noteTip(st.h, $("worm").checked)}</p>` : "") + list.slice(0, 3).map((r, i) => `<div class="rec ${i ? "" : "top"}"><b>${i + 1}위 ${r.name} <small>(${Math.round(r.score / best * 100)})</small></b><span>던질 곳: ${D.zoneNames[r.zone]} · 수온 약 ${r.t.toFixed(1)}℃ · 산소 약 ${r.o.toFixed(1)}mg/L</span><span>노릴 층 약 ${r.dep.toFixed(1)}m, 약 ${Math.max(1, Math.round(r.dep / .2))}카운트 · 사거리 안 약 ${Math.round(r.share * info.pop)}마리, 반응 좋은 약 ${Math.round(r.hiShare * info.pop)}마리</span>${st.k === 2 && !st.rain ? `<span>맑은 물 영향 약 ${Math.round(r.clean * 100)}% · ${r.clean >= .35 ? "맑은 물 쪽: 갈색, 다크그린, 검정, 금 먼저" : "탁한 물 쪽: 핑크, 오렌지, 겨자 먼저"}</span>` : ""}${st.note && near[i].length ? `<span>공략법: ${[...new Set(near[i].map((p) => p[2]))].join(", ")}</span>` : ""}</div>`).join("") + `<p class="note">괄호는 1위를 100으로 둔 상대값입니다. ${st.rankBy === "flux" ? "순위는 사거리 안을 지나가는 반응 좋은 송어의 빈도입니다. 정면·가두리 쪽 캐스팅은 도는 송어가 가는 방향과 던지는 방향이 같을수록 높게 칩니다. " : ""}${castInfo().mode === "cage" ? `부채꼴은 가두리 쪽으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : castInfo().mode === "front" ? `부채꼴은 자리별로 정한 정면 방향으로 길이 ${castInfo().R}m, 끝 폭 5m입니다.` : `원은 약 ${castInfo().R}m 사거리입니다.`} 자리 선은 붉을수록 점수가 높습니다.</p>`;
     const sim = Object.fromEntries(Object.keys(D.zoneNames).map((k) => [k, zoneV(st, st.h, k)]));
     const alerts = [], ks = Object.keys(sim);
     const offCount = D.wheels.filter((_, i) => !wheelOn(i)).length, westNow = iceWestAt(st);
@@ -1409,6 +1449,8 @@ attribute vec2 aSwim;`)
     if (wa) alerts.push(`최근 1주 기온 반영: 지난 ${wa.n}일 평균 최고 ${wa.hi.toFixed(1)}℃, 최저 ${wa.lo.toFixed(1)}℃로 평년보다 ${sgn(wa.anom)}℃. 표층 수온 ${sgn(wa.top)}℃, 바닥 쪽 ${sgn(wa.bot)}℃로 보정해 송어 분포와 추천에 넣었습니다.`);
     if (wr) alerts.push(`최근 비·눈 반영: ${wr.parts.join(" · ")}. 비·눈 물(약 ${wr.Te.toFixed(1)}℃)이 약 ${Math.round(wr.f * 100)}% 섞여 그날 들어오는 새물을 약 ${wr.T.toFixed(1)}℃로 어림하고, 새물이 들어오는 쪽부터 퍼지게 계산했습니다.`);
     else if (st.wx && /^\d\d-\d\d$/.test(st.s) && WX.ver && WX.days[realDate(st.s)]) alerts.push("최근 3일 비·눈 없음: 새물은 평소 성격대로 계산합니다.");
+    { const k = CROWD[st.crowd] || 0, r = weekendRamp(st); if (k && r) alerts.push(`주말 낚시 스트레스: 전날 인원 ${"없음 하 중 상".split(" ")[st.crowd]} → 낚시 자리 20m 안 송어의 약 ${Math.round(k * r * 100)}%가 바늘을 피하고 활성이 떨어졌다고 계산합니다 (토요일 오후 ~ 월요일 오전).`); }
+    if (st.mort) { let mx = 0; westCells.forEach((c) => { if (c.cw) mx = Math.max(mx, carcDO(c, st, zoneV(st, st.h, c.z)[2])); }); alerts.push(`폐사 ${st.mort * 100}%: 약 ${Math.round(st.total * st.mort)}마리(약 ${(st.total * st.mort * CARC_KG).toFixed(0)}kg)가 깊은 바닥과 부교 아래에 가라앉아 썩는다고 보고, 가장 많이 모인 바닥의 산소가 약 ${mx.toFixed(2)}mg/L 줄어든다고 계산합니다.${mx < .2 ? " 찬물에서는 천천히 썩어 영향이 작습니다." : ""}`); }
     if (minO < 7) alerts.push("바닥 쪽 산소가 7mg/L 아래로 계산됩니다. 깊은 곳을 피해 보세요.");
     const others = ks.filter((k) => k !== "A").map((k) => sim[k][0]);
     if (st.rain) { /* 새물 안내는 아래에 따로 표시합니다. */ }
@@ -1422,7 +1464,7 @@ attribute vec2 aSwim;`)
   const TIMES = [7, 9, 12, 15, 17];
   let matrixKey = "", matrixTop = {};
   function matrix(st) {
-    const key = [st.f, st.stock, st.crowd, st.cruise, st.note, st.rain, st.k, st.release, st.relH, st.total, st.stockN, st.wheels, st.castMode, st.castR].join();
+    const key = [st.f, st.stock, st.crowd, st.cruise, st.note, st.rain, st.k, st.release, st.relH, st.total, st.stockN, st.wheels, st.castMode, st.castR, st.rankBy, st.mort, st.wx, WX.ver].join();
     if (key !== matrixKey) {
       matrixKey = key; matrixTop = {};
       D.scenarios.forEach((s) => TIMES.forEach((h) => { matrixTop[s + h] = ranks({ ...st, s, h })[0].short; }));
@@ -1454,7 +1496,7 @@ attribute vec2 aSwim;`)
   const curM = MONTHS.findIndex((m) => m[1] === now.getMonth() + 1);
   if (curM >= 0) calM = curM;
   $("summary").textContent = `송어터 약 ${D.boxArea.toLocaleString()}㎡ (약 ${Math.round(D.boxArea / 3.3058).toLocaleString()}평), 평균 수심 약 ${(D.boxVolume / D.boxArea).toFixed(1)}m, 가장 깊은 곳 ${Math.max(...G.depth).toFixed(1)}m. 크기는 지도에서 쟀고 바닥 높낮이는 추정입니다.`;
-  ["scenario", "hour", "inflow", "recentWx", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH", "fishColor", "castMode", "castR"].forEach((id) => $(id).addEventListener("input", panel));
+  ["scenario", "hour", "inflow", "rankBy", "mort", "recentWx", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH", "fishColor", "castMode", "castR"].forEach((id) => $(id).addEventListener("input", panel));
   $("mode").addEventListener("input", paint);
   $("ve").addEventListener("input", applyVe);
   // 지도 회전/정지 버튼: 화면 옵션의 '자동 회전'과 같이 움직입니다.
@@ -1597,12 +1639,12 @@ attribute vec2 aSwim;`)
   // 마지막 옵션과 시점을 다시 열 때 그대로 보여 줍니다.
   const DEFAULT_VIEW = {
     inflow: "stream", stock: "0", stockN: "75", release: "center", relH: "10", clarity: "turbid", fishColor: "react",
-    note: false, worm: false, crowd: true, spin: true, total: "600", cruise: "40", mode: "depth", ve: "4", waterOp: "0.3",
+    note: false, worm: false, crowd: "2", rankBy: "react", mort: "3", spin: true, total: "600", cruise: "40", mode: "bite", ve: "4", waterOp: "0.3",
     lCut: true, lWater: true, lFish: true, lRec: true, lFac: true, lText: true, lWind: true, spinSpd: "3", fishSpd: "3",
   };
-  const KEEP = ["castMode", "castR", "recentWx", "wheel1", "wheel2", "wheel3", "inflow", "stock", "stockN", "release", "relH", "clarity", "fishColor", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText", "lWind", "spinSpd", "fishSpd"];
+  const KEEP = ["castMode", "castR", "rankBy", "mort", "recentWx", "wheel1", "wheel2", "wheel3", "inflow", "stock", "stockN", "release", "relH", "clarity", "fishColor", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText", "lWind", "spinSpd", "fishSpd"];
   const saveSettings = () => {
-    const o = { cam: camera.position.toArray(), tgt: controls.target.toArray() };
+    const o = { sv: 231, cam: camera.position.toArray(), tgt: controls.target.toArray() };
     KEEP.forEach((id) => { const e = $(id); o[id] = e.type === "checkbox" ? e.checked : e.value; });
     try { localStorage.setItem("jangkwangSettings", JSON.stringify(o)); } catch (e) { /* 저장 못 해도 화면은 그대로 */ }
   };
@@ -1618,7 +1660,7 @@ attribute vec2 aSwim;`)
   applySettings(DEFAULT_VIEW);
   try {
     const o = JSON.parse(localStorage.getItem("jangkwangSettings") || "null");
-    if (o) applySettings(o);
+    if (o) { if (o.sv !== 231) { o.mode = "bite"; o.crowd = "2"; o.sv = 231; } applySettings(o); }   // v2.3.1: 기본 표시를 '반응 좋은 송어 밀도'로
   } catch (e) { /* 저장값이 깨졌으면 기본값 */ }
   $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; syncSpinBtn(); views.focus(); };
   document.querySelector(".side").addEventListener("input", saveSettings);
