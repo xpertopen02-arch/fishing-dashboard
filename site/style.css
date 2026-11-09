@@ -1433,3 +1433,21 @@ main { overflow-x: clip; touch-action: pan-y pinch-zoom; }
 .pref-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; } .pref-row a.chip { text-decoration: none; color: inherit; }
 .pref-checks { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 4px; } .pref-check { font-size: 13.5px; display: flex; gap: 6px; align-items: center; }
 .pref-status { font-size: 13px; font-weight: 600; margin: 4px 0; } .pref-note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 6px 0 0; }
+
+/* v2.3.11 PREFERENCE 시간대별 날씨 표 (좌우 스크롤) */
+.pref-wide { grid-column: 1 / -1; }
+.wx-scroll { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; margin-top: 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.wxt { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.wxt th, .wxt td { width: 44px; min-width: 44px; max-width: 44px; text-align: center; padding: 3px 0; white-space: nowrap; font-weight: 500; }
+.wxt .lab { position: sticky; left: 0; z-index: 2; width: 70px; min-width: 70px; max-width: 70px; background: var(--surface); text-align: left; padding: 3px 8px; color: var(--ink-2); font-weight: 600; font-size: 11.5px; border-right: 1px solid var(--border); }
+.wxt .night { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.wxt .d0 { border-left: 1px dashed color-mix(in srgb, var(--ink) 30%, transparent); }
+.wxt .dayh { text-align: left; padding: 7px 8px 3px; font-weight: 700; font-size: 13px; color: var(--ink); }
+.wxt .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; vertical-align: 1px; }
+.wxt .ico { font-size: 18px; line-height: 1.15; }
+.wxt .curve td { padding: 0; height: 34px; } .wxt .curve svg { display: block; }
+.wxt .t { font-weight: 700; font-size: 13.5px; } .wxt .f { color: var(--muted); font-size: 11px; }
+.wxt .rn { display: inline-block; min-width: 26px; border-radius: 4px; padding: 0 3px; color: var(--ink); }
+.wxt .gst { font-weight: 600; }
+.wxt .arr { display: inline-block; font-size: 14px; line-height: 1; color: var(--ink-2); font-weight: 700; }
+.pref-loc { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); margin: 2px 0 4px; } .pref-loc select { padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13.5px; max-width: 100%; }

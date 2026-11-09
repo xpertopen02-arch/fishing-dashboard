@@ -2246,7 +2246,79 @@
           <div class="pref-row"><button class="chip" data-pref-action="pref3dReset">3D 기본값으로</button></div>
           <p class="pref-note">3D를 열 때마다 이 값으로 시작합니다. 3D 화면에서 바꾼 값은 그 화면을 닫기 전까지만 씁니다.</p>
         </section>
+        <section class="pref-box pref-wide"><h3>시간대별 날씨 <small>(${esc(WX_NAMES[wxSource()])} · 3시간 간격, 좌우로 밀어 보기)</small></h3>
+          <label class="pref-loc">위치 <select id="wxLoc"><option value="here" ${wxTableLoc === "here" ? "selected" : ""}>현재 위치</option>${PLACES.filter(hasPin).map((q) => `<option value="${esc(q.id)}" ${(wxTableLoc || state.place) === q.id ? "selected" : ""}>${esc(q.name)} (${esc(q.type)})</option>`).join("")}</select></label>
+          <div class="wx-scroll" id="wxTable"><p class="pref-note">날씨를 받는 중입니다…</p></div>
+        </section>
       </div>`);
+    loadWxTable();
+  }
+  // 시간대별 날씨 표: 고른 낚시터, 고른 출처로 앞으로 6일을 3시간 간격으로 보여 줍니다 (기상청이면 들어오는 시간은 기상청 값).
+  let wxTableToken = 0, wxTableLoc = "";   // "" = 대시보드에서 고른 낚시터, "here" = 현재 위치, 그 밖 = 낚시터 이름
+  document.addEventListener("change", (e) => { if (e.target.id === "wxLoc") { wxTableLoc = e.target.value; loadWxTable(); } });
+  async function loadWxTable() {
+    const host = $("#wxTable"), token = ++wxTableToken;
+    if (!host) return;
+    let p;
+    if (wxTableLoc === "here") {
+      host.innerHTML = '<p class="pref-note">현재 위치를 찾는 중입니다…</p>';
+      try {
+        p = await new Promise((res, rej) => (navigator.geolocation ? navigator.geolocation.getCurrentPosition((g) => res({ id: "현재 위치", lat: g.coords.latitude, lon: g.coords.longitude }), rej, { timeout: 12000, maximumAge: 600000 }) : rej(new Error("이 브라우저는 위치 기능이 없습니다"))));
+      } catch (e) {
+        if (token === wxTableToken) host.innerHTML = `<p class="pref-note">현재 위치를 쓸 수 없습니다 (${esc(e.code === 1 ? "위치 권한이 꺼져 있습니다" : e.message || "위치를 찾지 못했습니다")}). 브라우저에서 위치 권한을 허용하거나 낚시터를 고르세요.</p>`;
+        return;
+      }
+    } else {
+      p = placeById[wxTableLoc || state.place];
+      if (!p || !hasPin(p)) { host.innerHTML = '<p class="pref-note">이 낚시터는 위치가 없어 날씨를 받을 수 없습니다.</p>'; return; }
+    }
+    let h;
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&hourly=temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code,is_day&wind_speed_unit=ms&timezone=${TZ}&forecast_days=6${omModels()}`;
+      h = mergeH((await getJSON(url)).hourly);
+    } catch (e) { if (token === wxTableToken) host.innerHTML = `<p class="pref-note">날씨를 받지 못했습니다 (${esc(e.message || e)}).</p>`; return; }
+    let kmaN = 0;
+    if (wxSource() === "kma") {
+      try {
+        const [nx, ny] = kmaGrid(p.lat, p.lon), items = await kmaItems(nx, ny), idx = {};
+        h.time.forEach((t, i) => { idx[t.replace(/[-:T]/g, "").slice(0, 10)] = i; });
+        items.forEach((it) => {
+          const i = idx[it.fcstDate + it.fcstTime.slice(0, 2)];
+          if (i == null) return;
+          const v = it.fcstValue;
+          if (it.category === "TMP") { h.temperature_2m[i] = +v; kmaN++; } else if (it.category === "WSD") h.wind_speed_10m[i] = +v; else if (it.category === "VEC") h.wind_direction_10m[i] = +v; else if (it.category === "PCP") h.precipitation[i] = kmaRain(v);
+        });
+      } catch (e) { /* 기상청이 안 되면 ECMWF 값 그대로 */ }
+    }
+    if (token !== wxTableToken || !$("#wxTable")) return;
+    const cols = [];
+    for (let i = 0; i + 2 < h.time.length; i += 3) {
+      const t = h.time[i], hr = +t.slice(11, 13), three = [0, 1, 2].map((k) => i + k);
+      cols.push({ date: t.slice(0, 10), hr, temp: h.temperature_2m[i], feel: h.apparent_temperature?.[i], rain: three.reduce((a, k) => a + (h.precipitation[k] || 0), 0),
+        wind: h.wind_speed_10m[i], gust: Math.max(...three.map((k) => h.wind_gusts_10m?.[k] ?? 0)), dir: h.wind_direction_10m[i], code: h.weather_code?.[i], day: h.is_day ? !!h.is_day[i] : hr >= 7 && hr < 18 });
+    }
+    const days = [...new Set(cols.map((c) => c.date))];
+    const W = 44, N = cols.length, temps = cols.map((c) => c.temp ?? 0), tLo = Math.min(...temps), tHi = Math.max(tLo + 1, ...temps);
+    const yOf = (t) => 30 - (t - tLo) / (tHi - tLo) * 24;
+    const pts = cols.map((c, i) => `${i * W + W / 2},${yOf(c.temp ?? tLo).toFixed(1)}`);
+    const curve = `<svg width="${N * W}" height="34" aria-hidden="true"><defs><linearGradient id="wxTg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".35"/><stop offset="1" stop-color="var(--accent)" stop-opacity=".04"/></linearGradient></defs><path d="M0,34 L${pts.join(" L")} L${N * W},34 Z" fill="url(#wxTg)"/><path d="M${pts.join(" L")}" fill="none" stroke="var(--accent)" stroke-width="1.5"/></svg>`;
+    const icon = (c) => { const [e] = WX(c.code); return !c.day && (c.code === 0 || c.code <= 2) ? (c.code === 0 ? "🌙" : "☁️") : e; };
+    const gustCol = (g) => (g < 4 ? "" : g < 6 ? "rgba(63,155,255,.28)" : g < 8 ? "rgba(53,196,106,.35)" : g < 10 ? "rgba(255,210,63,.45)" : g < 13 ? "rgba(255,159,58,.55)" : "rgba(255,79,79,.6)");
+    const dayDot = (d) => { const cs = cols.filter((c) => c.date === d), g = Math.max(...cs.map((c) => c.gust)), r = cs.reduce((a, c) => a + c.rain, 0); return g >= 10 || r >= 10 ? "#ff4f4f" : g >= 7 || r >= 2 ? "#ffd23f" : "#35c46a"; };
+    const cls = (c, i) => `${c.day ? "" : "night"} ${c.hr === 0 && i ? "d0" : ""}`;
+    const row = (label, f, extra = "") => `<tr class="${extra}"><th class="lab">${label}</th>${cols.map((c, i) => `<td class="${cls(c, i)}">${f(c)}</td>`).join("")}</tr>`;
+    const dayRow = `<tr><th class="lab"></th>${days.map((d) => { const n = cols.filter((c) => c.date === d).length, dt = parseISO(d); return `<th class="dayh" colspan="${n}">${"일월화수목금토"[dt.getDay()]}요일 ${dt.getDate()}<i class="dot" style="background:${dayDot(d)}"></i></th>`; }).join("")}</tr>`;
+    host.innerHTML = `<table class="wxt">${dayRow}
+      ${row("시간", (c) => c.hr)}
+      ${row("", (c) => `<span class="ico" title="${WX(c.code)[1]}">${icon(c)}</span>`)}
+      <tr class="curve"><th class="lab"></th><td colspan="${N}">${curve}</td></tr>
+      ${row("기온 ℃", (c) => `<b class="t">${c.temp == null ? "–" : Math.round(c.temp)}°</b>`)}
+      ${row("체감 ℃", (c) => `<span class="f">${c.feel == null ? "–" : Math.round(c.feel)}°</span>`)}
+      ${row("비 mm", (c) => (c.rain >= .1 ? `<span class="rn" style="background:rgba(63,155,255,${Math.min(.75, .2 + c.rain / 10).toFixed(2)})">${c.rain < 1 ? c.rain.toFixed(1) : Math.round(c.rain)}</span>` : ""))}
+      ${row("바람 m/s", (c) => (c.wind == null ? "–" : Math.round(c.wind)))}
+      <tr><th class="lab">돌풍 m/s</th>${cols.map((c, i) => `<td class="${cls(c, i)} gst" style="${gustCol(c.gust) ? `background:${gustCol(c.gust)}` : ""}">${Math.round(c.gust)}</td>`).join("")}</tr>
+      ${row("풍향", (c) => (c.dir == null ? "" : `<span class="arr" style="transform:rotate(${(c.dir + 180) % 360}deg)" title="${compass(c.dir)}풍">↑</span>`))}
+    </table><p class="pref-note">${esc(p.id)}${p.id === "현재 위치" ? ` (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)})` : ""} 기준. 점: 그날 돌풍과 비 (초록 무난, 노랑 바람·비 조금, 빨강 돌풍 10m/s 이상이나 비 10mm 이상). 비는 3시간 합, 돌풍은 3시간 최대, 어두운 칸은 밤.${wxSource() === "kma" ? (kmaN ? ` 기상청 단기예보 ${kmaN}시간 값을 넣었습니다.` : " 기상청에 연결되지 않아 ECMWF 값입니다.") : ""}</p>`;
   }
   document.addEventListener("change", (e) => {
     const t = e.target;
