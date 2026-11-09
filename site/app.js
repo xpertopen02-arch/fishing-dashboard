@@ -2024,7 +2024,7 @@
   try { IS_BETA = localStorage.getItem("fishBeta") === "2"; } catch (e) { /* 저장을 못 읽으면 공개판 */ }
 
   function notesTabs() {
-    const tabs = [["study", "수집 자료"], ["model", "덕봉 3D"], ["hanteo", "한터 3D"], ["jangkwang", "장광 3D"], ["summary", "3D 정리·문헌"], ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];
+    const tabs = [["study", "수집 자료"], ["model", "덕봉 3D"], ["hanteo", "한터 3D"], ["jangkwang", "장광 3D"], ...(IS_BETA ? [["summary", "3D 정리·문헌"]] : []), ["video", "영상 가이드"], ...(IS_BETA ? [["book", "북가이드"], ["versions", "버전 기록"]] : [])];   // 3D 정리·문헌, 북가이드, 버전 기록은 베타에서만
     if (tabs.length < 2) return "";
     return `<div class="notes-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.notes.tab === id}" class="${state.notes.tab === id ? "on" : ""}" data-notes-tab="${id}">${label}</button>`).join("")}</div>`;
   }
@@ -2122,7 +2122,7 @@
   document.addEventListener("toggle", (e) => { if (e.target.id === "tempFold") state.notes.tempOpen = e.target.open; }, true);
 
   function renderNotes() {
-    if (!IS_BETA && ["book", "versions"].includes(state.notes.tab)) state.notes.tab = "summary";
+    if (!IS_BETA && ["book", "versions", "summary"].includes(state.notes.tab)) state.notes.tab = "model";   // 공개판은 덕봉 3D부터
     if (state.notes.tab === "versions") { notesFrame(`<h2 class="ver-title">버전 기록 <button class="ver-public" data-to-public>공개전환</button></h2><p class="sub">현재 v${esc(window.FISH_VERSIONS[0].version)} 베타 · 자료 빌드 ${esc(window.FISH.built)}</p>${versionListHtml()}`); return; }
     const missing = { book: !window.FISH_BOOK_GUIDE }[state.notes.tab];
     if (missing) { notesFrame('<h2>이 PC에서만 열리는 자료입니다</h2><p class="sub">이 자료는 공개 사이트에 올리지 않았습니다. 자료가 있는 PC에서 열어 주세요.</p>'); return; }
@@ -2277,6 +2277,11 @@
       if (openId !== id) return;
       $(".drawer-body", dr).innerHTML = window.FISH_HTML[id] || '<p class="notice">내용이 없는 페이지입니다.</p>';
       $(".drawer-body", dr).scrollTop = 0;
+      // 원노트·엑셀에서 가져온 원문은 베타(이 PC)에서만 읽을 수 있게 하고, 공개판에서는 흐리게 가립니다.
+      if (!IS_BETA && window.FISH_HTML[id]) {
+        $(".drawer-body", dr).classList.add("orig-blur");
+        $(".drawer-body", dr).insertAdjacentHTML("beforebegin", '<p class="orig-note">원노트·엑셀에서 가져온 원문은 베타(이 PC)에서만 읽을 수 있습니다.</p>');
+      }
     } catch {
       $(".drawer-body", dr).innerHTML = '<p class="notice">본문 파일을 불러오지 못했습니다. site 폴더 안의 data 폴더를 확인해 주세요.</p>';
     }

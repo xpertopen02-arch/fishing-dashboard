@@ -1405,3 +1405,7 @@ html, body { overflow-x: clip; }
 main { overflow-x: clip; touch-action: pan-y pinch-zoom; }
 @keyframes slideNext { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
 @keyframes slidePrev { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
+
+/* v2.3.5 공개판: 원노트·엑셀 원문은 흐리게 가려 읽을 수 없게 합니다 (베타에서는 그대로). */
+.drawer-body.orig-blur > * { filter: blur(7px); user-select: none; -webkit-user-select: none; pointer-events: none; }
+.orig-note { margin: 0; padding: 8px 18px; font-size: 13px; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border-bottom: 1px solid var(--border); }
