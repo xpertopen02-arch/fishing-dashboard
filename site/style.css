@@ -1409,3 +1409,12 @@ main { overflow-x: clip; touch-action: pan-y pinch-zoom; }
 /* v2.3.5 공개판: 원노트·엑셀 원문은 흐리게 가려 읽을 수 없게 합니다 (베타에서는 그대로). */
 .drawer-body.orig-blur > * { filter: blur(7px); user-select: none; -webkit-user-select: none; pointer-events: none; }
 .orig-note { margin: 0; padding: 8px 18px; font-size: 13px; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+
+/* v2.3.7 세부 그래프: 막대를 움직여 현재값 글 길이가 바뀌어도 제목·범례 칸 폭이 그대로라 그래프 높이가 흔들리지 않습니다. */
+.chart-head { align-items: flex-start; }
+.chart-title { flex: 0 0 58%; max-width: 58%; }
+.chart-now { flex: 1 1 0; min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+/* 입질·편의 상자 글은 가운데 정렬, 해와 달 칸 값은 한 줄로 (넘치면 글자가 칸에 맞게 줄어듭니다) */
+.kpis > div { text-align: center; }
+.tile4 b { white-space: nowrap; }
+.tile4 { min-width: 0; }

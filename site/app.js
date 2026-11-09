@@ -2756,7 +2756,7 @@
   }
   // Big numbers shrink on their own when they would not fit their box (e.g. "100" in a narrow
   // phone card), so they never wrap onto a second line or spill out.
-  const FIT_SEL = ".kpis strong, .stats .big, .stat strong, .hs-best b, .dn-c b";
+  const FIT_SEL = ".kpis strong, .stats .big, .stat strong, .hs-best b, .dn-c b, .tile4 b";   // 해와 달 칸 값도 칸에 맞게 줄입니다.
   let fitQueued = false;
   const fitNumbers = () => {
     fitQueued = false;
