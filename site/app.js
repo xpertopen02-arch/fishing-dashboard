@@ -646,6 +646,31 @@
     return el;
   }
 
+  // 먼지량(PM10, PM2.5)과 가시거리: 고른 낚시터와 날짜의 시간별 값 (Open-Meteo 대기질, 예보).
+  // 낚시터와 날짜마다 한 번 받아 두고, 받으면 그래프를 다시 그립니다.
+  const airCache = {};
+  function airFor(p, date) {
+    const key = `${p.id}|${date}`;
+    if (key in airCache) return airCache[key];
+    airCache[key] = null;
+    const q = `latitude=${p.lat}&longitude=${p.lon}&timezone=Asia%2FSeoul&start_date=${date}&end_date=${date}`;
+    const get = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    Promise.all([
+      get(`https://air-quality-api.open-meteo.com/v1/air-quality?${q}&hourly=pm10,pm2_5`),
+      get(`https://api.open-meteo.com/v1/forecast?${q}&hourly=visibility`),
+    ]).then(([aq, vis]) => {
+      const pick = (j, k, f = (v) => v) => (j && j.hourly && j.hourly[k] ? j.hourly[k].slice(0, 24).map((v) => (v == null ? null : f(v))) : null);
+      airCache[key] = { pm10: pick(aq, "pm10"), pm25: pick(aq, "pm2_5"), vis: pick(vis, "visibility", (v) => v / 1000), done: true };
+      if (placeById[state.place] === p && state.date === date) renderCharts();
+    });
+    return null;
+  }
+  const PM10_BANDS = [[31, "#3f9bff"], [81, "#35c46a"], [151, "#ff9f3a"], [9999, "#ff4f4f"]];   // 좋음, 보통, 나쁨, 매우나쁨 (환경부 기준)
+  const PM10_GRADE = (v) => (v == null ? "–" : v <= 30 ? "좋음" : v <= 80 ? "보통" : v <= 150 ? "나쁨" : "매우나쁨");
+  const PM25_GRADE = (v) => (v == null ? "–" : v <= 15 ? "좋음" : v <= 35 ? "보통" : v <= 75 ? "나쁨" : "매우나쁨");
+  const VIS_BANDS = [[1, "#ff4f4f"], [5, "#ff9f3a"], [10, "#ffd23f"], [99, "var(--accent)"]];   // 안개, 박무, 보통, 맑음
+  const VIS_GRADE = (v) => (v == null ? "–" : v < 1 ? "안개" : v < 5 ? "박무" : v < 10 ? "보통" : "맑음");
+
   function renderCharts() {
     charts.splice(0).forEach((c) => c.destroy());
     const host = $("#charts");
@@ -678,6 +703,27 @@
       tick: (v) => Math.round(v),
     }));
     const place = placeById[state.place];
+    // 세부 그래프가 4개인 낚시터(바다 아님)는 먼지량과 가시거리를 더해 3개씩 두 줄로 맞춥니다.
+    if (place.type !== "바다" && hasPin(place)) {
+      const a = airFor(place, state.date);
+      const empty = (title, msg) => { const el = chartShell(host, title, i++); $(".chart-now", el).remove(); el.insertAdjacentHTML("beforeend", `<p class="state-msg">${msg}</p>`); };
+      if (a && a.pm10 && fin(a.pm10).length) {
+        charts.push(makeChart(chartShell(host, "먼지량", i++, `<div class="legend"><span>미세먼지 <i class="wk" style="background:#3f9bff">좋음</i><i class="wk" style="background:#35c46a">보통</i><i class="wk" style="background:#ff9f3a">나쁨</i><i class="wk" style="background:#ff4f4f">매우나쁨</i></span><span><i class="dash"></i>초미세먼지</span></div>`), {
+          ...sun, title: "먼지량", unit: "㎍/㎥", digits: 0, zero: true, minTop: 40,
+          series: [{ label: "미세먼지(PM10)", color: "#35c46a", values: a.pm10, bands: PM10_BANDS }, ...(a.pm25 ? [{ label: "초미세먼지(PM2.5)", color: "var(--muted)", values: a.pm25, dash: true }] : [])],
+          note: (h) => `미세 ${PM10_GRADE(a.pm10[h])}${a.pm25 ? `, 초미세 ${PM25_GRADE(a.pm25[h])}` : ""}`,
+          tick: (v) => Math.round(v),
+        }));
+      } else empty("먼지량", a ? "이 날짜의 먼지량 자료가 없습니다. 보통 지난 기록과 앞으로 4~5일까지 있습니다." : "먼지량 자료를 불러오는 중입니다.");
+      if (a && a.vis && fin(a.vis).length) {
+        charts.push(makeChart(chartShell(host, "가시거리", i++, `<div class="legend"><span><i class="wk" style="background:#ff4f4f">안개 1km 미만</i><i class="wk" style="background:#ff9f3a">박무 1~5km</i><i class="wk" style="background:#ffd23f">5~10km</i><i class="wk" style="background:var(--accent)">10km~</i></span></div>`), {
+          ...sun, title: "가시거리", unit: "km", digits: 1, zero: true, minTop: 10,
+          series: [{ label: "가시거리", color: "var(--accent)", values: a.vis, bands: VIS_BANDS }],
+          note: (h) => VIS_GRADE(a.vis[h]),
+          tick: (v) => Math.round(v),
+        }));
+      } else empty("가시거리", a ? "이 날짜의 가시거리 자료가 없습니다. 지난 약 3달과 앞으로 16일까지만 있습니다." : "가시거리 자료를 불러오는 중입니다.");
+    }
     if (place.type === "바다") {
       const mr = state.marine;
       if (mr && fin(mr.wave).length) {
