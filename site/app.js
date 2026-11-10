@@ -3019,7 +3019,16 @@
       }
       return null;
     };
-    const move = (box, axis, d) => { const o = axis === "y" ? { top: -d } : { left: -d }; (box || window).scrollBy({ ...o, behavior: "instant" }); };   // 페이지의 부드러운 스크롤 설정에 끊기지 않게 즉시
+    // 칸이 끝에 닿으면 바깥 칸, 마지막엔 페이지가 이어서 움직임 (v2.3.15: '지금' 탭 아래 세부 그래프까지 내려가게)
+    const move = (box, axis, d) => {
+      const o = axis === "y" ? { top: -d } : { left: -d };
+      for (let b = box; b; b = scroller(b.parentElement, axis)) {
+        const before = axis === "y" ? b.scrollTop : b.scrollLeft;
+        b.scrollBy({ ...o, behavior: "instant" });
+        if ((axis === "y" ? b.scrollTop : b.scrollLeft) !== before) return;
+      }
+      window.scrollBy({ ...o, behavior: "instant" });   // 페이지의 부드러운 스크롤 설정에 끊기지 않게 즉시
+    };
     let last = null, target = null, axis = null, box = null, vel = 0, lastT = 0, raf = 0;
     document.addEventListener("touchstart", (e) => {
       cancelAnimationFrame(raf);
