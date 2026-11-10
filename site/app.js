@@ -3009,7 +3009,11 @@
   // 휴대폰: 화면을 옆으로 쓸면 그 방향으로 메뉴가 넘어갑니다 (홈 → 지금 → 지도 → 기록 → 자료 → 연구).
   // 지도, 옆으로 스크롤되는 줄, 입력칸, 3D 화면 위에서는 원래 동작을 그대로 둡니다.
   (() => {
-    const TOUCH = matchMedia("(max-width: 720px), (pointer: coarse)");
+    // 세로 휴대폰 화면에서만 켭니다. 가로 대시보드 모드와 회전 보기(안쪽 화면)에서는 원래대로 자유롭게 스크롤합니다.
+    const PHONE_NAV = matchMedia("(max-width: 720px)"), inFrame = window.top !== window;
+    const swipeOn = () => !inFrame && PHONE_NAV.matches;
+    const syncNav = () => document.documentElement.classList.toggle("swipe-nav", swipeOn());
+    syncNav(); PHONE_NAV.addEventListener?.("change", syncNav);
     let sx = 0, sy = 0, t0 = 0, armed = false;
     const blocked = (el) => {
       for (let e = el; e && e !== document.body; e = e.parentElement) {
@@ -3020,7 +3024,7 @@
       return false;
     };
     document.addEventListener("touchstart", (e) => {
-      armed = TOUCH.matches && e.touches.length === 1 && !blocked(e.target);
+      armed = swipeOn() && e.touches.length === 1 && !blocked(e.target);
       if (!armed) return;
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; t0 = Date.now();
     }, { passive: true });

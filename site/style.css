@@ -1402,7 +1402,8 @@ body[data-view="home"] main { padding-bottom: 0; }
 /* v2.3.0 휴대폰 쓸어 넘기기: 페이지가 옆으로 밀리거나 작아지지 않게 가로 넘침을 자르고,
    화면 영역의 가로 손짓은 브라우저가 페이지를 옆으로 움직이는 데 쓰지 않습니다 (세로 스크롤, 두 손가락 확대는 그대로). */
 html, body { overflow-x: clip; }
-main { overflow-x: clip; touch-action: pan-y pinch-zoom; }
+main { overflow-x: clip; }
+html.swipe-nav main { touch-action: pan-y pinch-zoom; }   /* v2.3.12: 세로 휴대폰 화면에서만 (가로 대시보드·회전 보기에서는 자유롭게 스크롤) */
 @keyframes slideNext { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
 @keyframes slidePrev { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
 
