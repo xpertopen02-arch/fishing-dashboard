@@ -2212,7 +2212,7 @@
   const notesTag = () => (IS_BETA ? "비공개 자료 포함" : "공개 자료");
 
   // ---------- 연구 탭 PREFERENCE: 날씨 출처와 3D 모델 기본값 ----------
-  const PREF3D_DEFAULT = { mode: "bite", rankBy: "react", castMode: "circle", castR: "15", crowd: "2", mort: "3", total: "600", recentWx: true, autoInflow: true, autoClarity: true, autoplay: true };
+  const PREF3D_DEFAULT = { mode: "bite", rankBy: "react", castMode: "circle", castR: "15", crowd: "2", mort: "3", total: "600", recentWx: true, autoInflow: true, autoClarity: true, autoplay: true, angler: true, biteP: "30", bigShare: "30", lureMode: "mix" };
   let kmaStatusText = "";
   function renderPrefs() {
     const P = prefs(), want = wxSourceWanted(), key = kmaKey(), m = { ...PREF3D_DEFAULT, ...(P.model3d || {}) };
@@ -2240,9 +2240,12 @@
           ${sel("castMode", "캐스팅", [["circle", "사방 (원)"], ["front", "정면 (부채꼴)"], ["cage", "가두리 쪽 (부채꼴)"]])}
           ${sel("castR", "캐스팅 거리", [5, 10, 15, 20, 25, 30, 40, 50, 60].map((v) => [v, `${v}m`]))}
           ${sel("crowd", "전날 인원 (주말 스트레스)", [["0", "없음"], ["1", "하"], ["2", "중"], ["3", "상"]])}
+          ${sel("bigShare", "큰 송어 비율 (크고 느림, 정적인 루어에 반응)", [0, 10, 20, 30, 40, 50, 70, 100].map((v) => [String(v), `${v}%`]))}
+          ${sel("lureMode", "루어 운용 (낚시하는 모습)", [["mix", "섞어서"], ["move", "빠르게 감기 (작은 송어)"], ["static", "천천히·멈춤 (큰 송어)"]])}
+          ${sel("biteP", "잡히는 확률 (따라온 송어가 무는 확률)", [5, 10, 20, 30, 40, 50, 60, 70, 80, 100].map((v) => [String(v), `${v}%`]))}
           ${sel("mort", "폐사율", Array.from({ length: 11 }, (_, i) => [i, `${i}%`]))}
           ${sel("total", "송어 총 마릿수", [100, 300, 600, 1000, 1500, 2000, 3000].map((v) => [v, `${v.toLocaleString()}마리`]))}
-          <div class="pref-checks">${chk("recentWx", "최근 날씨 반영 (지난 7일 기온, 3일 비·눈)")}${chk("autoInflow", "날짜별 새물 자동 (월, 전날 비·눈)")}${chk("autoClarity", "턴오버 예상 때 물색 탁함 자동")}${chk("autoplay", "열면 재생")}</div>
+          <div class="pref-checks">${chk("recentWx", "최근 날씨 반영 (지난 7일 기온, 3일 비·눈)")}${chk("autoInflow", "날짜별 새물 자동 (월, 전날 비·눈)")}${chk("autoClarity", "턴오버 예상 때 물색 탁함 자동")}${chk("autoplay", "열면 재생")}${chk("angler", "낚시하는 모습 (추천 자리에서 캐스팅·입질·랜딩)")}</div>
           <div class="pref-row"><button class="chip" data-pref-action="pref3dReset">3D 기본값으로</button></div>
           <p class="pref-note">3D를 열 때마다 이 값으로 시작합니다. 3D 화면에서 바꾼 값은 그 화면을 닫기 전까지만 씁니다.</p>
         </section>

@@ -164,7 +164,7 @@
       <button id="resetIcon" aria-label="설정 처음으로" title="설정 처음으로"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg></button>
     </div>
     <div class="readout" id="readout">끌기 회전 · 오른쪽 끌기 이동 · Ctrl+스크롤, +/− 확대 · 더블클릭 다가가기</div>
-    <div class="views"><button id="toDash" class="dash" hidden title="대시보드로 돌아가기">← 대시보드</button><button data-view="focus">송어터</button><button data-view="cage">가두리</button><button data-view="west">유입구</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="all">전체</button></div>
+    <div class="views"><button id="toDash" class="dash" hidden title="대시보드로 돌아가기">← 대시보드</button><button data-view="focus">송어터</button><button data-view="cage">가두리</button><button data-view="west">유입구</button><button data-view="under">물속</button><button data-view="top">위에서</button><button data-view="angler" title="1위 자리에서 낚시하는 모습">낚시</button><button data-view="all">전체</button></div>
     <div class="legend" id="legend"></div>
     <div class="clock" id="clock" aria-live="off" title="지금 보고 있는 시각"></div>
     <div class="cond" id="cond" aria-live="polite"></div>
@@ -218,6 +218,10 @@
       <label><input type="checkbox" id="lWater" checked> 수면</label>
       <label><input type="checkbox" id="lFish" checked> 송어</label>
       <label><input type="checkbox" id="lRec" checked> 추천</label>
+      <label title="추천 1~3위 자리에서 루어로 낚시하는 모습"><input type="checkbox" id="lAngler" checked> 낚시</label>
+      <label title="큰 송어: 크고 느리며 정적인 루어(천천히·멈춤)에 반응 / 작은 송어: 빠르고 활발하며 움직이는 루어에 반응">큰 송어 비율 <select id="bigShare"><option value="0">0%</option><option value="10">10%</option><option value="20">20%</option><option value="30" selected>30%</option><option value="40">40%</option><option value="50">50%</option><option value="70">70%</option><option value="100">100%</option></select></label>
+      <label title="낚시하는 사람의 루어 운용">루어 운용 <select id="lureMode"><option value="mix" selected>섞어서</option><option value="move">빠르게 감기</option><option value="static">천천히·멈춤</option></select></label>
+      <label title="스푼을 따라온 송어가 무는 확률">잡히는 확률 <select id="biteP"><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option><option value="30" selected>30%</option><option value="40">40%</option><option value="50">50%</option><option value="60">60%</option><option value="70">70%</option><option value="80">80%</option><option value="100">100%</option></select></label>
       <label><input type="checkbox" id="lFac" checked> 시설</label>
       <label><input type="checkbox" id="lText" checked> 이름</label>
       <label><input type="checkbox" id="lWind" checked> 바람</label>
@@ -245,6 +249,7 @@
 <script src="jangkwang_wind.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="angler3d.js"></script>
 <script>
 (function () {
   // '새 창으로 크게 보기'로 따로 열렸을 때만 '대시보드' 버튼을 보입니다. 대시보드 창이 열려 있으면 그 창으로 돌아가고 이 창은 닫습니다.
@@ -1102,8 +1107,11 @@ attribute vec2 aSwim;`)
   const depthAt = (px, py) => G.depth[Math.round((py - D.crop[1]) / G.step) * G.nx + Math.round((px - D.crop[0]) / G.step)] || 1;
   // 송어마다 고정된 값: 시간이 바뀌어도 같은 송어는 같은 역할과 자리를 유지합니다.
   const CAGE_N = CAGE_FISH, NEAR_M = 25, SWIM = 4;   // 가두리 송어는 앞 번호에 고정, 자리를 옮길 때 가까운 곳 우선(m), 최고 속도(m/s)
-  const fishSeed = Array.from({ length: FISH }, (_, k) => { const r = rng(1000 + k * 7919); return { q: r(), p: r(), u: r(), ph: r() * 6.28, ox: (r() - .5) * 9, oz: (r() - .5) * 9, dd: (r() - .5) * .9, jx: r() - .5, jy: r() - .5, a: r() * 6.28, m: r(), under: r(), dr: r(), t0: r(), t1: r(), t2: r(), t3: r() }; });
+  const fishSeed = Array.from({ length: FISH }, (_, k) => { const r = rng(1000 + k * 7919); return { q: r(), p: r(), u: r(), ph: r() * 6.28, ox: (r() - .5) * 9, oz: (r() - .5) * 9, dd: (r() - .5) * .9, jx: r() - .5, jy: r() - .5, a: r() * 6.28, m: r(), under: r(), dr: r(), t0: r(), t1: r(), t2: r(), t3: r(), sz: r() }; });
   const fishCell = [], fishRole = [];
+  // v2.3.16 송어 크기: '큰 송어 비율'만큼 큰 송어(1.4배, 느리고 덜 활발, 정적인 루어에 반응), 나머지는 작은 송어(0.8배, 빠르고 활발, 움직이는 루어에 반응)
+  let bigNow = .3;
+  const bigShare = () => (bigNow = ($("bigShare") ? +$("bigShare").value : 30) / 100), isBig = (k) => fishSeed[k].sz < bigNow;
   let prevFree = null;
   const toPx = (c) => [c.x / M + CX, c.z / M + CY];
   function cellNear(px, py, weights, pick) {
@@ -1116,6 +1124,7 @@ attribute vec2 aSwim;`)
   }
   function placeFish(resample) {
     if (!resample && fishTo.length) return;
+    bigShare();
     const st = state(), info = dist(st), inSeason = cageSeason(st);
     const count = info.pop, wNew = info.free;
     fish.count = CAGE_N + count;
@@ -1156,7 +1165,7 @@ attribute vec2 aSwim;`)
         fishCell[k] = ci;
         const c = westCells[ci], cruise = role === "cruise";
         if (cruise) nCruise++;
-        let R = activity(info.evals[ci].T, st.h) * (1 + WHEEL_ACT * c.wheel) * (1 - .6 * stressAt(c, st)) * (.25 + .75 * S.t0);
+        let R = (S.sz < bigNow ? .8 : 1.12) * activity(info.evals[ci].T, st.h) * (1 + WHEEL_ACT * c.wheel) * (1 - .6 * stressAt(c, st)) * (.25 + .75 * S.t0);
         if (S.t1 < .05) R = 1;
         else if (info.stir[ci] && S.t2 < STIR_SHARE) R = Math.max(R, LOW + (1 - LOW) * info.stir[ci]);   // 방류어에 깨어난 송어: 높게 유지되다 서서히 떨어집니다.
         if (j >= st.total && info.rel.share) R = 1;   // 방류어
@@ -1171,6 +1180,7 @@ attribute vec2 aSwim;`)
   }
   function drawFish(t) {
     const ve = +$("ve").value, dt = Math.min(.1, t - lastT); lastT = t;
+    bigShare();
     ringPhase += cruiseSpeed * dt / ringLen;
     for (let k = 0; k < fish.count; k++) {
       const c = fishCur[k], g = fishTo[k];
@@ -1183,20 +1193,20 @@ attribute vec2 aSwim;`)
         const n = Math.round((p[1] - D.crop[1]) / G.step) * G.nx + Math.round((p[0] - D.crop[0]) / G.step);
         td = clamp(cruiseDepth + g.dd, .25, Math.max(.3, (G.depth[n] || 1) - .15));
       } else {
-        const sp = g.fast ? 2.2 : 1;   // 활성이 높으면 더 넓고 빠르게 돕니다.
+        const sp = (g.fast ? 2.2 : 1) * (isBig(k) ? .6 : 1.2);   // 활성이 높으면 더 넓고 빠르게 돕니다.
         tx = g.x + Math.sin(t * .3 * sp + g.ph) * g.wob; tz = g.z + Math.cos(t * .27 * sp + g.ph) * g.wob; td = g.dep; rate = g.fast ? .06 : .03;
         if (k >= CAGE_N) [tx, tz] = keepIn(tx, tz);   // 그물 안
       }
       rate = Math.min(.5, rate * fishMul);   // 송어 속도 배율
       let dx = (tx - c.x) * rate, dz = (tz - c.z) * rate;
-      const step = Math.hypot(dx, dz), cap = SWIM * (g.fast ? 2 : 1) * dt;   // 멀리 가야 해도 헤엄치는 속도로만 움직입니다.
+      const step = Math.hypot(dx, dz), cap = SWIM * (g.fast ? 2 : 1) * (isBig(k) ? .65 : 1.2) * dt;   // 멀리 가야 해도 헤엄치는 속도로만 움직입니다.
       if (step > cap) { dx *= cap / step; dz *= cap / step; }
       c.x += dx; c.z += dz; c.dep += (td - c.dep) * rate;
       if (Math.hypot(dx, dz) > 1e-4) { let a = Math.atan2(dz, dx) - c.head; a = Math.atan2(Math.sin(a), Math.cos(a)); c.head += a * .12; }
-      dummy.position.set(c.x, -c.dep * ve, c.z); dummy.scale.setScalar(g.hidden ? 0 : 1);
+      dummy.position.set(c.x, -c.dep * ve, c.z); dummy.scale.setScalar(g.hidden ? 0 : isBig(k) ? 1.4 : .8);
       // 꼬리치기: 빠를수록, 활성이 높을수록 자주 크게 칩니다. 몸은 물결과 반대로 아주 살짝 흔들립니다.
       const moving = Math.min(1, Math.hypot(dx, dz) / Math.max(1e-4, dt) / 2);
-      c.sw = (c.sw ?? g.ph) + dt * (g.fast ? 11 : 6.5) * (.7 + .6 * moving);
+      c.sw = (c.sw ?? g.ph) + dt * (g.fast ? 11 : 6.5) * (isBig(k) ? .7 : 1.15) * (.7 + .6 * moving);
       swimAttr.setXY(k, c.sw, g.fast ? 1.3 : .9 + .25 * moving);
       dummy.rotation.y = -c.head + Math.sin(c.sw) * .035;
       dummy.updateMatrix(); fish.setMatrixAt(k, dummy.matrix);
@@ -1220,6 +1230,7 @@ attribute vec2 aSwim;`)
   function drawRecs(list) {
     recGroup.traverse((o) => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry && !o.isSprite) o.geometry.dispose(); });
     recGroup.clear();
+    if (angler) { const st0 = state(); angler.setSpots(list.slice(0, 3), st0.s, st0.h); }   // v2.3.16 1~3위 자리를 찾아다니는 사람 (그날 마릿수)
     if ($("note").checked) nearSpots(list).forEach((spots, i) => spots.forEach((p) => {
       recGroup.add(label(`${i + 1}위 ${p[2]}`, wx(p[0]), 3.5, wz(p[1]), p[3] ? "#ff4d4d" : "note", NARROW.matches ? .025 : .017, 400));   // 휴대폰에서는 조금 크게
       neonSprites.pop();   // 다시 그릴 때마다 새로 만드는 글자라 목록에 남기지 않습니다.
@@ -1555,7 +1566,7 @@ attribute vec2 aSwim;`)
   const curM = MONTHS.findIndex((m) => m[1] === now.getMonth() + 1);
   if (curM >= 0) calM = curM;
   $("summary").textContent = `송어터 약 ${D.boxArea.toLocaleString()}㎡ (약 ${Math.round(D.boxArea / 3.3058).toLocaleString()}평), 평균 수심 약 ${(D.boxVolume / D.boxArea).toFixed(1)}m, 가장 깊은 곳 ${Math.max(...G.depth).toFixed(1)}m. 크기는 지도에서 쟀고 바닥 높낮이는 추정입니다.`;
-  ["scenario", "hour", "inflow", "rankBy", "mort", "recentWx", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH", "fishColor", "castMode", "castR"].forEach((id) => $(id).addEventListener("input", panel));
+  ["scenario", "hour", "inflow", "rankBy", "mort", "recentWx", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH", "fishColor", "castMode", "castR", "bigShare", "lureMode", "biteP"].forEach((id) => $(id).addEventListener("input", panel));
   $("mode").addEventListener("input", paint);
   $("ve").addEventListener("input", applyVe);
   // 지도 회전/정지 버튼: 화면 옵션의 '자동 회전'과 같이 움직입니다.
@@ -1563,6 +1574,8 @@ attribute vec2 aSwim;`)
   $("spin").addEventListener("input", (e) => { controls.autoRotate = e.target.checked; syncSpinBtn(); });
   $("spinBtn").onclick = () => { $("spin").checked = !$("spin").checked; $("spin").dispatchEvent(new Event("input", { bubbles: true })); };
   const vis = { lWater: water, lFish: fish, lRec: recGroup, lFac: fac, lText: texts, lCut: curtain, lWind: windLines };
+  // v2.3.16 추천 자리에서 낚시하는 사람: 캐스팅, 활성 송어의 추격과 입질, 파이팅, 뜰채 랜딩 (angler3d.js). "낚시" 표시로 켜고 끕니다.
+  var angler = window.Angler3D ? window.Angler3D.create({ THREE, scene, fish, fishGeo, fishCur, fishTo, CAGE_N, wx, wz, M, CX, CY, castVec, castInfo, depthPx: rawDepth, deck: fac, ve: () => +$("ve").value, shown: () => $("lAngler").checked, biteP: () => +$("biteP").value / 100, fishBig: (k) => isBig(k), bigShare: () => bigNow, total: () => +$("total").value, lureMode: () => $("lureMode").value, inCast: (r, px, py) => inCast(r, px, py, castInfo()) }) : null;
   $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
   Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
   let playing = null;
@@ -1667,6 +1680,7 @@ attribute vec2 aSwim;`)
     under() { const ve = +$("ve").value; go(at(150, 400, -ve * .5), at(300, 230, -ve * 2)); },
     all() { const k = Math.max(1, 1.08 / (view.clientWidth / view.clientHeight)); go(new THREE.Vector3(HOME[0] * k, HOME[1] * k, HOME[2] * k), new THREE.Vector3()); },
   };
+  views.angler = () => { const v = angler && angler.focus(); if (v) { $("spin").checked = false; controls.autoRotate = false; syncSpinBtn(); go(v.pos, v.tgt); } };
   document.querySelector(".views").addEventListener("click", (e) => { const k = e.target.dataset.view; if (k) views[k](); });
   $("home").onclick = () => views.focus();
   renderer.domElement.addEventListener("pointerdown", () => { anim = null; });
@@ -1704,9 +1718,9 @@ attribute vec2 aSwim;`)
   const DEFAULT_VIEW = {
     inflow: "stream", stock: "0", stockN: "75", release: "center", relH: "10", clarity: "turbid", fishColor: "react",
     note: false, worm: false, crowd: "2", rankBy: "react", mort: "3", spin: true, total: "600", cruise: "40", mode: "bite", ve: "4", waterOp: "0.3",
-    lCut: true, lWater: true, lFish: true, lRec: true, lFac: true, lText: true, lWind: true, spinSpd: "3", fishSpd: "3",
+    lCut: true, lWater: true, lFish: true, lRec: true, lAngler: true, biteP: "30", bigShare: "30", lureMode: "mix", lFac: true, lText: true, lWind: true, spinSpd: "3", fishSpd: "3",
   };
-  const KEEP = ["castMode", "castR", "rankBy", "mort", "recentWx", "wheel1", "wheel2", "wheel3", "inflow", "stock", "stockN", "release", "relH", "clarity", "fishColor", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lFac", "lText", "lWind", "spinSpd", "fishSpd"];
+  const KEEP = ["castMode", "castR", "rankBy", "mort", "recentWx", "wheel1", "wheel2", "wheel3", "inflow", "stock", "stockN", "release", "relH", "clarity", "fishColor", "note", "worm", "crowd", "spin", "total", "cruise", "mode", "ve", "waterOp", "lCut", "lWater", "lFish", "lRec", "lAngler", "biteP", "bigShare", "lureMode", "lFac", "lText", "lWind", "spinSpd", "fishSpd"];
   const saveSettings = () => {
     const o = { sv: 231, cam: camera.position.toArray(), tgt: controls.target.toArray() };
     KEEP.forEach((id) => { const e = $(id); o[id] = e.type === "checkbox" ? e.checked : e.value; });
@@ -1727,7 +1741,7 @@ attribute vec2 aSwim;`)
     if (o) { if (o.sv !== 231) { o.mode = "bite"; o.crowd = "2"; o.sv = 231; } applySettings(o); }   // v2.3.1: 기본 표시를 '반응 좋은 송어 밀도'로
   } catch (e) { /* 저장값이 깨졌으면 기본값 */ }
   // PREFERENCE 기본값은 열 때마다 씁니다 (이 화면에서 바꾼 값은 닫기 전까지만).
-  { const ids = { mode: "mode", rankBy: "rankBy", castMode: "castMode", castR: "castR", crowd: "crowd", mort: "mort", total: "total", recentWx: "recentWx" };
+  { const ids = { angler: "lAngler", biteP: "biteP", bigShare: "bigShare", lureMode: "lureMode", mode: "mode", rankBy: "rankBy", castMode: "castMode", castR: "castR", crowd: "crowd", mort: "mort", total: "total", recentWx: "recentWx" };
     Object.entries(ids).forEach(([k, id]) => { const e = $(id); if (PREF[k] === undefined || !e) return; if (e.type === "checkbox") e.checked = !!PREF[k]; else e.value = String(PREF[k]); }); }
   $("home").onclick = () => { $("spin").checked = false; controls.autoRotate = false; syncSpinBtn(); views.focus(); };
   document.querySelector(".side").addEventListener("input", saveSettings);
@@ -1754,8 +1768,8 @@ attribute vec2 aSwim;`)
     if (anim) { camera.position.lerp(anim.pos, .13); controls.target.lerp(anim.tgt, .13); if (++anim.n > 45) { camera.position.copy(anim.pos); controls.target.copy(anim.tgt); anim = null; } }
     controls.update();
     const under = camera.position.y < 0;
-    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); drawRipples(now); wheelRotors.forEach((r, i) => { if (wheelOn(i)) r.rotation.z = -now * 3.2 - i; }); wheelMeshes.forEach((m, i) => { m.scale.y = 1 + .12 * Math.sin(now * 6.4 + i * 2); }); window.__lastT = now; fishT += Math.min(.1, now - (window.__fishPrev ?? now)) * fishMul; window.__fishPrev = now; drawFish(fishT); renderer.render(scene, camera); })();
-  window.__model = { ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }), inBox, M };
+    scene.fog.density = under ? .009 : 0; scene.background = under ? waterColor : skyColor; const now = clock.getElapsedTime(); drawWind(Math.min(.1, now - (window.__lastT || now))); drawJump(now); drawRipples(now); wheelRotors.forEach((r, i) => { if (wheelOn(i)) r.rotation.z = -now * 3.2 - i; }); wheelMeshes.forEach((m, i) => { m.scale.y = 1 + .12 * Math.sin(now * 6.4 + i * 2); }); window.__lastT = now; fishT += Math.min(.1, now - (window.__fishPrev ?? now)) * fishMul; window.__fishPrev = now; drawFish(fishT); if (angler) angler.update(now); renderer.render(scene, camera); })();
+  window.__model = { angler: () => angler && angler.stats(), ranks, state, cells: cells.length, fishTo, fishCur, CAGE_N, jumpInfo: () => ({ jump, visible: jumpFish.visible }), inBox, M };
 })();
 </script>
 </body>
