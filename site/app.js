@@ -2953,8 +2953,7 @@
     document.body.append(rotLayer);
     document.documentElement.classList.add("rot-on");
     sizeRot();
-    // full screen gives the dashboard the whole screen; the size is set first so it never waits on this
-    document.documentElement.requestFullscreen?.({ navigationUI: "hide" })?.catch(() => {});
+    // v2.3.14: 전체 화면은 쓰지 않음. 휴대폰 브라우저가 전체 화면마다 '전체 화면을 종료하려면…' 안내를 띄우고, 사이트가 그 안내를 끌 수 없음
     setTimeout(sizeRot, 400);
   }
   addEventListener("resize", sizeRot);
