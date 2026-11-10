@@ -229,10 +229,16 @@
       });
       if (day !== undefined && h !== undefined) tally(day, h);
       relabel();
+      showCounts();
     }
     function moveTo(A, r) {
       free(A, true); A.phase = "ready"; A.t = 0; A.showLayer = false;
       A.key = keyOf(r); A.spot = r; placeAt(A, r);
+    }
+    // 페이지의 수심 아래 칸에 1·2·3위 순으로 오늘 마릿수를 적습니다 ('낚시'를 끄면 비움).
+    function showCounts() {
+      if (!o.onCount) return;
+      o.onCount(o.shown() ? anglers.filter((A) => A.want).map((A) => ({ rank: A.i + 1, n: A.caught, spot: A.want.short || "" })) : []);
     }
     function relabel() {
       anglers.forEach((A) => {

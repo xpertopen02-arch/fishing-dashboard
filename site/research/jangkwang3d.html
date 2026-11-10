@@ -146,10 +146,16 @@
   .clock .clockSub { margin-top:4px; text-align:right; white-space:nowrap; line-height:1.15; font:700 20px/1.15 "Malgun Gothic", sans-serif; color:#ffd93b;
     text-shadow:0 0 2px #39ff6a, 0 0 6px rgba(57,255,106,.75), 0 0 1px #000; }   /* 시계의 절반 크기, 같은 노란 글자 + 초록 네온 */
   .clock .clockSub small { font-size:.7em; }
+  /* v2.3.17 수심 아래: 1~3위 자리를 찾아다니는 사람의 오늘 마릿수 */
+  .clock .clockCatch { margin-top:3px; text-align:right; white-space:nowrap; font:700 13px/1.35 "Malgun Gothic", sans-serif; color:#fff; text-shadow:0 0 3px #000, 0 0 6px rgba(0,0,0,.8); }
+  .clock .clockCatch div { display:block; }
+  .clock .clockCatch b { display:inline-block; min-width:2.2em; }
+  .clock .clockCatch .r1 b { color:#ffa64d; } .clock .clockCatch .r2 b { color:#4fe0cd; } .clock .clockCatch .r3 b { color:#ff7d8f; }
+  .clock .clockCatch small { font-weight:400; opacity:.85; }
   .clock .cplay { pointer-events:auto; display:block; margin:6px 0 0 auto; width:26px; height:26px; padding:0; font-size:11px; line-height:1; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:6px; cursor:pointer; }   /* 왼쪽 도구 버튼과 같은 모양 */
   .clock .cplay:hover { border-color:var(--accent); }
   .clock .cplay.on { background:var(--accent); color:#fff; border-color:var(--accent); font-size:9px; letter-spacing:-1px; }   /* 재생 중 */
-  @media (max-width: 760px) { .clock svg { height:30px; } .clock .clockSub { font-size:15px; } }
+  @media (max-width: 760px) { .clock svg { height:30px; } .clock .clockSub { font-size:15px; } .clock .clockCatch { font-size:11px; } }
 </style>
 </head>
 <body>
@@ -1483,7 +1489,7 @@ attribute vec2 aSwim;`)
     const info = dist(st);
     setRelease(st, info.rel);
     const hd = hotDepth(info);
-    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응 좋은 송어의 주요 공략 수심: 반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "–"}</div>`
+    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응 좋은 송어의 주요 공략 수심: 반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "–"}</div><div class="clockCatch" id="clockCatch" title="1·2·3위 자리를 찾아다니는 사람이 오늘 잡은 송어 (모델 시계 기준 기대 조과)"></div>`
       + `<button type="button" class="cplay ${playing ? "on" : ""}" id="clockPlay" aria-label="${playing ? "시간 진행 멈추기" : "시간 진행 켜기"}" title="${playing ? "시간 진행 멈추기" : "시간 진행 켜기"}">${playing ? "❚❚" : "▶"}</button>`;   // 시계 아래 시간 진행 켜기·끄기
     mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
     drawIce(st);
@@ -1566,7 +1572,7 @@ attribute vec2 aSwim;`)
   const curM = MONTHS.findIndex((m) => m[1] === now.getMonth() + 1);
   if (curM >= 0) calM = curM;
   $("summary").textContent = `송어터 약 ${D.boxArea.toLocaleString()}㎡ (약 ${Math.round(D.boxArea / 3.3058).toLocaleString()}평), 평균 수심 약 ${(D.boxVolume / D.boxArea).toFixed(1)}m, 가장 깊은 곳 ${Math.max(...G.depth).toFixed(1)}m. 크기는 지도에서 쟀고 바닥 높낮이는 추정입니다.`;
-  ["scenario", "hour", "inflow", "rankBy", "mort", "recentWx", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH", "fishColor", "castMode", "castR", "bigShare", "lureMode", "biteP"].forEach((id) => $(id).addEventListener("input", panel));
+  ["scenario", "hour", "inflow", "rankBy", "mort", "recentWx", "stock", "crowd", "clarity", "cruise", "note", "worm", "total", "stockN", "release", "relH", "fishColor", "castMode", "castR", "bigShare", "lureMode", "biteP", "lAngler"].forEach((id) => $(id).addEventListener("input", panel));
   $("mode").addEventListener("input", paint);
   $("ve").addEventListener("input", applyVe);
   // 지도 회전/정지 버튼: 화면 옵션의 '자동 회전'과 같이 움직입니다.
@@ -1575,7 +1581,8 @@ attribute vec2 aSwim;`)
   $("spinBtn").onclick = () => { $("spin").checked = !$("spin").checked; $("spin").dispatchEvent(new Event("input", { bubbles: true })); };
   const vis = { lWater: water, lFish: fish, lRec: recGroup, lFac: fac, lText: texts, lCut: curtain, lWind: windLines };
   // v2.3.16 추천 자리에서 낚시하는 사람: 캐스팅, 활성 송어의 추격과 입질, 파이팅, 뜰채 랜딩 (angler3d.js). "낚시" 표시로 켜고 끕니다.
-  var angler = window.Angler3D ? window.Angler3D.create({ THREE, scene, fish, fishGeo, fishCur, fishTo, CAGE_N, wx, wz, M, CX, CY, castVec, castInfo, depthPx: rawDepth, deck: fac, ve: () => +$("ve").value, shown: () => $("lAngler").checked, biteP: () => +$("biteP").value / 100, fishBig: (k) => isBig(k), bigShare: () => bigNow, total: () => +$("total").value, lureMode: () => $("lureMode").value, inCast: (r, px, py) => inCast(r, px, py, castInfo()) }) : null;
+  var angler = window.Angler3D ? window.Angler3D.create({ THREE, scene, fish, fishGeo, fishCur, fishTo, CAGE_N, wx, wz, M, CX, CY, castVec, castInfo, depthPx: rawDepth, deck: fac, ve: () => +$("ve").value, shown: () => $("lAngler").checked, biteP: () => +$("biteP").value / 100, fishBig: (k) => isBig(k), bigShare: () => bigNow, total: () => +$("total").value, lureMode: () => $("lureMode").value, inCast: (r, px, py) => inCast(r, px, py, castInfo()),
+    onCount: (rows) => { const el = $("clockCatch"); if (el) el.innerHTML = rows.map((x) => `<div class="r${x.rank}"><b>${x.rank}위</b> ${x.n}마리 <small>${esc(x.spot)}</small></div>`).join(""); } }) : null;
   $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
   Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
   let playing = null;

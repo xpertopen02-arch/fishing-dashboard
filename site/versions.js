@@ -1,6 +1,13 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.3.17", date: "2026-11-10", title: "3D: 시계 아래에 순위별 오늘 마릿수",
+    changes: [
+      "덕봉·한터·장광 3D 화면의 시계 아래 적정 수심 밑에 1위, 2위, 3위 자리를 찾아다니는 사람이 오늘 잡은 송어 수와 지금 자리를 순서대로 적음 (사람 옷 색과 같은 색)",
+      "'낚시'를 끄면 비움",
+    ],
+  },
+  {
     version: "2.3.16", date: "2026-11-10", title: "3D: 추천 자리에서 낚시하는 모습, 송어 크기",
     changes: [
       "덕봉·한터·장광 3D에 낚시하는 사람 셋: 1위 자리만, 2위 자리만, 3위 자리만 찾아다님. 순위의 자리가 바뀌면 하던 동작을 마치고 옮김. 발판(부교·데크) 끝에 서서 물 쪽을 봄",
