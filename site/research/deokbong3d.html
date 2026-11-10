@@ -146,16 +146,17 @@
   .clock .clockSub { margin-top:4px; text-align:right; white-space:nowrap; line-height:1.15; font:700 20px/1.15 "Malgun Gothic", sans-serif; color:#ffd93b;
     text-shadow:0 0 2px #39ff6a, 0 0 6px rgba(57,255,106,.75), 0 0 1px #000; }   /* 시계의 절반 크기, 같은 노란 글자 + 초록 네온 */
   .clock .clockSub small { font-size:.7em; }
-  /* v2.3.17 수심 아래: 1~3위 자리를 찾아다니는 사람의 오늘 마릿수 */
-  .clock .clockCatch { margin-top:3px; text-align:right; white-space:nowrap; font:700 13px/1.35 "Malgun Gothic", sans-serif; color:#fff; text-shadow:0 0 3px #000, 0 0 6px rgba(0,0,0,.8); }
-  .clock .clockCatch div { display:block; }
-  .clock .clockCatch b { display:inline-block; min-width:2.2em; }
-  .clock .clockCatch .r1 b { color:#ffa64d; } .clock .clockCatch .r2 b { color:#4fe0cd; } .clock .clockCatch .r3 b { color:#ff7d8f; }
-  .clock .clockCatch small { font-weight:400; opacity:.85; }
+  /* v2.3.18 오른쪽 아래 날씨 상자 바로 위: 1~3위 자리를 찾아다니는 사람의 오늘 마릿수 (작은 글자) */
+  .rankCatch { position:absolute; right:10px; bottom:96px; z-index:3; pointer-events:none; text-align:right; white-space:nowrap; font:700 10.5px/1.35 "Malgun Gothic", sans-serif;
+    background:color-mix(in srgb, var(--panel) 72%, transparent); border:1px solid color-mix(in srgb, var(--line) 85%, transparent); border-radius:7px; padding:3px 7px; color:var(--ink); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
+  .rankCatch:empty { display:none; }
+  .rankCatch b { display:inline-block; min-width:2.1em; }
+  .rankCatch .r1 b { color:#e07a1f; } .rankCatch .r2 b { color:#169c8c; } .rankCatch .r3 b { color:#d2475c; }
+  .rankCatch small { font-weight:400; opacity:.8; }
   .clock .cplay { pointer-events:auto; display:block; margin:6px 0 0 auto; width:26px; height:26px; padding:0; font-size:11px; line-height:1; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:6px; cursor:pointer; }   /* 왼쪽 도구 버튼과 같은 모양 */
   .clock .cplay:hover { border-color:var(--accent); }
   .clock .cplay.on { background:var(--accent); color:#fff; border-color:var(--accent); font-size:9px; letter-spacing:-1px; }   /* 재생 중 */
-  @media (max-width: 760px) { .clock svg { height:30px; } .clock .clockSub { font-size:15px; } .clock .clockCatch { font-size:11px; } }
+  @media (max-width: 760px) { .clock svg { height:30px; } .clock .clockSub { font-size:15px; } .rankCatch { font-size:9.5px; } }
 </style>
 </head>
 <body>
@@ -174,6 +175,7 @@
     <div class="legend" id="legend"></div>
     <div class="clock" id="clock" aria-live="off" title="지금 보고 있는 시각"></div>
     <div class="cond" id="cond" aria-live="polite"></div>
+    <div class="rankCatch" id="rankCatch" title="1·2·3위 자리를 찾아다니는 사람이 오늘(이번 턴) 잡은 송어 (모델 시계 기준 기대 조과)"></div>
   </div>
   <aside class="side">
     <h1>덕봉저수지 3D</h1>
@@ -1479,7 +1481,7 @@ attribute vec2 aSwim;`)
     const info = dist(st);
     setRelease(st, info.rel);
     const hd = hotDepth(info);
-    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응 좋은 송어의 주요 공략 수심: 반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "–"}</div><div class="clockCatch" id="clockCatch" title="1·2·3위 자리를 찾아다니는 사람이 오늘 잡은 송어 (모델 시계 기준 기대 조과)"></div>`
+    $("clock").innerHTML = ledSVG(fmtH(st.h)) + `<div class="clockSub" title="반응 좋은 송어의 주요 공략 수심: 반응이 좋은 송어가 가장 많이 머무는 수심의 가운데 절반 구간입니다. 1초에 약 20cm 가라앉는다고 본 카운트입니다.">${hd ? `${hd[0] === hd[1] ? `${hd[0]}m` : `${hd[0]}~${hd[1]}m`} <small>(${Math.max(1, Math.round(hd[0] / .2))}~${Math.max(1, Math.round(hd[1] / .2))}카운트)</small>` : "–"}</div>`
       + `<button type="button" class="cplay ${playing ? "on" : ""}" id="clockPlay" aria-label="${playing ? "시간 진행 멈추기" : "시간 진행 켜기"}" title="${playing ? "시간 진행 멈추기" : "시간 진행 켜기"}">${playing ? "❚❚" : "▶"}</button>`;   // 시계 아래 시간 진행 켜기·끄기
     mapLayer.visible = st.note; wormLayer.visible = $("worm").checked;
     drawIce(st);
@@ -1571,7 +1573,7 @@ attribute vec2 aSwim;`)
   const vis = { lWater: water, lFish: fish, lRec: recGroup, lFac: fac, lText: texts, lCut: curtain, lWind: windLines };
   // v2.3.16 추천 자리에서 낚시하는 사람: 캐스팅, 활성 송어의 추격과 입질, 파이팅, 뜰채 랜딩 (angler3d.js). "낚시" 표시로 켜고 끕니다.
   var angler = window.Angler3D ? window.Angler3D.create({ THREE, scene, fish, fishGeo, fishCur, fishTo, CAGE_N, wx, wz, M, CX, CY, castVec, castInfo, depthPx: rawDepth, deck: fac, ve: () => +$("ve").value, shown: () => $("lAngler").checked, biteP: () => +$("biteP").value / 100, fishBig: (k) => isBig(k), bigShare: () => bigNow, total: () => +$("total").value, lureMode: () => $("lureMode").value, inCast: (r, px, py) => inCast(r, px, py, castInfo()),
-    onCount: (rows) => { const el = $("clockCatch"); if (el) el.innerHTML = rows.map((x) => `<div class="r${x.rank}"><b>${x.rank}위</b> ${x.n}마리 <small>${esc(x.spot)}</small></div>`).join(""); } }) : null;
+    onCount: (rows) => { const el = $("rankCatch"), cd = $("cond"); if (!el) return; el.innerHTML = rows.map((x) => `<div class="r${x.rank}"><b>${x.rank}위</b> ${x.n}마리 <small>${esc(x.spot)}</small></div>`).join(""); if (cd && cd.offsetHeight) el.style.bottom = `${10 + cd.offsetHeight + 5}px`; } }) : null;
   $("waterOp").addEventListener("input", (e) => { water.material.opacity = +e.target.value; });
   Object.keys(vis).forEach((id) => $(id).addEventListener("input", (e) => { vis[id].visible = e.target.checked; }));
   let playing = null;
@@ -1622,7 +1624,17 @@ attribute vec2 aSwim;`)
     });
   }
   let spdI = 3;
-  const tick = () => { const h = $("hour"); h.value = +h.value >= 1140 ? 360 : +h.value + 10; panel(); };
+  // v2.3.18 재생: 저녁 19시에 닿으면 5초 멈춰 그날 결과(순위별 마릿수 등)를 보여 준 뒤 아침 6시부터 다시 시작합니다.
+  let holdUntil = 0;
+  const tick = () => {
+    const h = $("hour");
+    if (+h.value >= 1140) {
+      if (!holdUntil) holdUntil = Date.now() + 5000;
+      if (Date.now() < holdUntil) return;
+      holdUntil = 0; h.value = 360;
+    } else { holdUntil = 0; h.value = +h.value + 10; }
+    panel();
+  };
   function setSpeed(d) {
     spdI = clamp(spdI + d, 0, SPEEDS.length - 1);
     const sec = SPEEDS[spdI] * 6 / 1000, txt = `한 시간 ${sec % 1 ? sec.toFixed(1) : sec}초`;

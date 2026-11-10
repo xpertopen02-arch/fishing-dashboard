@@ -208,7 +208,11 @@
       const mode = o.lureMode ? o.lureMode() : "mix", N = mode === "mix" ? (eff.move + eff.static) / 2 : eff[mode] || eff.move;
       return CASTS_PER_H * (1 - Math.exp(-FOLLOW_K * N)) * biteNow() * (1 - LOST_P);   // 시간당 마릿수
     }
+    // 하루 한 턴: 재생이 19시에서 아침 6시로 돌아가면 새 턴으로 보고 0부터 다시 셉니다 (같은 날짜여도 새로 계산).
+    let tallyH = null;
     function tally(day, h) {
+      if (tallyH !== null && tallyH >= 18.9 && h <= 6.1) delete tallies[day];
+      tallyH = h;
       const tick = Math.round((h - 6) * 6), D = tallies[day] || (tallies[day] = { last: 0, cum: [[0], [0], [0]] });
       if (tick > D.last) {
         anglers.forEach((A, i) => { const r = wanted[i] ? rateAt(wanted[i], wanted[0]) / 6 : 0, c = D.cum[i]; for (let k = D.last + 1; k <= tick; k++) c[k] = (c[k - 1] || 0) + r; });
