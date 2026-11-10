@@ -1401,8 +1401,8 @@ body[data-view="home"] main { padding-bottom: 0; }
 
 /* v2.3.0 휴대폰 쓸어 넘기기: 페이지가 옆으로 밀리거나 작아지지 않게 가로 넘침을 자르고,
    화면 영역의 가로 손짓은 브라우저가 페이지를 옆으로 움직이는 데 쓰지 않습니다 (세로 스크롤, 두 손가락 확대는 그대로). */
-html, body { overflow-x: clip; }
-main { overflow-x: clip; }
+html.swipe-nav, html.swipe-nav body { overflow-x: clip; }   /* v2.3.13: 세로 휴대폰 화면에서만 (가로 대시보드 모드는 v2.3.0 이전처럼) */
+html.swipe-nav main { overflow-x: clip; }
 html.swipe-nav main { touch-action: pan-y pinch-zoom; }   /* v2.3.12: 세로 휴대폰 화면에서만 (가로 대시보드·회전 보기에서는 자유롭게 스크롤) */
 @keyframes slideNext { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
 @keyframes slidePrev { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
@@ -1452,3 +1452,7 @@ html.swipe-nav main { touch-action: pan-y pinch-zoom; }   /* v2.3.12: 세로 휴
 .wxt .gst { font-weight: 600; }
 .wxt .arr { display: inline-block; font-size: 14px; line-height: 1; color: var(--ink-2); font-weight: 700; }
 .pref-loc { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); margin: 2px 0 4px; } .pref-loc select { padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13.5px; max-width: 100%; }
+
+/* v2.3.13 회전 보기 안: 스크롤은 손가락 끌기로 직접 (브라우저 기본 손짓은 쓰지 않음) */
+html.rot-frame, html.rot-frame body { touch-action: none; }
+html.rot-frame .leaflet-container { touch-action: none; }

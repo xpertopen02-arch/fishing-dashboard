@@ -3006,6 +3006,50 @@
   if (startHash === "notes") go("notes", false); else { go("home"); showWelcome(); }
   loadNotes(startHash);
   loadAll().then(fillWelcome, () => {});
+  // 회전 보기 안(휴대폰에서 돌려 보는 대시보드): 손가락으로 끄는 만큼 직접 스크롤합니다.
+  // 돌린 화면에서는 휴대폰 브라우저의 기본 스크롤이 방향을 잘못 잡거나 막히는 일이 있어서입니다. 지도와 슬라이더는 그대로 둡니다.
+  (() => {
+    let rotated = false;
+    try { rotated = window.top !== window && window.parent.document.documentElement.classList.contains("rot-on"); } catch (e) { /* 다른 사이트 안이면 하지 않음 */ }
+    if (!rotated) return;
+    document.documentElement.classList.add("rot-frame");
+    const scroller = (el, axis) => {
+      for (let e = el; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
+        const cs = getComputedStyle(e), ov = axis === "y" ? cs.overflowY : cs.overflowX;
+        if ((ov === "auto" || ov === "scroll") && (axis === "y" ? e.scrollHeight > e.clientHeight + 1 : e.scrollWidth > e.clientWidth + 1)) return e;
+      }
+      return null;
+    };
+    const move = (box, axis, d) => { const o = axis === "y" ? { top: -d } : { left: -d }; (box || window).scrollBy({ ...o, behavior: "instant" }); };   // 페이지의 부드러운 스크롤 설정에 끊기지 않게 즉시
+    let last = null, target = null, axis = null, box = null, vel = 0, lastT = 0, raf = 0;
+    document.addEventListener("touchstart", (e) => {
+      cancelAnimationFrame(raf);
+      if (e.touches.length !== 1 || e.target.closest?.(".leaflet-container, input[type=range], textarea, select")) { last = null; return; }
+      const t = e.touches[0];
+      last = [t.clientX, t.clientY]; target = e.target; axis = null; box = null; vel = 0; lastT = performance.now();
+    }, { passive: true });
+    document.addEventListener("touchmove", (e) => {
+      if (!last || e.touches.length !== 1) return;
+      const t = e.touches[0], dx = t.clientX - last[0], dy = t.clientY - last[1];
+      if (!axis) {
+        if (Math.abs(dx) + Math.abs(dy) < 4) return;
+        axis = Math.abs(dy) >= Math.abs(dx) ? "y" : "x";
+        box = scroller(target, axis);
+      }
+      const d = axis === "y" ? dy : dx, now = performance.now();
+      move(box, axis, d);
+      vel = .8 * (d / Math.max(1, now - lastT)) + .2 * vel; lastT = now;
+      last = [t.clientX, t.clientY];
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("touchend", () => {
+      if (!last || !axis) { last = null; return; }
+      last = null;
+      let v = vel * 16;   // 손을 떼면 부드럽게 미끄러집니다
+      const step = () => { if (Math.abs(v) < .4) return; move(box, axis, v); v *= .94; raf = requestAnimationFrame(step); };
+      if (performance.now() - lastT < 80) raf = requestAnimationFrame(step);
+    }, { passive: true });
+  })();
   // 휴대폰: 화면을 옆으로 쓸면 그 방향으로 메뉴가 넘어갑니다 (홈 → 지금 → 지도 → 기록 → 자료 → 연구).
   // 지도, 옆으로 스크롤되는 줄, 입력칸, 3D 화면 위에서는 원래 동작을 그대로 둡니다.
   (() => {
