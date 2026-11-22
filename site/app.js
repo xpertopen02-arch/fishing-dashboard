@@ -76,6 +76,8 @@
     shelf: PAGES[0].section,
     sources: [],
     notes: { month: new Date().getMonth() + 1, tab: "summary", chapters: {}, fitTarget: null, fitDate: null },
+    autoPick: true,    // v2.3.24: 열 때와 날짜를 바꿀 때 장르와 낚시터를 내 기록과 추천 순위로 고릅니다 (손으로 고르면 그 날짜 동안 그대로)
+    autoInfo: null,
   };
   if (!placeById[state.place]) state.place = allTrips[0].place;
 
@@ -1371,6 +1373,11 @@
     const cur = placeById[state.place];
     $("#placeName").textContent = cur.name;
     $("#placeType").textContent = `${cur.type}낚시`;
+    const ai = state.autoInfo;
+    if (ai && ai.place === cur.id && ai.date === state.date) {
+      $("#placeType").textContent = `${cur.type}낚시 · 추천 1위`;
+      $("#placeType").title = `이맘때(전후 ${ai.win}일) 내 기록: ${TYPES.filter((t) => ai.counts[t]).map((t) => `${t} ${ai.counts[t]}회`).join(", ")} → ${ai.genre}, 그중 추천 순위 1위 낚시터`;
+    } else $("#placeType").title = "";
     $("#placeChips").innerHTML = TYPES.map((t) => `<div class="place-row"><b><i class="dot ${t}"></i>${t}</b>` +
       PLACES.filter((p) => placeTypes(p).includes(t)).sort((a, b) => b.trips.length - a.trips.length).map((p) =>
         `<button class="chip ${p.id === state.place ? "on" : ""} ${hasPin(p) ? "" : "nopin"}" data-place="${esc(p.id)}" title="${esc(p.accuracy)}">${esc(p.id)}<small>${p.trips.length}</small></button>`).join("") + `</div>`).join("");
@@ -1388,6 +1395,37 @@
     const left = day.offsetLeft - strip.offsetLeft - (strip.clientWidth - day.clientWidth) / 2;
     strip.scrollTo({ left, behavior: REDUCED ? "auto" : "smooth" });
   }
+  // ---------- 장르와 낚시터 자동 선택 (v2.3.24) ----------
+  // 장르: 내 조행 기록 중 그 날짜 전후 15일(해마다, 연도 무관)에 가장 많이 간 장르. 없으면 30일로 넓히고, 그래도 없으면 지금 장르.
+  // 낚시터: 그 장르에서 추천 순위 1위 (내 출조 기준 판단 → 점수 순).
+  const TONE_RANK = { good: 0, info: 1, warn: 2, bad: 3 };
+  function genreForDate(date) {
+    const doy = (iso) => { const t = parseISO(iso); return Math.round((Date.UTC(2001, t.getMonth(), t.getDate()) - Date.UTC(2001, 0, 1)) / 864e5); };
+    const target = doy(date);
+    for (const win of [15, 30]) {
+      const cnt = {};
+      allTrips.forEach((x) => {
+        if (x.trip.other || !TYPES.includes(x.fishing)) return;
+        let diff = Math.abs(doy(x.trip.date) - target); diff = Math.min(diff, 365 - diff);
+        if (diff <= win) cnt[x.fishing] = (cnt[x.fishing] || 0) + 1;
+      });
+      const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+      if (best) return { genre: best[0], counts: cnt, win };
+    }
+    return null;
+  }
+  function rankedPlaces(genre) {
+    return PLACES.filter((x) => x.type === genre && hasPin(x) && state.scores?.[x.id])
+      .sort((a, b) => TONE_RANK[toneOf(state.scores[a.id])] - TONE_RANK[toneOf(state.scores[b.id])] || state.scores[b.id].score - state.scores[a.id].score || b.trips.length - a.trips.length);
+  }
+  function autoPlace() {
+    const g = genreForDate(state.date);
+    if (!g) { state.autoInfo = null; return null; }
+    const top = rankedPlaces(g.genre)[0];
+    state.autoInfo = { ...g, place: top?.id || null, date: state.date };
+    return top?.id || null;
+  }
+
   // Scores for every place that has weather for the chosen day; the chosen sea place also counts its waves.
   function computeScores() {
     state.scores = {};
@@ -2155,6 +2193,12 @@
       state.wxAt = new Date();
       renderWxBtn();
       computeScores();
+      if (state.autoPick) {
+        state.autoPick = false;
+        const pick = autoPlace();
+        if (pick && pick !== state.place) { selectPlace(pick, false, true); return; }
+        renderPlaceChips();
+      }
       renderBrief();
       renderCharts();
       updatePins();
@@ -2179,7 +2223,8 @@
     else { state.outlook = null; state.outlookAll = null; renderDays(); }
   }
 
-  function selectPlace(id, fly = true) {
+  function selectPlace(id, fly = true, auto = false) {
+    if (!auto) state.autoInfo = null;   // 손으로 고르면 자동 선택 설명을 지웁니다
     state.place = id;
     state.picking = false;
     store.set("place", id);
@@ -2194,6 +2239,7 @@
     $("#dToday")?.classList.toggle("on", date === TODAY);
     $("#dateInput").value = date;
     if (date !== TODAY) setHour(7);
+    state.autoPick = true;   // 날짜가 바뀌면 그 날짜의 장르·낚시터를 다시 고릅니다
     $$(".day").forEach((d) => d.classList.toggle("on", d.dataset.date === date));
     focusStripDay();
     loadAll();
