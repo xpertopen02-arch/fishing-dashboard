@@ -525,7 +525,7 @@
   // ---------- 내 출조 기준 (v2.3.23, 사용자 기준) ----------
   // 민물·송어: 비가 없고, 바람이 약하고, 조황 기대가 높은 날. 바다: 바람이 약하고, 파고가 높지 않고, 물살이 빠르지 않고, 조황 기대가 높은 날.
   // 셋 모두 번개가 치면 출조하지 않습니다. 값은 출조 시간대(일출 1시간 전 ~ 일몰 1시간 뒤)로 봅니다. 기준 숫자는 연구 탭 PREFERENCE에서 바꿉니다.
-  const GO_DEFAULT = { fresh: { rain: .5, prob: 60, wind: 4, gust: 9, bite: 65 }, sea: { wind: 6, gust: 11, wave: 1, mul: "spring", bite: 65 } };
+  const GO_DEFAULT = { fresh: { rain: .5, prob: 60, wind: 5, gust: 10, bite: 65 }, sea: { wind: 5, gust: 9, wave: 1, mul: "spring", bite: 65 } };   // v2.3.26 사용자가 정한 기본값
   const goPrefs = () => { const g = prefs().go || {}; return { fresh: { ...GO_DEFAULT.fresh, ...(g.fresh || {}) }, sea: { ...GO_DEFAULT.sea, ...(g.sea || {}) } }; };
   const MUL_FAST = { spring: [6, 9], strong: [4, 11], none: null };   // 물살이 빠르다고 보는 물때 (7물때식)
   function decide(r) {
