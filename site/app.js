@@ -180,13 +180,47 @@
     await Promise.all([...new Set(grids.map((g) => g.join(",")))].map(async (g) => { const [nx, ny] = g.split(",").map(Number); got[g] = await kmaItems(nx, ny); }));
     return rows.map((r, i) => mergeKma(r, got[grids[i].join(",")], date));
   }
-  const WX_NAMES = { kma: "기상청 단기예보 + ECMWF", ecmwf: "ECMWF (Open-Meteo)", best: "Open-Meteo 기본 혼합" };
-  const WX_SHORT = { kma: "기상청", ecmwf: "ECMWF", best: "Open-Meteo" };
+  // MET Norway(노르웨이 기상청) 예보: 인증키 없이 받고, 1시간 간격이 있는 앞쪽 약 2~3일만 씁니다. 나머지 시간은 ECMWF.
+  // 같은 좌표는 30분 동안 다시 받지 않습니다. (v2.3.20)
+  const metCache = {};
+  async function metIndex(lat, lon) {
+    const key = `${lat.toFixed(3)},${lon.toFixed(3)}`, c = metCache[key];
+    if (c && Date.now() - c.at < 30 * 60e3) return c.idx;
+    const r = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
+    if (!r.ok) throw new Error(`MET Norway 응답 오류 (${r.status})`);
+    const idx = {};
+    ((await r.json()).properties?.timeseries || []).forEach((t) => {
+      const one = t.data?.next_1_hours;
+      if (!one) return;   // 6시간 간격 구간은 쓰지 않습니다
+      const d = t.data.instant.details, k = new Date(Date.parse(t.time) + 9 * 3600e3).toISOString().slice(0, 13);   // 한국 시각 "YYYY-MM-DDTHH"
+      idx[k] = { temp: d.air_temperature, wind: d.wind_speed, gust: d.wind_speed_of_gust, dir: d.wind_from_direction, press: d.air_pressure_at_sea_level,
+        rain: one.details?.precipitation_amount, pop: one.details?.probability_of_precipitation };
+    });
+    metCache[key] = { at: Date.now(), idx };
+    return idx;
+  }
+  function mergeMet(row, idx, date) {
+    let n = 0;
+    const put = (arr, f) => (arr || Array(24).fill(null)).map((v, h) => { const m = idx[`${date}T${pad2(h)}`]; return m && m[f] != null ? m[f] : v; });
+    for (let h = 0; h < 24; h++) if (idx[`${date}T${pad2(h)}`]) n++;
+    if (!n) return { ...row, metHours: 0 };
+    return { ...row, temp: put(row.temp, "temp"), wind: put(row.wind, "wind"), gust: put(row.gust, "gust"), dir: put(row.dir, "dir"), pressure: put(row.pressure, "press"), precip: put(row.precip, "rain"), prob: put(row.prob, "pop"), metHours: n };
+  }
+  async function applyMet(located, rows, date) {
+    const out = rows.slice();
+    let next = 0;
+    const work = async () => { while (next < located.length) { const i = next++; out[i] = mergeMet(rows[i], await metIndex(located[i].lat, located[i].lon), date); } };
+    await Promise.all([work(), work(), work(), work()]);   // 한 번에 4곳씩
+    return out;
+  }
+  const WX_NAMES = { kma: "기상청 단기예보 + ECMWF", metno: "MET Norway + ECMWF", ecmwf: "ECMWF (Open-Meteo)", best: "Open-Meteo 기본 혼합" };
+  const WX_SHORT = { kma: "기상청", metno: "MET Norway", ecmwf: "ECMWF", best: "Open-Meteo" };
   function wxSrcNow() {   // 지금 화면 날씨의 실제 출처
     const W = state.weather;
     if (W && W.mode !== "forecast") return { short: "Open-Meteo", name: W.mode === "archive" ? "Open-Meteo 과거 재분석" : "Open-Meteo 과거 재분석 (최근 3년 평균)" };
     const s = W?.src || wxSource();
     if (s === "kma" && W && W.kma !== "ok") return { short: "ECMWF", name: `ECMWF (기상청: ${W.kma || "이 날짜는 단기예보 범위 밖"})` };
+    if (s === "metno" && W && W.met !== "ok") return { short: "ECMWF", name: `ECMWF (MET Norway: ${W.met || "이 날짜는 1시간 예보 범위 밖"})` };
     return { short: WX_SHORT[s], name: WX_NAMES[s] };
   }
   function normal(j) {
@@ -226,11 +260,14 @@
     weatherSavedAt = null;
     let rows;
     let years = null;
-    let kmaNote = "";
+    let kmaNote = "", metNote = "";
     if (mode === "forecast") {
       rows = await fetchRange("api.open-meteo.com", "forecast", located, date, ",precipitation_probability" + omModels());
       if (wxSource() === "kma" && date >= TODAY && date <= addDays(TODAY, 3)) {
         try { rows = await applyKma(located, rows, date); kmaNote = "ok"; } catch (e) { kmaNote = String(e.message || e); }
+      }
+      if (wxSource() === "metno" && date >= TODAY && date <= addDays(TODAY, 3)) {
+        try { rows = await applyMet(located, rows, date); const need = Math.min(12, date === TODAY ? 24 - new Date().getHours() : 24); metNote = rows.some((r) => r.metHours >= need) ? "ok" : "이 날짜는 1시간 예보 범위 밖"; } catch (e) { metNote = String(e.message || e); }
       }
     } else if (mode === "archive") {
       rows = await fetchRange("archive-api.open-meteo.com", "archive", located, date);
@@ -248,7 +285,7 @@
     }
     const out = {};
     located.forEach((p, i) => { out[p.id] = rows[i]; });
-    return { date, mode, years, savedAt: weatherSavedAt, data: out, src: wxSource(), kma: kmaNote };
+    return { date, mode, years, savedAt: weatherSavedAt, data: out, src: wxSource(), kma: kmaNote, met: metNote };
   }
   async function fetchMarine(place, date) {
     const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=wave_height,sea_level_height_msl,ocean_current_velocity,ocean_current_direction&timezone=${TZ}&start_date=${date}&end_date=${date}`;
@@ -586,7 +623,7 @@
     tip.className = "tooltip"; tip.hidden = true;
     el.append(tip);
 
-    const all = cfg.series.flatMap((s) => fin(s.values));
+    const all = [...cfg.series.flatMap((s) => fin(s.values)), ...(cfg.area ? fin(cfg.area.hi) : [])];
     let lo = cfg.zero ? 0 : Math.min(...all), hi = Math.max(...all);
     if (cfg.zero) hi = Math.max(hi, cfg.minTop || 1);
     if (hi - lo < (cfg.minSpan || 2)) { const c = (hi + lo) / 2; if (!cfg.zero) lo = c - (cfg.minSpan || 2) / 2; hi = cfg.zero ? hi : c + (cfg.minSpan || 2) / 2; }
@@ -617,6 +654,10 @@
       if (cfg.band) {
         const slot = (width - m.l - m.r) / n;
         parts.push(`<rect x="${m.l + slot * cfg.band[0]}" y="${m.t}" width="${slot * (cfg.band[1] - cfg.band[0] + 1)}" height="${H - m.t - m.b}" fill="var(--accent-soft)" opacity=".7"/>`);
+      }
+      if (cfg.area) {   // 범위 띠 (앙상블 10~90%)
+        const a = cfg.area, ix = a.lo.map((_, i) => i).filter((i) => a.lo[i] != null && a.hi[i] != null);
+        if (ix.length > 1) parts.push(`<path d="${ix.map((i, k) => `${k ? "L" : "M"}${X(i).toFixed(1)} ${Y(a.hi[i]).toFixed(1)}`).join("")}${ix.slice().reverse().map((i) => `L${X(i).toFixed(1)} ${Y(a.lo[i]).toFixed(1)}`).join("")}Z" fill="${a.color}" opacity=".16"/>`);
       }
       if (cfg.bars) {
         const s = cfg.series[0];
@@ -750,6 +791,55 @@
   const PM10_GRADE = (v) => (v == null ? "–" : v <= 30 ? "좋음" : v <= 80 ? "보통" : v <= 150 ? "나쁨" : "매우나쁨");
   const PM25_GRADE = (v) => (v == null ? "–" : v <= 15 ? "좋음" : v <= 35 ? "보통" : v <= 75 ? "나쁨" : "매우나쁨");
   const VIS_BANDS = [[1, "#ff4f4f"], [5, "#ff9f3a"], [10, "#ffd23f"], [99, "var(--accent)"]];   // 안개, 박무, 보통, 맑음
+  // 모델별 바람 비교 (v2.3.20): 같은 낚시터·날짜의 풍속과 돌풍을 여러 기관 모델로 받아 겹쳐 봅니다 (Open-Meteo, 인증키 없음).
+  // ECMWF 앙상블(51개 예보)의 풍속 범위로 예보가 얼마나 갈리는지(신뢰도)를 셉니다. 예보 범위 안의 날짜만.
+  const MODEL_SET = [["ecmwf_ifs025", "ECMWF", "#4f9dff", "유럽 · 윈디 기본"], ["gfs_seamless", "GFS", "#ff6b6b", "미국 · 윈드파인더"], ["icon_seamless", "ICON", "#b07cff", "독일"],
+    ["jma_seamless", "JMA", "#35c46a", "일본, 돌풍 없음"], ["ukmo_seamless", "UKMO", "#ff9f3a", "영국"], ["gem_seamless", "GEM", "#8fa3b8", "캐나다"]];
+  const modelCache = {};
+  function modelsFor(p, date) {
+    if (!p || !hasPin(p) || weatherMode(date) !== "forecast") return null;
+    const key = `${p.id}|${p.lat},${p.lon}|${date}`;
+    if (key in modelCache) return modelCache[key];
+    modelCache[key] = null;
+    const q = `latitude=${p.lat}&longitude=${p.lon}&timezone=${TZ}&start_date=${date}&end_date=${date}&wind_speed_unit=ms`;
+    const get = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    Promise.all([
+      get(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_gusts_10m&models=${MODEL_SET.map((m) => m[0]).join(",")}`),
+      get(`https://ensemble-api.open-meteo.com/v1/ensemble?${q}&hourly=wind_speed_10m&models=ecmwf_ifs025`),
+    ]).then(([mj, ej]) => {
+      const pick = (j, k) => (j?.hourly?.[k] ? j.hourly[k].slice(0, 24) : null);
+      const series = MODEL_SET.map(([id, name, color, note]) => ({ id, name, color, note, wind: pick(mj, `wind_speed_10m_${id}`), gust: pick(mj, `wind_gusts_10m_${id}`) }))
+        .filter((m) => m.wind && fin(m.wind).length >= 12);
+      let ens = null;
+      const mk = ej?.hourly ? Object.keys(ej.hourly).filter((k) => k.startsWith("wind_speed_10m")) : [];
+      if (mk.length >= 10) {
+        const q10 = [], q90 = [];
+        for (let h = 0; h < 24; h++) {
+          const v = mk.map((k) => ej.hourly[k][h]).filter((x) => x != null).sort((a, b) => a - b);
+          q10.push(v.length ? v[Math.floor(v.length * .1)] : null); q90.push(v.length ? v[Math.min(v.length - 1, Math.floor(v.length * .9))] : null);
+        }
+        ens = { lo: q10, hi: q90, n: mk.length };
+      }
+      modelCache[key] = { series, ens, conf: confidenceOf(series, ens), done: true };
+      if (placeById[state.place] === p && state.date === date) { renderCharts(); const el = $("#bcConf"); if (el) el.innerHTML = confText(modelCache[key]); }
+    });
+    return null;
+  }
+  // 신뢰도: 하루 동안 모델끼리의 풍속 차이(가장 큰 값 - 가장 작은 값)와 앙상블 범위(10~90%)의 평균으로 정합니다.
+  function confidenceOf(series, ens) {
+    const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+    const spread = [], band = [];
+    for (let h = 0; h < 24; h++) {
+      const v = series.map((m) => m.wind[h]).filter((x) => x != null);
+      if (v.length >= 3) spread.push(Math.max(...v) - Math.min(...v));
+      if (ens && ens.lo[h] != null && ens.hi[h] != null) band.push(ens.hi[h] - ens.lo[h]);
+    }
+    const sp = avg(spread), bd = avg(band);
+    if (sp == null && bd == null) return null;
+    const score = Math.max(sp ?? 0, bd ?? 0);
+    return { level: score < 2 ? "높음" : score < 4 ? "보통" : "낮음", cls: score < 2 ? "hi" : score < 4 ? "mid" : "lo", spread: sp, band: bd, models: series.length };
+  }
+  const confText = (mc) => (mc?.conf ? ` · 예보 신뢰도 <b class="conf ${mc.conf.cls}">${mc.conf.level}</b>${mc.conf.spread != null ? ` (모델 ${mc.conf.models}개 풍속 차이 평균 ${num(mc.conf.spread, 1)}m/s)` : ""}` : "");
   const VIS_GRADE = (v) => (v == null ? "–" : v < 1 ? "안개" : v < 5 ? "박무" : v < 10 ? "보통" : "맑음");
 
   function renderCharts() {
@@ -758,6 +848,7 @@
     host.innerHTML = "";
     const w = state.weather?.data[state.place];
     if (!w) return;
+    const mc = modelsFor(placeById[state.place], state.date);
     const accent = "var(--accent)";
     const sun = { sunrise: w.sunrise, sunset: w.sunset };
     let i = 0;
@@ -826,8 +917,30 @@
         el.insertAdjacentHTML("beforeend", `<p class="state-msg">이 날짜와 위치의 해상 모델 값이 없습니다. 보통 앞으로 7일 정도까지만 제공됩니다.</p>`);
       }
     }
+    // 모델별 바람 비교 (세부 그래프 아래 한 줄 전체). 풍속·돌풍은 위 버튼으로 바꿉니다.
+    if (weatherMode(state.date) === "forecast") {
+      const gust = state.modelView === "gust";
+      const tabs = `<span class="mtabs"><button type="button" data-mview="wind" class="${gust ? "" : "on"}">풍속</button><button type="button" data-mview="gust" class="${gust ? "on" : ""}">돌풍</button></span>`;
+      if (!mc?.done) {
+        const el = chartShell(host, "모델별 바람 비교", i++, "", "wide");
+        $(".chart-now", el).remove();
+        el.insertAdjacentHTML("beforeend", `<p class="state-msg">여러 기관의 예보 모델을 받는 중입니다…</p>`);
+      } else if (mc.series.length) {
+        const ser = mc.series.filter((m) => (gust ? m.gust && fin(m.gust).length : true));
+        const legend = `<div class="legend mlegend">${tabs}${ser.map((m) => `<span title="${esc(m.note)}"><i style="background:${m.color}"></i>${esc(m.name)}</span>`).join("")}${!gust && mc.ens ? `<span title="ECMWF 앙상블 ${mc.ens.n}개 예보의 10~90% 범위"><i class="band"></i>앙상블 범위</span>` : ""}</div>`;
+        const head = `모델별 ${gust ? "돌풍" : "풍속"} m/s${mc.conf ? ` · 신뢰도 <b class="conf ${mc.conf.cls}">${mc.conf.level}</b>` : ""}`;
+        charts.push(makeChart(chartShell(host, head, i++, legend, "wide"), {
+          ...sun, title: "모델별 바람", unit: "m/s", digits: 1, zero: true, minTop: 5,
+          series: ser.map((m) => ({ label: m.name, color: m.color, values: gust ? m.gust : m.wind, noExt: true })),
+          area: !gust && mc.ens ? { lo: mc.ens.lo, hi: mc.ens.hi, color: "#4f9dff" } : null,
+          note: () => `${ser[0]?.name || ""}${gust ? " 돌풍" : ""}`,
+        }));
+        host.lastElementChild.insertAdjacentHTML("beforeend", `<p class="mnote">ECMWF·GFS·ICON·JMA·UKMO·GEM 예보를 Open-Meteo에서 받아 겹쳤습니다. 선이 서로 가까울수록 예보가 믿을 만합니다.${gust ? " 일본 JMA는 돌풍 예보가 없습니다." : mc.ens ? " 파란 띠는 ECMWF 앙상블 51개 예보 중 가운데 80% 범위입니다." : ""}</p>`);
+      }
+    }
   }
 
+  $("#charts").addEventListener("click", (e) => { const b = e.target.closest("[data-mview]"); if (!b) return; state.modelView = b.dataset.mview; renderCharts(); });
   /* ---------- hour ---------- */
   function setHour(h, fromChart) {
     if (h === state.hour && fromChart) return;
@@ -1244,7 +1357,7 @@
       <p class="mid-sub" id="midSub">16일 전망을 불러오는 중입니다.</p>
       <div class="bigchart" id="bigChart"><div class="bc-read mono" id="bcRead"></div></div>
       <p class="bc-legend mono">${legendFor(p, w)}</p>
-      <p class="bc-src">날씨 출처: ${esc(wxSrcNow().name)} · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? ` · 조위·파고·유속은 Open-Meteo 해상 모델 값 · 물때는 음력 ${mulTae(state.date).lunar}일 기준 서해 7물때식` : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`;
+      <p class="bc-src">날씨 출처: ${esc(wxSrcNow().name)}<span id="bcConf">${confText(modelsFor(p, state.date))}</span> · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? ` · 조위·파고·유속은 Open-Meteo 해상 모델 값 · 물때는 음력 ${mulTae(state.date).lunar}일 기준 서해 7물때식` : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`;
     bigChart = drawBigChart($("#bigChart"), r, w);
     renderMidSub();
 
@@ -2222,6 +2335,7 @@
     const SRC = [
       ["kma", "기상청 단기예보", "국내 낚시 앱이 가장 많이 쓰는 기상청 동네예보(5km 격자). 오늘부터 3일의 기온·바람·강수확률·강수량을 기상청 값으로 쓰고, 기압·돌풍·날씨 그림과 그 밖의 날짜는 ECMWF로 채웁니다. 공공데이터포털 인증키가 필요합니다."],
       ["ecmwf", "ECMWF", "유럽중기예보센터 모델. Windy 같은 낚시·바다 앱이 기본으로 많이 씁니다. 인증키 없이 앞으로 15일까지."],
+      ["metno", "MET Norway", "노르웨이 기상청 예보(ECMWF 기반에 자체 보정). 인증키 없이 앞으로 약 2~3일은 1시간 간격 값을 쓰고, 나머지는 ECMWF로 채웁니다."],
       ["best", "Open-Meteo 기본 혼합", "Open-Meteo가 지역마다 골라 섞은 여러 모델 (이전 방식)."],
     ];
     const status = kmaStatusText || (key ? "인증키가 저장되어 있습니다." : "인증키가 없습니다. 기상청을 고르면 인증키를 넣기 전까지 ECMWF를 씁니다.");
@@ -2292,6 +2406,20 @@
           if (it.category === "TMP") { h.temperature_2m[i] = +v; kmaN++; } else if (it.category === "WSD") h.wind_speed_10m[i] = +v; else if (it.category === "VEC") h.wind_direction_10m[i] = +v; else if (it.category === "PCP") h.precipitation[i] = kmaRain(v);
         });
       } catch (e) { /* 기상청이 안 되면 ECMWF 값 그대로 */ }
+    }
+    if (wxSource() === "metno") {
+      try {
+        const idx = await metIndex(p.lat, p.lon);
+        h.time.forEach((t, i) => {
+          const m = idx[t.slice(0, 13)];
+          if (!m) return;
+          if (m.temp != null) h.temperature_2m[i] = m.temp;
+          if (m.wind != null) h.wind_speed_10m[i] = m.wind;
+          if (m.gust != null) h.wind_gusts_10m[i] = m.gust;
+          if (m.dir != null) h.wind_direction_10m[i] = m.dir;
+          if (m.rain != null) h.precipitation[i] = m.rain;
+        });
+      } catch (e) { /* MET이 안 되면 ECMWF 값 그대로 */ }
     }
     if (token !== wxTableToken || !$("#wxTable")) return;
     const cols = [];
