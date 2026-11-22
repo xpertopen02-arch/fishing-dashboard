@@ -1,6 +1,14 @@
 // Newest first. Add an entry here with every change; the header shows the first one.
 window.FISH_VERSIONS = [
   {
+    version: "2.3.27", date: "2026-11-22", title: "지도 종류에 Mapbox 추가",
+    changes: [
+      "연구 탭 PREFERENCE에 '지도' 상자: 기본 지도(위성 Esri, 일반 OpenStreetMap)와 Mapbox 중 고름. Mapbox 일반 지도 모양(아웃도어·일반 도로·밝게·어둡게)도 고름. 위성 보기는 Mapbox 위성+도로",
+      "Mapbox는 무료 계정의 공개 토큰(pk.)이 필요. 토큰은 이 브라우저에만 저장되고 사이트 파일에는 들어가지 않음. 비밀 토큰(sk.)은 받지 않음. 토큰이 없으면 Mapbox를 골라도 기본 지도",
+      "토큰이 있으면 지도 탭 오른쪽 위에 '기본 지도 / Mapbox' 선택이 나와 바로 바꿀 수 있음. 지도 아래 출처에 Mapbox·OpenStreetMap 표시",
+    ],
+  },
+  {
     version: "2.3.26", date: "2026-11-22", title: "내 출조 기준 기본값 바꿈",
     changes: [
       "내 출조 기준의 기본값을 사용자가 정한 값으로 바꿈. 민물·송어: 비 시간당 0.5mm 미만, 강수확률 60% 미만, 바람 평균 5m/s 이하, 돌풍 10m/s 이하, 조황 기대 65점 이상. 바다: 바람 평균 5m/s 이하, 돌풍 9m/s 이하, 파고 1m 이하, 사리 무렵(6~9물) 제외, 조황 기대 65점 이상",

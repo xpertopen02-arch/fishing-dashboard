@@ -1174,12 +1174,28 @@
   const ARROW = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.5L10 11L6 8.6L2 11Z" fill="currentColor"/></svg>';
   const isDark = () => getComputedStyle(document.documentElement).colorScheme.includes("dark");
 
+  // v2.3.27 지도 종류: 기본(Esri 위성·OpenStreetMap) 또는 Mapbox. Mapbox는 무료 계정의 공개 토큰(pk.)이 필요하고,
+  // 토큰은 이 브라우저에만 저장합니다. 위성 보기/일반 지도 버튼은 고른 종류 안에서 바꿉니다.
+  const MAPBOX_STYLES = [["outdoors-v12", "아웃도어 (지형·물길)"], ["streets-v12", "일반 도로"], ["light-v11", "밝게"], ["dark-v11", "어둡게"]];
+  const mapboxToken = () => { try { return (localStorage.getItem("mapboxToken") || "").trim(); } catch (e) { return ""; } };
+  const mapPrefs = () => { const m = prefs().map || {}; return { provider: m.provider === "mapbox" ? "mapbox" : "base", style: MAPBOX_STYLES.some((x) => x[0] === m.style) ? m.style : "outdoors-v12" }; };
+  const mapProvider = () => (mapPrefs().provider === "mapbox" && mapboxToken() ? "mapbox" : "base");
+  function mapboxLayer(style, weather) {
+    return L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/${style}/tiles/512/{z}/{x}/{y}@2x?access_token=${encodeURIComponent(mapboxToken())}`, {
+      tileSize: 512, zoomOffset: -1, maxZoom: 20,
+      attribution: `&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> <a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a>${weather}`,
+    });
+  }
   function setTiles() {
     if (!map) return;
     tiles.forEach((layer) => layer.remove());
     const weather = ` · 날씨 <a href="https://open-meteo.com/" target="_blank" rel="noopener">${esc(wxSrcNow().name)}</a>`;
+    const prov = $("#mapProv");
+    if (prov) { prov.closest(".map-prov").hidden = !mapboxToken(); prov.value = mapProvider(); }
     const esri = (service, attribution = "") => L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 18, attribution });
-    if (state.satellite) {
+    if (mapProvider() === "mapbox") {
+      tiles = [mapboxLayer(state.satellite ? "satellite-streets-v12" : mapPrefs().style, weather)];
+    } else if (state.satellite) {
       tiles = [esri("World_Imagery", `Imagery &copy; Esri${weather}`), esri("Reference/World_Boundaries_and_Places")];
     } else if (location.protocol === "file:") {
       // OpenStreetMap refuses requests without a Referer, which is what a page opened from file:// sends.
@@ -2598,6 +2614,17 @@
           <p class="pref-status">${esc(status)}</p>
           <p class="pref-note">3달이 넘은 과거 날짜와 16일 뒤 날짜는 출처와 관계없이 Open-Meteo 과거 재분석 자료(최근 3년 평균)를 씁니다. 인증키는 이 브라우저에만 저장되고 공개 파일에는 들어가지 않습니다.</p>
         </section>
+        <section class="pref-box"><h3>지도</h3>
+          ${(() => {
+            const M = mapPrefs(), tok = mapboxToken();
+            return `<label class="pref-radio"><input type="radio" name="mapprov" value="base" data-pref-map="provider" ${M.provider === "base" ? "checked" : ""}><span><b>기본 지도</b><small>위성은 Esri, 일반 지도는 OpenStreetMap. 인증 없이 씁니다.</small></span></label>
+              <label class="pref-radio"><input type="radio" name="mapprov" value="mapbox" data-pref-map="provider" ${M.provider === "mapbox" ? "checked" : ""}><span><b>Mapbox${tok ? "" : " <em>(토큰 필요)</em>"}</b><small>위성은 Mapbox 위성+도로, 일반 지도는 아래에서 고른 모양. 무료 계정의 공개 토큰(pk.로 시작)이 필요하고, 월 무료 한도 안에서 씁니다.</small></span></label>
+              <label class="pref-field">Mapbox 일반 지도 모양<select data-pref-map="style">${MAPBOX_STYLES.map(([v, t]) => `<option value="${v}" ${M.style === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+              <label class="pref-field">Mapbox 공개 토큰 <small>(account.mapbox.com의 Tokens에서 복사)</small><input type="password" id="mapboxIn" value="${esc(tok)}" placeholder="pk.로 시작하는 토큰" autocomplete="off"></label>
+              <div class="pref-row"><button class="chip" data-pref-action="mapboxSave">저장</button><button class="chip" data-pref-action="mapboxClear">토큰 지우기</button><a class="chip" href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener">토큰 받는 곳</a></div>
+              <p class="pref-note">${tok ? "토큰이 저장되어 있습니다. 지도 탭 오른쪽 위에서도 기본 지도와 Mapbox를 바로 바꿀 수 있습니다." : "토큰이 없으면 Mapbox를 골라도 기본 지도를 씁니다."} 토큰은 이 브라우저에만 저장되고 공개 사이트 파일에는 들어가지 않습니다. Mapbox 계정의 토큰 설정에서 이 사이트 주소만 쓰도록 제한해 두면 안전합니다.</p>`;
+          })()}
+        </section>
         <section class="pref-box"><h3>내 출조 기준 <small>(출조 시간대: 일출 1시간 전 ~ 일몰 1시간 뒤)</small></h3>
           ${(() => {
             const G = goPrefs(), nb = (g, k, label, stepv, unit) => `<label class="pref-field">${label}<span class="go-in"><input type="number" inputmode="decimal" step="${stepv}" min="0" data-pref-go="${g}.${k}" value="${G[g][k]}"> ${unit}</span></label>`;
@@ -2738,6 +2765,11 @@
       kmaStatusText = t.value === "kma" && !kmaKey() ? "인증키를 넣기 전까지 ECMWF를 씁니다." : "";
       toast(`날씨 출처: ${WX_NAMES[wxSource()]}. 날씨를 다시 받습니다.`);
       refreshWeather(); renderPrefs();
+    } else if (t.dataset.prefMap) {
+      const k = t.dataset.prefMap;
+      setPrefs((o) => { o.map = { ...(o.map || {}), [k]: t.value }; });
+      setTiles();
+      toast(k === "provider" ? (t.value === "mapbox" && !mapboxToken() ? "Mapbox 토큰을 넣으면 Mapbox 지도로 바뀝니다." : "지도 종류를 바꿨습니다.") : "Mapbox 지도 모양을 바꿨습니다.");
     } else if (t.dataset.prefGo) {
       const [g, k] = t.dataset.prefGo.split("."), v = t.type === "number" ? Math.max(0, +t.value || 0) : t.value;
       setPrefs((o) => { o.go = o.go || {}; o.go[g] = { ...(o.go[g] || {}), [k]: v }; });
@@ -2761,6 +2793,14 @@
     const b = e.target.closest("[data-pref-action]");
     if (!b) return;
     const act = b.dataset.prefAction;
+    if (act === "mapboxSave") {
+      const v = ($("#mapboxIn")?.value || "").trim();
+      if (v && !/^pk\./.test(v)) { toast("공개 토큰은 pk.로 시작합니다. 비밀 토큰(sk.)은 넣지 마세요."); return; }
+      try { if (v) localStorage.setItem("mapboxToken", v); else localStorage.removeItem("mapboxToken"); } catch (er) { /* 무시 */ }
+      if (v) setPrefs((o) => { o.map = { ...(o.map || {}), provider: "mapbox" }; });
+      setTiles(); renderPrefs(); toast(v ? "Mapbox 토큰을 저장했습니다. 지도 탭에서 확인하세요." : "토큰을 지웠습니다."); return;
+    }
+    if (act === "mapboxClear") { try { localStorage.removeItem("mapboxToken"); } catch (er) { /* 무시 */ } setTiles(); renderPrefs(); toast("Mapbox 토큰을 지웠습니다. 기본 지도를 씁니다."); return; }
     if (act === "goReset") { setPrefs((o) => { delete o.go; }); toast("내 출조 기준을 처음 값으로 돌렸습니다."); renderPrefs(); renderBrief(); updatePins(); renderDays(); return; }
     if (act === "pref3dReset") { setPrefs((o) => { delete o.model3d; }); toast("3D 기본값을 처음으로 돌렸습니다."); renderPrefs(); return; }
     if (act === "kmaClear") { try { localStorage.removeItem("kmaKey"); } catch (er) { /* 무시 */ } kmaStatusText = "인증키를 지웠습니다."; refreshWeather(); renderPrefs(); return; }
@@ -3183,6 +3223,7 @@
   $("#playBtn").addEventListener("click", togglePlay);
   $("#mapAll").addEventListener("click", fitAll);
   $("#mapSat").addEventListener("click", toggleSatellite);
+  $("#mapProv").addEventListener("change", (e) => { setPrefs((o) => { o.map = { ...(o.map || {}), provider: e.target.value }; }); setTiles(); });
   $("#toTop").addEventListener("click", () => window.scrollTo({ top: 0, behavior: REDUCED ? "auto" : "smooth" }));
   addEventListener("scroll", () => $("#toTop").classList.toggle("show", window.scrollY > 400), { passive: true });
   $("#searchOpen").addEventListener("click", openSearch);

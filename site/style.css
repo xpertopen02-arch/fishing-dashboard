@@ -1490,3 +1490,7 @@ html.rot-frame .leaflet-container { touch-action: none; }
 .go-box:empty { display: none; }
 .go-box { margin: 4px 0 10px; }
 .go-box .go-checks { margin-top: 0; }
+
+/* v2.3.27 지도 종류 선택 (Mapbox 토큰이 있을 때) */
+.map-prov select { font: inherit; font-size: 12.5px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); min-height: 32px; }
+.map-prov .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
