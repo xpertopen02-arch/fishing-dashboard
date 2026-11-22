@@ -1472,3 +1472,4 @@ html.rot-frame .leaflet-container { touch-action: none; }
 .mtabs button.on { background:var(--accent); color:#fff; }
 .mnote { font-size:11.5px; color:var(--muted); margin:4px 2px 0; }
 .conf.hi { color:#35c46a; } .conf.mid { color:#ff9f3a; } .conf.lo { color:#ff4f4f; }
+.pref-loc + .pref-loc { margin-left: 14px; }   /* v2.3.22 간격·위치 나란히 */

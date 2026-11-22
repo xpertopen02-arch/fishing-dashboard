@@ -759,6 +759,76 @@
     return { update, destroy: () => ro.disconnect() };
   }
 
+  // 여러 날(1주·2주) 시간별 그래프: 날짜 눈금, 고른 날짜 강조, 지금 선, 앙상블 띠, 손가락·마우스로 값 읽기 (v2.3.22)
+  function makeRangeChart(el, cfg) {
+    const H = 210, m = { l: 34, r: 12, t: 16, b: 22 }, n = cfg.times.length;
+    let width = 0;
+    const holder = document.createElement("div"), tip = document.createElement("div"), nowEl = $(".chart-now", el);
+    tip.className = "tooltip"; tip.hidden = true;
+    el.append(holder, tip);
+    const all = [...cfg.series.flatMap((s) => fin(s.values)), ...(cfg.area ? fin(cfg.area.hi) : [])];
+    let lo = cfg.zero ? 0 : Math.min(...all), hi = Math.max(...all);
+    if (cfg.zero) hi = Math.max(hi, cfg.minTop || 1);
+    if (hi - lo < (cfg.minSpan || 2)) { const c = (hi + lo) / 2; if (!cfg.zero) lo = c - (cfg.minSpan || 2) / 2; hi = cfg.zero ? hi : c + (cfg.minSpan || 2) / 2; }
+    const ext = (hi - lo) * .1; if (!cfg.zero) lo -= ext; hi += ext;
+    const X = (i) => m.l + (width - m.l - m.r) * i / Math.max(1, n - 1), Y = (v) => m.t + (H - m.t - m.b) * (1 - (v - lo) / (hi - lo));
+    const WD = ["일", "월", "화", "수", "목", "금", "토"];
+    const nowIdx = (() => { const t = new Date(); const k = `${TODAY}T${pad2(t.getHours())}:00`; return cfg.times.indexOf(k); })();
+    function draw() {
+      width = el.clientWidth - 28;
+      if (width < 120 || !n) return;
+      const P = [];
+      const days = [];
+      cfg.times.forEach((t, i) => { if (t.endsWith("T00:00")) days.push([i, t.slice(0, 10)]); });
+      days.forEach(([i, d]) => {
+        if (d === cfg.markDate) P.push(`<rect x="${X(i)}" y="${m.t}" width="${Math.max(0, X(Math.min(n - 1, i + 23)) - X(i))}" height="${H - m.t - m.b}" fill="var(--accent-soft)" opacity=".7"/>`);
+        P.push(`<line x1="${X(i)}" x2="${X(i)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--grid)"/>`);
+      });
+      for (let k = 0; k <= 2; k++) {
+        const v = lo + (hi - lo) * (k / 2), y = Y(v);
+        P.push(`<line x1="${m.l}" x2="${width - m.r}" y1="${y}" y2="${y}" stroke="${k === 0 ? "var(--axis)" : "var(--grid)"}"/><text x="${m.l - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(v * 10) / 10}</text>`);
+      }
+      const every = days.length > 8 ? 2 : 1;
+      days.forEach(([i, d], k) => {
+        if (k % every) return;
+        const dt = parseISO(d);
+        if (i + 12 < n) P.push(`<text x="${X(i + 12)}" y="${H - m.b + 15}" text-anchor="middle" font-size="11" fill="var(--muted)">${+d.slice(5, 7)}/${+d.slice(8)}(${WD[dt.getDay()]})</text>`);
+      });
+      if (cfg.area) {
+        const a = cfg.area, ix = a.lo.map((_, i) => i).filter((i) => a.lo[i] != null && a.hi[i] != null);
+        if (ix.length > 1) P.push(`<path d="${ix.map((i, k) => `${k ? "L" : "M"}${X(i).toFixed(1)} ${Y(a.hi[i]).toFixed(1)}`).join("")}${ix.slice().reverse().map((i) => `L${X(i).toFixed(1)} ${Y(a.lo[i]).toFixed(1)}`).join("")}Z" fill="${a.color}" opacity=".16"/>`);
+      }
+      cfg.series.forEach((s) => {
+        let d = "", pen = false;
+        s.values.forEach((v, i) => { if (v == null) { pen = false; return; } d += `${pen ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`; pen = true; });
+        P.push(`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.6" stroke-linejoin="round"/>`);
+      });
+      if (nowIdx >= 0) P.push(`<line x1="${X(nowIdx)}" x2="${X(nowIdx)}" y1="${m.t}" y2="${H - m.b}" stroke="#ffd23f" stroke-dasharray="3 3"/><text x="${X(nowIdx) + 3}" y="${m.t + 10}" font-size="10.5" fill="#ffd23f">지금</text>`);
+      P.push(`<g class="cross" visibility="hidden"><line y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)"/></g><rect class="hit" x="0" y="0" width="${width}" height="${H}" fill="transparent"/>`);
+      holder.innerHTML = `<svg viewBox="0 0 ${width} ${H}" height="${H}" role="img" aria-label="${esc(cfg.title)} 여러 날 그래프">${P.join("")}</svg>`;
+      const hit = $(".hit", holder), cross = $(".cross", holder);
+      const show = (e) => {
+        const box = hit.ownerSVGElement.getBoundingClientRect(), x = (e.clientX - box.left) / box.width * width;
+        const i = Math.max(0, Math.min(n - 1, Math.round((x - m.l) / (width - m.l - m.r) * (n - 1))));
+        cross.setAttribute("visibility", "visible"); $("line", cross).setAttribute("x1", X(i)); $("line", cross).setAttribute("x2", X(i));
+        const t = cfg.times[i];
+        tip.hidden = false;
+        tip.innerHTML = `${+t.slice(5, 7)}/${+t.slice(8, 10)} ${t.slice(11, 16)}<br>` + cfg.series.map((s) => `${esc(s.label)} ${s.values[i] == null ? "–" : num(s.values[i], cfg.digits)}${cfg.unit}`).join("<br>");
+        tip.style.left = `${Math.max(60, Math.min(el.clientWidth - 60, X(i) + 14))}px`; tip.style.top = `${44 + m.t}px`;
+        const v = cfg.series[0].values[i];
+        nowEl.innerHTML = `${v == null ? "–" : num(v, cfg.digits)}<small>${cfg.unit} · ${esc(cfg.series[0].label)} ${+t.slice(5, 7)}/${+t.slice(8, 10)} ${t.slice(11, 13)}시</small>`;
+      };
+      hit.addEventListener("pointermove", show);
+      hit.addEventListener("pointerleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+      const v0 = nowIdx >= 0 ? cfg.series[0].values[nowIdx] : null;
+      nowEl.innerHTML = `${v0 == null ? "–" : num(v0, cfg.digits)}<small>${cfg.unit} · ${esc(cfg.series[0].label)} 지금</small>`;
+    }
+    draw();
+    const ro = new ResizeObserver(() => { if (Math.abs(el.clientWidth - 28 - width) > 2) draw(); });
+    ro.observe(el);
+    return { update: () => {}, destroy: () => ro.disconnect() };
+  }
+
   function chartShell(host, title, i, legend = "", cls = "") {
     const el = document.createElement("div");
     el.className = `chart ${cls}`;
@@ -797,10 +867,45 @@
     ["jma_seamless", "JMA", "#35c46a", "일본, 돌풍 없음"], ["ukmo_seamless", "UKMO", "#ff9f3a", "영국"], ["gem_seamless", "GEM", "#8fa3b8", "캐나다"]];
   // 비교할 항목과 모델은 연구 탭 PREFERENCE에서 고릅니다 (v2.3.21). 기본은 모두.
   const CMP_ITEMS = [["wind", "풍속", "m/s"], ["gust", "돌풍", "m/s"], ["temp", "기온", "°C"], ["rain", "강수량", "mm"]];
+  const CMP_RANGES = [["1", "1일"], ["7", "1주"], ["14", "2주"]];   // v2.3.22: 기간 (1일은 고른 날짜, 1주·2주는 오늘부터)
   const cmpPrefs = () => {
     const c = prefs().compare || {};
-    return { items: Array.isArray(c.items) ? c.items : CMP_ITEMS.map((x) => x[0]), models: Array.isArray(c.models) ? c.models : MODEL_SET.map((m) => m[0]) };
+    return { items: Array.isArray(c.items) ? c.items : CMP_ITEMS.map((x) => x[0]), models: Array.isArray(c.models) ? c.models : MODEL_SET.map((m) => m[0]),
+      range: CMP_RANGES.some((r) => r[0] === c.range) ? c.range : "1" };
   };
+  // 앙상블 범위(10~90%): 키 이름이 prefix로 시작하는 구성원들
+  function ensBand(ej, prefix, len) {
+    const mk = ej?.hourly ? Object.keys(ej.hourly).filter((k) => k.startsWith(prefix)) : [];
+    if (mk.length < 10) return null;
+    const q10 = [], q90 = [];
+    for (let h = 0; h < len; h++) {
+      const v = mk.map((k) => ej.hourly[k][h]).filter((x) => x != null).sort((a, b) => a - b);
+      q10.push(v.length ? v[Math.floor(v.length * .1)] : null); q90.push(v.length ? v[Math.min(v.length - 1, Math.floor(v.length * .9))] : null);
+    }
+    return { lo: q10, hi: q90, n: mk.length };
+  }
+  // 1주·2주: 오늘부터 여러 날을 한 번에 받아 둡니다 (낚시터·기간마다 30분).
+  const rangeCache = {};
+  function rangeModelsFor(p, days) {
+    if (!p || !hasPin(p)) return null;
+    const key = `${p.id}|${p.lat},${p.lon}|${days}|${TODAY}`, c = rangeCache[key];
+    if (c && (c.loading || Date.now() - c.at < 30 * 60e3)) return c.loading ? null : c;
+    rangeCache[key] = { loading: true };
+    const q = `latitude=${p.lat}&longitude=${p.lon}&timezone=${TZ}&forecast_days=${days}&wind_speed_unit=ms`;
+    const get = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    Promise.all([
+      get(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_gusts_10m,temperature_2m,precipitation&models=${MODEL_SET.map((m) => m[0]).join(",")}`),
+      get(`https://ensemble-api.open-meteo.com/v1/ensemble?${q}&hourly=wind_speed_10m,temperature_2m&models=ecmwf_ifs025`),
+    ]).then(([mj, ej]) => {
+      const times = mj?.hourly?.time || [], len = times.length;
+      const pick = (k) => (mj?.hourly?.[k] ? mj.hourly[k].slice(0, len) : null);
+      const series = MODEL_SET.map(([id, name, color, note]) => ({ id, name, color, note, wind: pick(`wind_speed_10m_${id}`), gust: pick(`wind_gusts_10m_${id}`),
+        temp: pick(`temperature_2m_${id}`), rain: pick(`precipitation_${id}`) })).filter((m) => m.wind && fin(m.wind).length >= 12);
+      rangeCache[key] = { at: Date.now(), done: true, times, series, ens: ensBand(ej, "wind_speed_10m", len), ensT: ensBand(ej, "temperature_2m", len) };
+      if (placeById[state.place] === p) renderCharts();
+    });
+    return null;
+  }
   const modelCache = {};
   function modelsFor(p, date) {
     if (!p || !hasPin(p) || weatherMode(date) !== "forecast") return null;
@@ -928,7 +1033,37 @@
     }
     // 모델별 비교 (세부 그래프 아래 한 줄 전체): PREFERENCE에서 고른 항목(풍속·돌풍·기온·강수량)과 모델만. 항목은 위 버튼으로 바꿉니다.
     const cp = cmpPrefs(), items = CMP_ITEMS.filter((x) => cp.items.includes(x[0]));
-    if (weatherMode(state.date) === "forecast" && items.length && cp.models.length) {
+    const range = CMP_RANGES.some((r) => r[0] === state.modelRange) ? state.modelRange : cp.range;
+    const rtabs = `<span class="mtabs">${CMP_RANGES.map(([k, t]) => `<button type="button" data-mrange="${k}" class="${k === range ? "on" : ""}">${t}</button>`).join("")}</span>`;
+    if (range !== "1" && items.length && cp.models.length) {
+      const view = items.some((x) => x[0] === state.modelView) ? state.modelView : items[0][0], [, vName, vUnit] = items.find((x) => x[0] === view);
+      const tabs = items.length > 1 ? `<span class="mtabs">${items.map(([k, t]) => `<button type="button" data-mview="${k}" class="${k === view ? "on" : ""}">${t}</button>`).join("")}</span>` : "";
+      const rc = rangeModelsFor(placeById[state.place], +range);
+      if (!rc) {
+        const el = chartShell(host, `모델별 예보 비교 · ${range === "7" ? "1주" : "2주"}`, i++, `<div class="legend mlegend">${rtabs}</div>`, "wide");
+        $(".chart-now", el).remove();
+        el.insertAdjacentHTML("beforeend", '<p class="state-msg">여러 기관의 예보 모델을 받는 중입니다…</p>');
+      } else {
+        const ser = rc.series.filter((m) => cp.models.includes(m.id) && m[view] && fin(m[view]).length);
+        const ens = view === "wind" ? rc.ens : view === "temp" ? rc.ensT : null;
+        const legend = `<div class="legend mlegend">${rtabs}${tabs}${ser.map((m) => `<span title="${esc(m.note)}"><i style="background:${m.color}"></i>${esc(m.name)}</span>`).join("")}${ens ? '<span><i class="band"></i>앙상블 범위</span>' : ""}</div>`;
+        const head = `모델별 ${vName} ${vUnit} · ${range === "7" ? "1주" : "2주"}`;
+        if (!ser.length) {
+          const el = chartShell(host, head, i++, legend, "wide");
+          $(".chart-now", el).remove();
+          el.insertAdjacentHTML("beforeend", '<p class="state-msg">고른 모델에 이 항목의 예보가 없습니다.</p>');
+        } else {
+          charts.push(makeRangeChart(chartShell(host, head, i++, legend, "wide"), {
+            title: `모델별 ${vName}`, unit: vUnit, digits: 1, times: rc.times, markDate: state.date,
+            ...(view === "temp" ? { minSpan: 4 } : view === "rain" ? { zero: true, minTop: 1 } : { zero: true, minTop: 5 }),
+            series: ser.map((m) => ({ label: m.name, color: m.color, values: m[view] })),
+            area: ens ? { lo: ens.lo, hi: ens.hi, color: "#4f9dff" } : null,
+          }));
+          host.lastElementChild.insertAdjacentHTML("beforeend", `<p class="mnote">오늘부터 ${range === "7" ? "7" : "14"}일. 고른 날짜는 밝게, 노란 점선은 지금입니다. 모델마다 예보 기간이 달라 끝이 짧은 선이 있습니다(UKMO·ICON 약 7일, GEM·JMA 약 10일, ECMWF·GFS 15~16일). 선이 갈라지기 시작하는 날부터는 예보를 덜 믿으세요.</p>`);
+        }
+      }
+    }
+    else if (weatherMode(state.date) === "forecast" && items.length && cp.models.length) {
       const view = items.some((x) => x[0] === state.modelView) ? state.modelView : items[0][0], [, vName, vUnit] = items.find((x) => x[0] === view);
       const tabs = items.length > 1 ? `<span class="mtabs">${items.map(([k, t]) => `<button type="button" data-mview="${k}" class="${k === view ? "on" : ""}">${t}</button>`).join("")}</span>` : "";
       if (!mc?.done) {
@@ -938,7 +1073,7 @@
       } else if (mc.series.length) {
         const ser = mc.series.filter((m) => cp.models.includes(m.id) && m[view] && fin(m[view]).length);
         const ens = view === "wind" ? mc.ens : view === "temp" ? mc.ensT : null;
-        const legend = `<div class="legend mlegend">${tabs}${ser.map((m) => `<span title="${esc(m.note)}"><i style="background:${m.color}"></i>${esc(m.name)}</span>`).join("")}${ens ? `<span title="ECMWF 앙상블 ${ens.n}개 예보의 10~90% 범위"><i class="band"></i>앙상블 범위</span>` : ""}</div>`;
+        const legend = `<div class="legend mlegend">${rtabs}${tabs}${ser.map((m) => `<span title="${esc(m.note)}"><i style="background:${m.color}"></i>${esc(m.name)}</span>`).join("")}${ens ? `<span title="ECMWF 앙상블 ${ens.n}개 예보의 10~90% 범위"><i class="band"></i>앙상블 범위</span>` : ""}</div>`;
         const head = `모델별 ${vName} ${vUnit}${mc.conf ? ` · 바람 신뢰도 <b class="conf ${mc.conf.cls}">${mc.conf.level}</b>` : ""}`;
         if (!ser.length) {
           const el = chartShell(host, head, i++, legend, "wide");
@@ -959,7 +1094,12 @@
     }
   }
 
-  $("#charts").addEventListener("click", (e) => { const b = e.target.closest("[data-mview]"); if (!b) return; state.modelView = b.dataset.mview; renderCharts(); });
+  $("#charts").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-mview], [data-mrange]");
+    if (!b) return;
+    if (b.dataset.mview) state.modelView = b.dataset.mview; else state.modelRange = b.dataset.mrange;
+    renderCharts();
+  });
   /* ---------- hour ---------- */
   function setHour(h, fromChart) {
     if (h === state.hour && fromChart) return;
@@ -2372,7 +2512,8 @@
           <div class="pref-checks">${CMP_ITEMS.map(([k, t, u]) => `<label class="pref-check"><input type="checkbox" data-pref-cmp="items" value="${k}" ${cmpPrefs().items.includes(k) ? "checked" : ""}> ${t} (${u})</label>`).join("")}</div>
           <p class="pref-note">비교할 모델</p>
           <div class="pref-checks">${MODEL_SET.map(([id, name, , note]) => `<label class="pref-check"><input type="checkbox" data-pref-cmp="models" value="${id}" ${cmpPrefs().models.includes(id) ? "checked" : ""}> ${name} <small>(${esc(note)})</small></label>`).join("")}</div>
-          <p class="pref-note">모두 끄면 비교 그래프를 숨깁니다. ECMWF 앙상블 범위(파란 띠)는 풍속과 기온에 나옵니다.</p>
+          <label class="pref-field">기본 기간 <select data-pref-cmprange="1">${CMP_RANGES.map(([k, t]) => `<option value="${k}" ${cmpPrefs().range === k ? "selected" : ""}>${t}${k === "1" ? " (고른 날짜)" : " (오늘부터)"}</option>`).join("")}</select></label>
+          <p class="pref-note">모두 끄면 비교 그래프를 숨깁니다. ECMWF 앙상블 범위(파란 띠)는 풍속과 기온에 나옵니다. 기간은 그래프 위 버튼으로도 바꿉니다.</p>
         </section>
         <section class="pref-box"><h3>3D 모델 기본값 <small>(덕봉·한터·장광)</small></h3>
           ${sel("mode", "화면 표시", [["bite", "반응 좋은 송어 밀도"], ["fish", "송어 예상 밀도"], ["depth", "수심"], ["temp", "수온 (윗층)"], ["tempb", "수온 (바닥 쪽)"], ["dotop", "용존산소 (윗층)"], ["do", "용존산소 (바닥 쪽)"], ["clean", "맑은 물 범위"]])}
@@ -2389,7 +2530,8 @@
           <div class="pref-row"><button class="chip" data-pref-action="pref3dReset">3D 기본값으로</button></div>
           <p class="pref-note">3D를 열 때마다 이 값으로 시작합니다. 3D 화면에서 바꾼 값은 그 화면을 닫기 전까지만 씁니다.</p>
         </section>
-        <section class="pref-box pref-wide"><h3>시간대별 날씨 <small>(${esc(WX_NAMES[wxSource()])} · 3시간 간격, 좌우로 밀어 보기)</small></h3>
+        <section class="pref-box pref-wide"><h3>시간대별 날씨 <small>(${esc(WX_NAMES[wxSource()])} · 좌우로 밀어 보기)</small></h3>
+          <label class="pref-loc">간격 <select id="wxStep"><option value="1" ${wxTableStep() === 1 ? "selected" : ""}>1시간</option><option value="3" ${wxTableStep() === 3 ? "selected" : ""}>3시간</option></select></label>
           <label class="pref-loc">위치 <select id="wxLoc"><option value="here" ${wxTableLoc === "here" ? "selected" : ""}>현재 위치</option>${PLACES.filter(hasPin).map((q) => `<option value="${esc(q.id)}" ${(wxTableLoc || state.place) === q.id ? "selected" : ""}>${esc(q.name)} (${esc(q.type)})</option>`).join("")}</select></label>
           <div class="wx-scroll" id="wxTable"><p class="pref-note">날씨를 받는 중입니다…</p></div>
         </section>
@@ -2397,19 +2539,26 @@
     loadWxTable();
   }
   // 시간대별 날씨 표: 고른 낚시터, 고른 출처로 앞으로 6일을 3시간 간격으로 보여 줍니다 (기상청이면 들어오는 시간은 기상청 값).
-  let wxTableToken = 0, wxTableLoc = "";   // "" = 대시보드에서 고른 낚시터, "here" = 현재 위치, 그 밖 = 낚시터 이름
-  document.addEventListener("change", (e) => { if (e.target.id === "wxLoc") { wxTableLoc = e.target.value; loadWxTable(); } });
+  // v2.3.22: 기본 위치는 현재 위치, 간격은 1시간(3시간도 고름, 이 브라우저에 저장)
+  let wxTableToken = 0, wxTableLoc = "here";   // "" = 대시보드에서 고른 낚시터, "here" = 현재 위치, 그 밖 = 낚시터 이름
+  const wxTableStep = () => (prefs().wxTable?.step === 3 ? 3 : 1);
+  document.addEventListener("change", (e) => {
+    if (e.target.id === "wxLoc") { wxTableLoc = e.target.value; loadWxTable(); }
+    if (e.target.id === "wxStep") { const v = +e.target.value; setPrefs((o) => { o.wxTable = { ...(o.wxTable || {}), step: v }; }); loadWxTable(); }
+  });
   async function loadWxTable() {
     const host = $("#wxTable"), token = ++wxTableToken;
     if (!host) return;
-    let p;
+    let p, locNote = "";
     if (wxTableLoc === "here") {
       host.innerHTML = '<p class="pref-note">현재 위치를 찾는 중입니다…</p>';
       try {
         p = await new Promise((res, rej) => (navigator.geolocation ? navigator.geolocation.getCurrentPosition((g) => res({ id: "현재 위치", lat: g.coords.latitude, lon: g.coords.longitude }), rej, { timeout: 12000, maximumAge: 600000 }) : rej(new Error("이 브라우저는 위치 기능이 없습니다"))));
       } catch (e) {
-        if (token === wxTableToken) host.innerHTML = `<p class="pref-note">현재 위치를 쓸 수 없습니다 (${esc(e.code === 1 ? "위치 권한이 꺼져 있습니다" : e.message || "위치를 찾지 못했습니다")}). 브라우저에서 위치 권한을 허용하거나 낚시터를 고르세요.</p>`;
-        return;
+        // 위치를 못 쓰면 대시보드에서 고른 낚시터로 보여 주고, 까닭을 표 아래에 적습니다.
+        locNote = `현재 위치를 쓸 수 없어(${e.code === 1 ? "위치 권한이 꺼져 있음" : e.message || "위치를 찾지 못함"}) 대시보드에서 고른 낚시터로 보여 줍니다. 브라우저 주소창의 위치 권한을 켜면 현재 위치로 나옵니다. `;
+        p = placeById[state.place];
+        if (!p || !hasPin(p)) { if (token === wxTableToken) host.innerHTML = `<p class="pref-note">${esc(locNote)}</p>`; return; }
       }
     } else {
       p = placeById[wxTableLoc || state.place];
@@ -2448,9 +2597,9 @@
       } catch (e) { /* MET이 안 되면 ECMWF 값 그대로 */ }
     }
     if (token !== wxTableToken || !$("#wxTable")) return;
-    const cols = [];
-    for (let i = 0; i + 2 < h.time.length; i += 3) {
-      const t = h.time[i], hr = +t.slice(11, 13), three = [0, 1, 2].map((k) => i + k);
+    const cols = [], step = wxTableStep();
+    for (let i = 0; i + step - 1 < h.time.length; i += step) {
+      const t = h.time[i], hr = +t.slice(11, 13), three = Array.from({ length: step }, (_, k) => i + k);   // 간격 안의 시간들
       cols.push({ date: t.slice(0, 10), hr, temp: h.temperature_2m[i], feel: h.apparent_temperature?.[i], rain: three.reduce((a, k) => a + (h.precipitation[k] || 0), 0),
         wind: h.wind_speed_10m[i], gust: Math.max(...three.map((k) => h.wind_gusts_10m?.[k] ?? 0)), dir: h.wind_direction_10m[i], code: h.weather_code?.[i], day: h.is_day ? !!h.is_day[i] : hr >= 7 && hr < 18 });
     }
@@ -2475,7 +2624,7 @@
       ${row("바람 m/s", (c) => (c.wind == null ? "–" : Math.round(c.wind)))}
       <tr><th class="lab">돌풍 m/s</th>${cols.map((c, i) => `<td class="${cls(c, i)} gst" style="${gustCol(c.gust) ? `background:${gustCol(c.gust)}` : ""}">${Math.round(c.gust)}</td>`).join("")}</tr>
       ${row("풍향", (c) => (c.dir == null ? "" : `<span class="arr" style="transform:rotate(${(c.dir + 180) % 360}deg)" title="${compass(c.dir)}풍">↑</span>`))}
-    </table><p class="pref-note">${esc(p.id)}${p.id === "현재 위치" ? ` (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)})` : ""} 기준. 점: 그날 돌풍과 비 (초록 무난, 노랑 바람·비 조금, 빨강 돌풍 10m/s 이상이나 비 10mm 이상). 비는 3시간 합, 돌풍은 3시간 최대, 어두운 칸은 밤.${wxSource() === "kma" ? (kmaN ? ` 기상청 단기예보 ${kmaN}시간 값을 넣었습니다.` : " 기상청에 연결되지 않아 ECMWF 값입니다.") : ""}</p>`;
+    </table><p class="pref-note">${esc(locNote)}${esc(p.id)}${p.id === "현재 위치" ? ` (${p.lat.toFixed(3)}, ${p.lon.toFixed(3)})` : ""} 기준. 점: 그날 돌풍과 비 (초록 무난, 노랑 바람·비 조금, 빨강 돌풍 10m/s 이상이나 비 10mm 이상). ${step === 3 ? "비는 3시간 합, 돌풍은 3시간 최대" : "1시간 간격"}, 어두운 칸은 밤.${wxSource() === "kma" ? (kmaN ? ` 기상청 단기예보 ${kmaN}시간 값을 넣었습니다.` : " 기상청에 연결되지 않아 ECMWF 값입니다.") : ""}</p>`;
   }
   document.addEventListener("change", (e) => {
     const t = e.target;
@@ -2484,6 +2633,10 @@
       kmaStatusText = t.value === "kma" && !kmaKey() ? "인증키를 넣기 전까지 ECMWF를 씁니다." : "";
       toast(`날씨 출처: ${WX_NAMES[wxSource()]}. 날씨를 다시 받습니다.`);
       refreshWeather(); renderPrefs();
+    } else if (t.dataset.prefCmprange) {
+      setPrefs((o) => { o.compare = { ...cmpPrefs(), ...(o.compare || {}), range: t.value }; });
+      state.modelRange = null; renderCharts();
+      toast("모델 비교 기본 기간을 저장했습니다.");
     } else if (t.dataset.prefCmp) {
       const k = t.dataset.prefCmp, on = [...document.querySelectorAll(`[data-pref-cmp="${k}"]`)].filter((x) => x.checked).map((x) => x.value);
       setPrefs((o) => { o.compare = { ...cmpPrefs(), ...(o.compare || {}), [k]: on }; });
