@@ -502,7 +502,14 @@
     Object.keys(span[0].f).forEach((k) => { factors[k] = mean((x) => x.f[k]); });
     const avg = (arr) => { const v = (arr || []).slice(a, b + 1).filter((x) => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
     const pr = fin(w.pressure);
+    // v2.3.23 내 출조 기준용: 출조 시간대(일출 1시간 전 ~ 일몰 1시간 뒤)의 비, 바람, 돌풍, 번개, 파고, 유속
+    const d0 = Math.max(0, Math.floor((rise ?? 6) - 1)), d1 = Math.min(23, Math.ceil((set ?? 18) + 1));
+    const dw = (arr) => (arr || []).slice(d0, d1 + 1).filter((x) => x != null);
+    const dmax = (arr) => { const v = dw(arr); return v.length ? Math.max(...v) : null; };
+    const day = { from: d0, to: d1, rainMax: dmax(w.precip) ?? 0, probMax: dmax(w.prob), windAvg: (() => { const v = dw(w.wind); return v.length ? v.reduce((a2, b2) => a2 + b2, 0) / v.length : null; })(),
+      gustMax: dmax(w.gust), thunder: dw(w.code).some((c) => c >= 95), waveMax: dmax(marine?.wave), curMax: dmax(marine?.cur) };
     return {
+      date, day,
       // the day: 70% its best window, 30% the average of the daylight hours, so one good hour cannot carry a poor day
       id: p.id, type, hours, from: a, to: b + 1, score: Math.round(.7 * mean((x) => x.s) + .3 * daylight(hours, rise, set, mean((x) => x.s))), factors, water, prof,
       temp: avg(w.temp), wind: avg(w.wind), gust: w.gust ? Math.max(...fin(w.gust.slice(a, b + 1))) : null,
@@ -513,6 +520,43 @@
     };
   }
   const scoreTone = (s) => (s >= 80 ? "good" : s >= 65 ? "info" : s >= 50 ? "warn" : "bad");
+  // ---------- 내 출조 기준 (v2.3.23, 사용자 기준) ----------
+  // 민물·송어: 비가 없고, 바람이 약하고, 조황 기대가 높은 날. 바다: 바람이 약하고, 파고가 높지 않고, 물살이 빠르지 않고, 조황 기대가 높은 날.
+  // 셋 모두 번개가 치면 출조하지 않습니다. 값은 출조 시간대(일출 1시간 전 ~ 일몰 1시간 뒤)로 봅니다. 기준 숫자는 연구 탭 PREFERENCE에서 바꿉니다.
+  const GO_DEFAULT = { fresh: { rain: .5, prob: 60, wind: 4, gust: 9, bite: 65 }, sea: { wind: 6, gust: 11, wave: 1, mul: "spring", bite: 65 } };
+  const goPrefs = () => { const g = prefs().go || {}; return { fresh: { ...GO_DEFAULT.fresh, ...(g.fresh || {}) }, sea: { ...GO_DEFAULT.sea, ...(g.sea || {}) } }; };
+  const MUL_FAST = { spring: [6, 9], strong: [4, 11], none: null };   // 물살이 빠르다고 보는 물때 (7물때식)
+  function decide(r) {
+    if (!r) return null;
+    const sea = r.type === "바다", G = goPrefs()[sea ? "sea" : "fresh"], d = r.day || {}, checks = [];
+    const add = (k, label, ok, val, need) => checks.push({ k, label, ok, val, need });
+    add("thunder", "번개", !d.thunder, d.thunder ? "예보 있음" : "없음", "없을 것");
+    if (!sea) add("rain", "비", d.rainMax < G.rain && (d.probMax == null || d.probMax < G.prob), `최대 ${num(d.rainMax, 1)}mm/h${d.probMax != null ? ` · 확률 ${Math.round(d.probMax)}%` : ""}`, `시간당 ${G.rain}mm 미만, 확률 ${G.prob}% 미만`);
+    add("wind", "바람", d.windAvg == null ? null : d.windAvg <= G.wind && (d.gustMax == null || d.gustMax <= G.gust), d.windAvg == null ? "모름" : `평균 ${num(d.windAvg, 1)} · 돌풍 ${d.gustMax == null ? "–" : num(d.gustMax, 1)}m/s`, `평균 ${G.wind}m/s, 돌풍 ${G.gust}m/s 이하`);
+    if (sea) {
+      add("wave", "파고", d.waveMax == null ? null : d.waveMax <= G.wave, d.waveMax == null ? "모름(지도에서 고른 낚시터만)" : `최대 ${num(d.waveMax, 1)}m`, `${G.wave}m 이하`);
+      const m = mulTae(r.date), n = parseInt(m.name, 10), rng = MUL_FAST[G.mul] || null;
+      const fast = rng && !Number.isNaN(n) && n >= rng[0] && n <= rng[1];
+      add("tide", "물살", !fast, `${m.name}${d.curMax != null ? ` · 유속 ${num(d.curMax, 1)}m/s` : ""}`, rng ? `${rng[0]}~${rng[1]}물이 아닐 것` : "보지 않음");
+    }
+    const bite = subScores(r).bite;
+    add("bite", "조황 기대", bite >= G.bite, `${bite}점`, `${G.bite}점 이상`);
+    const fail = checks.filter((c) => c.k !== "bite" && c.ok === false);
+    let tone, why;
+    if (d.thunder) { tone = "bad"; why = "번개 예보가 있어 출조하지 않습니다"; }
+    else if (fail.length) { tone = "bad"; why = `${fail.map((c) => c.label).join("·")} 기준을 넘습니다`; }
+    else if (bite >= G.bite) { tone = "good"; why = "내 기준을 모두 통과했습니다"; }
+    else if (bite >= G.bite - 10) { tone = "info"; why = "날씨는 기준 안, 조황 기대가 조금 낮습니다"; }
+    else { tone = "warn"; why = "날씨는 기준 안, 조황 기대가 낮습니다"; }
+    return { tone, why, checks };
+  }
+  const toneOf = (r) => decide(r)?.tone || "bad";
+  const goChecks = (r) => {
+    const dc = decide(r);
+    if (!dc) return "";
+    return `<ul class="go-checks">${dc.checks.map((c) => `<li class="${c.ok === false ? "no" : c.ok == null ? "na" : "ok"}" title="기준: ${esc(c.need)}"><i aria-hidden="true">${c.ok === false ? "✕" : c.ok == null ? "?" : "✓"}</i><b>${c.label}</b><span>${esc(c.val)}</span></li>`).join("")}</ul>
+      <p class="go-why">${esc(dc.why)}. 출조 시간대 ${pad2(r.day.from)}~${pad2(r.day.to)}시 기준 · 기준 숫자는 연구 탭 PREFERENCE '내 출조 기준'</p>`;
+  };
   const factorTone = (f) => (f >= .85 ? "good" : f >= .65 ? "info" : f >= .45 ? "warn" : "bad");
   const hhmm = (h) => `${pad(h)}:00`;
   const spanText = (r) => `${hhmm(r.from)} ~ ${hhmm(r.to)}`;
@@ -1240,7 +1284,7 @@
       mk.getElement().style.display = !state.mapType || placeTypes(placeById[id]).includes(state.mapType) ? "" : "none";
       const sc = state.scores?.[id];
       $("b", el).textContent = sc ? sc.score : "–";
-      el.dataset.tone = sc ? scoreTone(sc.score) : "";
+      el.dataset.tone = sc ? toneOf(sc) : "";
       $("span", el).textContent = id === state.place && w?.wind[h] != null ? `${id} ${Math.round(w.temp[h])}° ${w.wind[h].toFixed(1)}m/s` : id;
       const dir = w?.dir[h];
       if (dir != null) {
@@ -1448,7 +1492,7 @@
 
   function renderTop() {
     const p = placeById[state.place], r = state.scores?.[p.id];
-    $("#topGo").innerHTML = r ? `${signalLight(scoreTone(r.score), "sm")}<b class="tg-v tone-${scoreTone(r.score)}">${VERDICT[scoreTone(r.score)]}</b><b class="mono tone-${scoreTone(r.score)}">${r.score}</b><span class="eyebrow">· 최고<br>${hhmm(r.from)}</span>` : "";
+    $("#topGo").innerHTML = r ? `${signalLight(toneOf(r), "sm")}<b class="tg-v tone-${toneOf(r)}">${VERDICT[toneOf(r)]}</b><b class="mono tone-${toneOf(r)}">${r.score}</b><span class="eyebrow">· 최고<br>${hhmm(r.from)}</span>` : "";
     $("#typeToggle").innerHTML = TYPES.map((t) => `<button data-type="${t}" class="${p.type === t ? "on" : ""}">${t}</button>`).join("");
   }
   // Weather source and the time it was fetched, with a button to fetch it again.
@@ -1487,7 +1531,7 @@
       bigChart = null;
       return;
     }
-    const tone = scoreTone(r.score), sub = subScores(r), v = verdictText(r, p);
+    const tone = toneOf(r), sub = subScores(r), v = verdictText(r, p);
     const alerts = alertsFor(p, w), a = alerts[0];
     const guide = guideFor(p);
     const tt = dayTiles(p, r);
@@ -1497,6 +1541,7 @@
         <b class="mono">${esc(a.t)}${alerts.length > 1 ? ` · 외 ${alerts.length - 1}건` : ""}</b><p>${esc(a.body)}</p><small>출처: <span>${esc(a.src)}</span></small></div>` : ""}
       <p class="eyebrow accent">판단 · ${dayLabel()} · ${state.date === TODAY ? `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}` : MODE_SHORT[state.weather.mode]}</p>
       <div class="verdict-row">${signalLight(tone)}<div class="verdict-word tone-${tone}">${VERDICT[tone]}</div></div>
+      ${goChecks(r)}
       <p class="lead">${esc(lead)}. ${state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to) ? `${mono(hhmm(r.from))}부터 ${r.to - r.from}시간이 가장 좋았습니다` : state.date === TODAY && new Date().getHours() >= r.from ? `좋은 시간이 ${mono(hhmm(r.to))}까지 이어집니다` : `${r.to - r.from}시간의 좋은 시간이 ${mono(hhmm(r.from))}에 열립니다`}.</p>
       <div class="kpis">
         <div><span class="eyebrow">입질</span><strong>${sub.bite}</strong><small class="mono">하루 최고 · ${peakBite(r)}</small></div>
@@ -1535,7 +1580,7 @@
       <ol class="rank-list">${list.slice(0, 7).map((x) => `<li><button data-place="${esc(x.id)}" class="${x.id === p.id ? "on" : ""}">
         <span class="ri">${icon("fish")}</span>
         <span class="rn"><b>${esc(x.id)}</b><small>${x.from}~${x.to}시 · ${esc(whyText(x))}</small></span>
-        <span class="rs mono tone-${scoreTone(x.score)}">${x.score}</span></button></li>`).join("")}</ol>
+        <span class="rs mono tone-${toneOf(x)}">${x.score}</span></button></li>`).join("")}</ol>
       ${p.id === "덕봉" ? `<a class="side-link" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}덕봉 3D 자리 분석</a>` : ""}${p.id === "한터" ? `<a class="side-link" href="research/hanteo3d.html" target="_blank" rel="noopener">${icon("cube")}한터 3D 자리 분석</a>` : ""}${p.id === "장광" ? `<a class="side-link" href="research/jangkwang3d.html" target="_blank" rel="noopener">${icon("cube")}장광 3D 자리 분석</a>` : ""}
       <details class="v-how"><summary>점수 계산 방법</summary><p>시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꿔 가중 기하평균을 내고 제곱합니다. 하루 점수는 가장 좋은 연속 2~4시간(70%)과 해 있는 시간 전체(30%)의 평균입니다. 입질은 수온·시간대·기압만, 편의는 바람·강수${p.type === "바다" ? "·파고" : ""}만으로 같은 방식으로 낸 값입니다. 예보 신뢰도는 예보까지 남은 날수로 정한 어림값입니다. 가중치는 가정이며 실제 조과로 검증하지 않았습니다.</p></details>`;
   }
@@ -1758,7 +1803,7 @@
     const head = WEEK.map((w, i) => `<span class="cal-w ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${w}</span>`).join("");
     const pad = (n) => Array.from({ length: n }, () => '<span class="cal-pad" aria-hidden="true"></span>').join("");
     const cells = days.map((d) => {
-      const r = d.r, t = scoreTone(r.score), sub = subScores(r), dt = parseISO(d.date), wd = dt.getDay();
+      const r = d.r, t = toneOf(r), sub = subScores(r), dt = parseISO(d.date), wd = dt.getDay();
       return `<button class="cday tone-${t} ${d.date === state.date ? "on" : ""} ${d.date === TODAY ? "today" : ""}" data-date="${d.date}" title="${fmtDate(d.date)} ${VERDICT[t]} 점수 ${r.score}, 입질 ${sub.bite}, 편의 ${sub.access}, 좋은 시간 ${r.from}~${r.to}시">
         <span class="cd-top"><b class="mono ${wd === 0 ? "sun" : wd === 6 ? "sat" : ""}">${dt.getDate()}${d.date === TODAY ? "<small>오늘</small>" : dt.getDate() === 1 ? `<small>${dt.getMonth() + 1}월</small>` : ""}</b><span class="cd-s mono">${r.score}</span></span>
         ${ringGauge(sub.bite, sub.access)}
@@ -1865,7 +1910,7 @@
       ["#hScore", "#hWx", "#hChart", "#hCards", "#hPast", "#hKeys"].forEach((s) => { $(s).innerHTML = `<div class="skeleton" style="min-height:160px"></div>`; });
       return;
     }
-    const tone = scoreTone(r.score);
+    const tone = toneOf(r);
     $("#hScore").innerHTML = `<div class="hs-g">${homeGauge(r.score, tone)}<span class="h-pill tone-${tone}">${icon("check")}${VERDICT[tone]}</span></div>
       <div class="hs-t"><h2>오늘의 낚시 전망</h2><b class="hs-head tone-${tone}">${HOME_HEAD[tone]}</b><p>${esc(whyText(r))} 조건입니다. ${esc(READ.wind(r))}, 기압 ${esc(READ.press(r).split(",")[0])}.</p>
         <button class="hs-best" data-go="plan"><span>${icon("clock")}BEST TIME</span><b>${hhmm(r.from)} ~ ${hhmm(r.to)}</b>${icon("chevR")}</button></div>`;
@@ -1937,7 +1982,7 @@
   function fillWelcome() {
     const w = $(".welcome"), p = placeById[state.place], r = state.scores?.[p.id];
     if (!w || !r || w.querySelector(".wl-today")) return;
-    w.querySelector("em").insertAdjacentHTML("beforebegin", `<p class="wl-today">${esc(p.id)} · ${VERDICT[scoreTone(r.score)]} ${r.score}점 · 최고 ${hhmm(r.from)}</p>`);
+    w.querySelector("em").insertAdjacentHTML("beforebegin", `<p class="wl-today">${esc(p.id)} · ${VERDICT[toneOf(r)]} ${r.score}점 · 최고 ${hhmm(r.from)}</p>`);
   }
   function showWelcome() {
     if ($(".welcome")) return;
@@ -1948,7 +1993,7 @@
     w.className = "welcome";
     w.setAttribute("role", "status");
     w.innerHTML = `<div class="wl-in"><span class="wl-logo">${icon("fish")}</span><h1>FISHING INTELLIGENCE</h1><p>데이터로 예측하고, 경험으로 완성하는 스마트 낚시</p>
-      ${r ? `<p class="wl-today">${esc(p.id)} · ${VERDICT[scoreTone(r.score)]} ${r.score}점 · 최고 ${hhmm(r.from)}</p>` : ""}<em>Good Fishing!</em></div>`;
+      ${r ? `<p class="wl-today">${esc(p.id)} · ${VERDICT[toneOf(r)]} ${r.score}점 · 최고 ${hhmm(r.from)}</p>` : ""}<em>Good Fishing!</em></div>`;
     document.body.append(w);
     const done = () => { if (w.classList.contains("out")) return; w.classList.add("out"); setTimeout(() => w.remove(), REDUCED ? 0 : 500); go("home"); };
     w.addEventListener("click", done);
@@ -2507,6 +2552,20 @@
           <p class="pref-status">${esc(status)}</p>
           <p class="pref-note">3달이 넘은 과거 날짜와 16일 뒤 날짜는 출처와 관계없이 Open-Meteo 과거 재분석 자료(최근 3년 평균)를 씁니다. 인증키는 이 브라우저에만 저장되고 공개 파일에는 들어가지 않습니다.</p>
         </section>
+        <section class="pref-box"><h3>내 출조 기준 <small>(출조 시간대: 일출 1시간 전 ~ 일몰 1시간 뒤)</small></h3>
+          ${(() => {
+            const G = goPrefs(), nb = (g, k, label, stepv, unit) => `<label class="pref-field">${label}<span class="go-in"><input type="number" inputmode="decimal" step="${stepv}" min="0" data-pref-go="${g}.${k}" value="${G[g][k]}"> ${unit}</span></label>`;
+            return `<p class="pref-note"><b>민물·송어</b>: 비가 없고, 바람이 약하고, 조황 기대가 높은 날</p>
+              ${nb("fresh", "rain", "비: 시간당 이 값 미만", .1, "mm")}${nb("fresh", "prob", "비: 강수확률 이 값 미만", 5, "%")}
+              ${nb("fresh", "wind", "바람: 평균 이하", .5, "m/s")}${nb("fresh", "gust", "돌풍: 최대 이하", .5, "m/s")}${nb("fresh", "bite", "조황 기대: 이상", 1, "점")}
+              <p class="pref-note"><b>바다</b>: 바람이 약하고, 파고가 높지 않고, 물살이 빠르지 않고, 조황 기대가 높은 날</p>
+              ${nb("sea", "wind", "바람: 평균 이하", .5, "m/s")}${nb("sea", "gust", "돌풍: 최대 이하", .5, "m/s")}${nb("sea", "wave", "파고: 최대 이하", .1, "m")}
+              <label class="pref-field">물살이 빠른 물때 (제외)<select data-pref-go="sea.mul">${[["spring", "사리 무렵 6~9물"], ["strong", "강한 편 4~11물"], ["none", "보지 않음"]].map(([v, t]) => `<option value="${v}" ${G.sea.mul === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+              ${nb("sea", "bite", "조황 기대: 이상", 1, "점")}`;
+          })()}
+          <p class="pref-note">셋 모두 번개 예보가 있으면 출조 보류입니다. 날씨 기준을 하나라도 넘으면 출조 보류, 모두 통과하고 조황 기대가 기준 이상이면 출조 추천, 10점 안쪽으로 낮으면 출조 가능, 그보다 낮으면 짧게 출조로 나옵니다.</p>
+          <div class="pref-row"><button class="chip" data-pref-action="goReset">기준 처음으로</button></div>
+        </section>
         <section class="pref-box"><h3>모델별 예보 비교 <small>(지금 탭 세부 그래프 아래)</small></h3>
           <p class="pref-note">보여 줄 항목</p>
           <div class="pref-checks">${CMP_ITEMS.map(([k, t, u]) => `<label class="pref-check"><input type="checkbox" data-pref-cmp="items" value="${k}" ${cmpPrefs().items.includes(k) ? "checked" : ""}> ${t} (${u})</label>`).join("")}</div>
@@ -2633,6 +2692,11 @@
       kmaStatusText = t.value === "kma" && !kmaKey() ? "인증키를 넣기 전까지 ECMWF를 씁니다." : "";
       toast(`날씨 출처: ${WX_NAMES[wxSource()]}. 날씨를 다시 받습니다.`);
       refreshWeather(); renderPrefs();
+    } else if (t.dataset.prefGo) {
+      const [g, k] = t.dataset.prefGo.split("."), v = t.type === "number" ? Math.max(0, +t.value || 0) : t.value;
+      setPrefs((o) => { o.go = o.go || {}; o.go[g] = { ...(o.go[g] || {}), [k]: v }; });
+      renderBrief(); updatePins(); renderDays();
+      toast("내 출조 기준을 저장했습니다.");
     } else if (t.dataset.prefCmprange) {
       setPrefs((o) => { o.compare = { ...cmpPrefs(), ...(o.compare || {}), range: t.value }; });
       state.modelRange = null; renderCharts();
@@ -2651,6 +2715,7 @@
     const b = e.target.closest("[data-pref-action]");
     if (!b) return;
     const act = b.dataset.prefAction;
+    if (act === "goReset") { setPrefs((o) => { delete o.go; }); toast("내 출조 기준을 처음 값으로 돌렸습니다."); renderPrefs(); renderBrief(); updatePins(); renderDays(); return; }
     if (act === "pref3dReset") { setPrefs((o) => { delete o.model3d; }); toast("3D 기본값을 처음으로 돌렸습니다."); renderPrefs(); return; }
     if (act === "kmaClear") { try { localStorage.removeItem("kmaKey"); } catch (er) { /* 무시 */ } kmaStatusText = "인증키를 지웠습니다."; refreshWeather(); renderPrefs(); return; }
     if (act === "kmaSave") {
