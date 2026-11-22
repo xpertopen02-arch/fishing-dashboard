@@ -917,7 +917,7 @@
   const cmpPrefs = () => {
     const c = prefs().compare || {};
     return { items: Array.isArray(c.items) ? c.items : CMP_ITEMS.map((x) => x[0]), models: Array.isArray(c.models) ? c.models : MODEL_SET.map((m) => m[0]),
-      range: CMP_RANGES.some((r) => r[0] === c.range) ? c.range : "1" };
+      range: c.rangeSet && CMP_RANGES.some((r) => r[0] === c.range) ? c.range : "7" };   // v2.3.25: 기본 1주 (기본 기간을 직접 고른 경우만 그 값)
   };
   // 앙상블 범위(10~90%): 키 이름이 prefix로 시작하는 구성원들
   function ensBand(ej, prefix, len) {
@@ -1566,10 +1566,11 @@
       $("#ccLeft").innerHTML = `<div class="skeleton" style="min-height:420px"></div>`;
       $("#ccMid").innerHTML = `<div class="skeleton" style="min-height:360px"></div>`;
       $("#ccRight").innerHTML = `<div class="skeleton" style="min-height:420px"></div>`;
-      bigChart = null;
+      bigChart = null; if ($("#goBox")) $("#goBox").innerHTML = "";
       return;
     }
     const tone = toneOf(r), sub = subScores(r), v = verdictText(r, p);
+    { const gb = $("#goBox"); if (gb) gb.innerHTML = goChecks(r); }   // v2.3.25: 내 출조 기준 항목은 '앞으로 16일' 바로 위에
     const alerts = alertsFor(p, w), a = alerts[0];
     const guide = guideFor(p);
     const tt = dayTiles(p, r);
@@ -1579,7 +1580,6 @@
         <b class="mono">${esc(a.t)}${alerts.length > 1 ? ` · 외 ${alerts.length - 1}건` : ""}</b><p>${esc(a.body)}</p><small>출처: <span>${esc(a.src)}</span></small></div>` : ""}
       <p class="eyebrow accent">판단 · ${dayLabel()} · ${state.date === TODAY ? `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}` : MODE_SHORT[state.weather.mode]}</p>
       <div class="verdict-row">${signalLight(tone)}<div class="verdict-word tone-${tone}">${VERDICT[tone]}</div></div>
-      ${goChecks(r)}
       <p class="lead">${esc(lead)}. ${state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to) ? `${mono(hhmm(r.from))}부터 ${r.to - r.from}시간이 가장 좋았습니다` : state.date === TODAY && new Date().getHours() >= r.from ? `좋은 시간이 ${mono(hhmm(r.to))}까지 이어집니다` : `${r.to - r.from}시간의 좋은 시간이 ${mono(hhmm(r.from))}에 열립니다`}.</p>
       <div class="kpis">
         <div><span class="eyebrow">입질</span><strong>${sub.bite}</strong><small class="mono">하루 최고 · ${peakBite(r)}</small></div>
@@ -2744,12 +2744,12 @@
       renderBrief(); updatePins(); renderDays();
       toast("내 출조 기준을 저장했습니다.");
     } else if (t.dataset.prefCmprange) {
-      setPrefs((o) => { o.compare = { ...cmpPrefs(), ...(o.compare || {}), range: t.value }; });
+      setPrefs((o) => { o.compare = { ...(o.compare || {}), range: t.value, rangeSet: true }; });
       state.modelRange = null; renderCharts();
       toast("모델 비교 기본 기간을 저장했습니다.");
     } else if (t.dataset.prefCmp) {
       const k = t.dataset.prefCmp, on = [...document.querySelectorAll(`[data-pref-cmp="${k}"]`)].filter((x) => x.checked).map((x) => x.value);
-      setPrefs((o) => { o.compare = { ...cmpPrefs(), ...(o.compare || {}), [k]: on }; });
+      setPrefs((o) => { const c = cmpPrefs(); o.compare = { ...(o.compare || {}), items: c.items, models: c.models, [k]: on }; });   // 기간은 건드리지 않음
       renderCharts();
       toast("모델 비교 설정을 저장했습니다.");
     } else if (t.dataset.pref3d) {
