@@ -795,6 +795,12 @@
   // ECMWF 앙상블(51개 예보)의 풍속 범위로 예보가 얼마나 갈리는지(신뢰도)를 셉니다. 예보 범위 안의 날짜만.
   const MODEL_SET = [["ecmwf_ifs025", "ECMWF", "#4f9dff", "유럽 · 윈디 기본"], ["gfs_seamless", "GFS", "#ff6b6b", "미국 · 윈드파인더"], ["icon_seamless", "ICON", "#b07cff", "독일"],
     ["jma_seamless", "JMA", "#35c46a", "일본, 돌풍 없음"], ["ukmo_seamless", "UKMO", "#ff9f3a", "영국"], ["gem_seamless", "GEM", "#8fa3b8", "캐나다"]];
+  // 비교할 항목과 모델은 연구 탭 PREFERENCE에서 고릅니다 (v2.3.21). 기본은 모두.
+  const CMP_ITEMS = [["wind", "풍속", "m/s"], ["gust", "돌풍", "m/s"], ["temp", "기온", "°C"], ["rain", "강수량", "mm"]];
+  const cmpPrefs = () => {
+    const c = prefs().compare || {};
+    return { items: Array.isArray(c.items) ? c.items : CMP_ITEMS.map((x) => x[0]), models: Array.isArray(c.models) ? c.models : MODEL_SET.map((m) => m[0]) };
+  };
   const modelCache = {};
   function modelsFor(p, date) {
     if (!p || !hasPin(p) || weatherMode(date) !== "forecast") return null;
@@ -804,23 +810,26 @@
     const q = `latitude=${p.lat}&longitude=${p.lon}&timezone=${TZ}&start_date=${date}&end_date=${date}&wind_speed_unit=ms`;
     const get = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     Promise.all([
-      get(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_gusts_10m&models=${MODEL_SET.map((m) => m[0]).join(",")}`),
-      get(`https://ensemble-api.open-meteo.com/v1/ensemble?${q}&hourly=wind_speed_10m&models=ecmwf_ifs025`),
+      get(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_gusts_10m,temperature_2m,precipitation&models=${MODEL_SET.map((m) => m[0]).join(",")}`),
+      get(`https://ensemble-api.open-meteo.com/v1/ensemble?${q}&hourly=wind_speed_10m,temperature_2m&models=ecmwf_ifs025`),
     ]).then(([mj, ej]) => {
       const pick = (j, k) => (j?.hourly?.[k] ? j.hourly[k].slice(0, 24) : null);
-      const series = MODEL_SET.map(([id, name, color, note]) => ({ id, name, color, note, wind: pick(mj, `wind_speed_10m_${id}`), gust: pick(mj, `wind_gusts_10m_${id}`) }))
+      const series = MODEL_SET.map(([id, name, color, note]) => ({ id, name, color, note, wind: pick(mj, `wind_speed_10m_${id}`), gust: pick(mj, `wind_gusts_10m_${id}`),
+        temp: pick(mj, `temperature_2m_${id}`), rain: pick(mj, `precipitation_${id}`) }))
         .filter((m) => m.wind && fin(m.wind).length >= 12);
-      let ens = null;
-      const mk = ej?.hourly ? Object.keys(ej.hourly).filter((k) => k.startsWith("wind_speed_10m")) : [];
-      if (mk.length >= 10) {
+      // 앙상블 범위(10~90%): 풍속과 기온
+      const band = (prefix) => {
+        const mk = ej?.hourly ? Object.keys(ej.hourly).filter((k) => k.startsWith(prefix)) : [];
+        if (mk.length < 10) return null;
         const q10 = [], q90 = [];
         for (let h = 0; h < 24; h++) {
           const v = mk.map((k) => ej.hourly[k][h]).filter((x) => x != null).sort((a, b) => a - b);
           q10.push(v.length ? v[Math.floor(v.length * .1)] : null); q90.push(v.length ? v[Math.min(v.length - 1, Math.floor(v.length * .9))] : null);
         }
-        ens = { lo: q10, hi: q90, n: mk.length };
-      }
-      modelCache[key] = { series, ens, conf: confidenceOf(series, ens), done: true };
+        return { lo: q10, hi: q90, n: mk.length };
+      };
+      const ens = band("wind_speed_10m"), ensT = band("temperature_2m");
+      modelCache[key] = { series, ens, ensT, conf: confidenceOf(series, ens), done: true };
       if (placeById[state.place] === p && state.date === date) { renderCharts(); const el = $("#bcConf"); if (el) el.innerHTML = confText(modelCache[key]); }
     });
     return null;
@@ -917,25 +926,35 @@
         el.insertAdjacentHTML("beforeend", `<p class="state-msg">이 날짜와 위치의 해상 모델 값이 없습니다. 보통 앞으로 7일 정도까지만 제공됩니다.</p>`);
       }
     }
-    // 모델별 바람 비교 (세부 그래프 아래 한 줄 전체). 풍속·돌풍은 위 버튼으로 바꿉니다.
-    if (weatherMode(state.date) === "forecast") {
-      const gust = state.modelView === "gust";
-      const tabs = `<span class="mtabs"><button type="button" data-mview="wind" class="${gust ? "" : "on"}">풍속</button><button type="button" data-mview="gust" class="${gust ? "on" : ""}">돌풍</button></span>`;
+    // 모델별 비교 (세부 그래프 아래 한 줄 전체): PREFERENCE에서 고른 항목(풍속·돌풍·기온·강수량)과 모델만. 항목은 위 버튼으로 바꿉니다.
+    const cp = cmpPrefs(), items = CMP_ITEMS.filter((x) => cp.items.includes(x[0]));
+    if (weatherMode(state.date) === "forecast" && items.length && cp.models.length) {
+      const view = items.some((x) => x[0] === state.modelView) ? state.modelView : items[0][0], [, vName, vUnit] = items.find((x) => x[0] === view);
+      const tabs = items.length > 1 ? `<span class="mtabs">${items.map(([k, t]) => `<button type="button" data-mview="${k}" class="${k === view ? "on" : ""}">${t}</button>`).join("")}</span>` : "";
       if (!mc?.done) {
-        const el = chartShell(host, "모델별 바람 비교", i++, "", "wide");
+        const el = chartShell(host, "모델별 예보 비교", i++, "", "wide");
         $(".chart-now", el).remove();
-        el.insertAdjacentHTML("beforeend", `<p class="state-msg">여러 기관의 예보 모델을 받는 중입니다…</p>`);
+        el.insertAdjacentHTML("beforeend", '<p class="state-msg">여러 기관의 예보 모델을 받는 중입니다…</p>');
       } else if (mc.series.length) {
-        const ser = mc.series.filter((m) => (gust ? m.gust && fin(m.gust).length : true));
-        const legend = `<div class="legend mlegend">${tabs}${ser.map((m) => `<span title="${esc(m.note)}"><i style="background:${m.color}"></i>${esc(m.name)}</span>`).join("")}${!gust && mc.ens ? `<span title="ECMWF 앙상블 ${mc.ens.n}개 예보의 10~90% 범위"><i class="band"></i>앙상블 범위</span>` : ""}</div>`;
-        const head = `모델별 ${gust ? "돌풍" : "풍속"} m/s${mc.conf ? ` · 신뢰도 <b class="conf ${mc.conf.cls}">${mc.conf.level}</b>` : ""}`;
-        charts.push(makeChart(chartShell(host, head, i++, legend, "wide"), {
-          ...sun, title: "모델별 바람", unit: "m/s", digits: 1, zero: true, minTop: 5,
-          series: ser.map((m) => ({ label: m.name, color: m.color, values: gust ? m.gust : m.wind, noExt: true })),
-          area: !gust && mc.ens ? { lo: mc.ens.lo, hi: mc.ens.hi, color: "#4f9dff" } : null,
-          note: () => `${ser[0]?.name || ""}${gust ? " 돌풍" : ""}`,
-        }));
-        host.lastElementChild.insertAdjacentHTML("beforeend", `<p class="mnote">ECMWF·GFS·ICON·JMA·UKMO·GEM 예보를 Open-Meteo에서 받아 겹쳤습니다. 선이 서로 가까울수록 예보가 믿을 만합니다.${gust ? " 일본 JMA는 돌풍 예보가 없습니다." : mc.ens ? " 파란 띠는 ECMWF 앙상블 51개 예보 중 가운데 80% 범위입니다." : ""}</p>`);
+        const ser = mc.series.filter((m) => cp.models.includes(m.id) && m[view] && fin(m[view]).length);
+        const ens = view === "wind" ? mc.ens : view === "temp" ? mc.ensT : null;
+        const legend = `<div class="legend mlegend">${tabs}${ser.map((m) => `<span title="${esc(m.note)}"><i style="background:${m.color}"></i>${esc(m.name)}</span>`).join("")}${ens ? `<span title="ECMWF 앙상블 ${ens.n}개 예보의 10~90% 범위"><i class="band"></i>앙상블 범위</span>` : ""}</div>`;
+        const head = `모델별 ${vName} ${vUnit}${mc.conf ? ` · 바람 신뢰도 <b class="conf ${mc.conf.cls}">${mc.conf.level}</b>` : ""}`;
+        if (!ser.length) {
+          const el = chartShell(host, head, i++, legend, "wide");
+          $(".chart-now", el).remove();
+          el.insertAdjacentHTML("beforeend", '<p class="state-msg">고른 모델에 이 항목의 예보가 없습니다.</p>');
+        } else {
+          charts.push(makeChart(chartShell(host, head, i++, legend, "wide"), {
+            ...sun, title: `모델별 ${vName}`, unit: vUnit === "°C" ? "°C" : vUnit, digits: 1,
+            ...(view === "temp" ? { minSpan: 4 } : view === "rain" ? { zero: true, minTop: 1 } : { zero: true, minTop: 5 }),
+            series: ser.map((m) => ({ label: m.name, color: m.color, values: m[view], noExt: true })),
+            area: ens ? { lo: ens.lo, hi: ens.hi, color: "#4f9dff" } : null,
+            note: () => ser[0]?.name || "",
+          }));
+          const tip = { wind: mc.ens ? " 파란 띠는 ECMWF 앙상블 51개 예보 중 가운데 80% 범위입니다." : "", gust: " 일본 JMA는 돌풍 예보가 없습니다.", temp: mc.ensT ? " 파란 띠는 ECMWF 앙상블 기온의 가운데 80% 범위입니다." : "", rain: " 시간당 강수량(mm)입니다. 모델마다 비가 오는 시각이 다르면 소나기 가능성으로 보세요." }[view];
+          host.lastElementChild.insertAdjacentHTML("beforeend", `<p class="mnote">${ser.map((m) => m.name).join("·")} 예보를 Open-Meteo에서 받아 겹쳤습니다. 선이 서로 가까울수록 예보가 믿을 만합니다.${tip} 항목과 모델은 연구 탭 PREFERENCE에서 고릅니다.</p>`);
+        }
       }
     }
   }
@@ -2348,6 +2367,13 @@
           <p class="pref-status">${esc(status)}</p>
           <p class="pref-note">3달이 넘은 과거 날짜와 16일 뒤 날짜는 출처와 관계없이 Open-Meteo 과거 재분석 자료(최근 3년 평균)를 씁니다. 인증키는 이 브라우저에만 저장되고 공개 파일에는 들어가지 않습니다.</p>
         </section>
+        <section class="pref-box"><h3>모델별 예보 비교 <small>(지금 탭 세부 그래프 아래)</small></h3>
+          <p class="pref-note">보여 줄 항목</p>
+          <div class="pref-checks">${CMP_ITEMS.map(([k, t, u]) => `<label class="pref-check"><input type="checkbox" data-pref-cmp="items" value="${k}" ${cmpPrefs().items.includes(k) ? "checked" : ""}> ${t} (${u})</label>`).join("")}</div>
+          <p class="pref-note">비교할 모델</p>
+          <div class="pref-checks">${MODEL_SET.map(([id, name, , note]) => `<label class="pref-check"><input type="checkbox" data-pref-cmp="models" value="${id}" ${cmpPrefs().models.includes(id) ? "checked" : ""}> ${name} <small>(${esc(note)})</small></label>`).join("")}</div>
+          <p class="pref-note">모두 끄면 비교 그래프를 숨깁니다. ECMWF 앙상블 범위(파란 띠)는 풍속과 기온에 나옵니다.</p>
+        </section>
         <section class="pref-box"><h3>3D 모델 기본값 <small>(덕봉·한터·장광)</small></h3>
           ${sel("mode", "화면 표시", [["bite", "반응 좋은 송어 밀도"], ["fish", "송어 예상 밀도"], ["depth", "수심"], ["temp", "수온 (윗층)"], ["tempb", "수온 (바닥 쪽)"], ["dotop", "용존산소 (윗층)"], ["do", "용존산소 (바닥 쪽)"], ["clean", "맑은 물 범위"]])}
           ${sel("rankBy", "추천 기준", [["react", "반응 좋은 송어 수"], ["flux", "활성 송어가 지나가는 빈도"]])}
@@ -2458,6 +2484,11 @@
       kmaStatusText = t.value === "kma" && !kmaKey() ? "인증키를 넣기 전까지 ECMWF를 씁니다." : "";
       toast(`날씨 출처: ${WX_NAMES[wxSource()]}. 날씨를 다시 받습니다.`);
       refreshWeather(); renderPrefs();
+    } else if (t.dataset.prefCmp) {
+      const k = t.dataset.prefCmp, on = [...document.querySelectorAll(`[data-pref-cmp="${k}"]`)].filter((x) => x.checked).map((x) => x.value);
+      setPrefs((o) => { o.compare = { ...cmpPrefs(), ...(o.compare || {}), [k]: on }; });
+      renderCharts();
+      toast("모델 비교 설정을 저장했습니다.");
     } else if (t.dataset.pref3d) {
       setPrefs((o) => { o.model3d = { ...(o.model3d || {}), [t.dataset.pref3d]: t.type === "checkbox" ? t.checked : t.value }; });
       toast("3D 기본값을 저장했습니다. 3D를 다시 열 때부터 적용됩니다.");
