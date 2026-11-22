@@ -556,8 +556,8 @@
   const goChecks = (r) => {
     const dc = decide(r);
     if (!dc) return "";
-    return `<ul class="go-checks">${dc.checks.map((c) => `<li class="${c.ok === false ? "no" : c.ok == null ? "na" : "ok"}" title="기준: ${esc(c.need)}"><i aria-hidden="true">${c.ok === false ? "✕" : c.ok == null ? "?" : "✓"}</i><b>${c.label}</b><span>${esc(c.val)}</span></li>`).join("")}</ul>
-      <p class="go-why">${esc(dc.why)}. 출조 시간대 ${pad2(r.day.from)}~${pad2(r.day.to)}시 기준 · 기준 숫자는 연구 탭 PREFERENCE '내 출조 기준'</p>`;
+    return `<p class="eyebrow">내 출조 기준 ${info("go")}</p><ul class="go-checks">${dc.checks.map((c) => `<li class="${c.ok === false ? "no" : c.ok == null ? "na" : "ok"}" title="기준: ${esc(c.need)}"><i aria-hidden="true">${c.ok === false ? "✕" : c.ok == null ? "?" : "✓"}</i><b>${c.label}</b><span>${esc(c.val)}</span></li>`).join("")}</ul>
+      <p class="go-why">${esc(dc.why)}.</p>${infoText("go", `<p class="go-why">출조 시간대 ${pad2(r.day.from)}~${pad2(r.day.to)}시 기준. 항목 위에 마우스를 올리면 기준 값이 보입니다. 기준 숫자는 연구 탭 PREFERENCE '내 출조 기준'에서 바꿉니다.</p>`)}`;
   };
   const factorTone = (f) => (f >= .85 ? "good" : f >= .65 ? "info" : f >= .45 ? "warn" : "bad");
   const hhmm = (h) => `${pad(h)}:00`;
@@ -1105,7 +1105,7 @@
             series: ser.map((m) => ({ label: m.name, color: m.color, values: m[view] })),
             area: ens ? { lo: ens.lo, hi: ens.hi, color: "#4f9dff" } : null,
           }));
-          host.lastElementChild.insertAdjacentHTML("beforeend", `<p class="mnote">오늘부터 ${range === "7" ? "7" : "14"}일. 고른 날짜는 밝게, 노란 점선은 지금입니다. 모델마다 예보 기간이 달라 끝이 짧은 선이 있습니다(UKMO·ICON 약 7일, GEM·JMA 약 10일, ECMWF·GFS 15~16일). 선이 갈라지기 시작하는 날부터는 예보를 덜 믿으세요.</p>`);
+          addNote(host.lastElementChild, `<p class="mnote">오늘부터 ${range === "7" ? "7" : "14"}일. 고른 날짜는 밝게, 노란 점선은 지금입니다. 모델마다 예보 기간이 달라 끝이 짧은 선이 있습니다(UKMO·ICON 약 7일, GEM·JMA 약 10일, ECMWF·GFS 15~16일). 선이 갈라지기 시작하는 날부터는 예보를 덜 믿으세요.</p>`);
         }
       }
     }
@@ -1134,7 +1134,7 @@
             note: () => ser[0]?.name || "",
           }));
           const tip = { wind: mc.ens ? " 파란 띠는 ECMWF 앙상블 51개 예보 중 가운데 80% 범위입니다." : "", gust: " 일본 JMA는 돌풍 예보가 없습니다.", temp: mc.ensT ? " 파란 띠는 ECMWF 앙상블 기온의 가운데 80% 범위입니다." : "", rain: " 시간당 강수량(mm)입니다. 모델마다 비가 오는 시각이 다르면 소나기 가능성으로 보세요." }[view];
-          host.lastElementChild.insertAdjacentHTML("beforeend", `<p class="mnote">${ser.map((m) => m.name).join("·")} 예보를 Open-Meteo에서 받아 겹쳤습니다. 선이 서로 가까울수록 예보가 믿을 만합니다.${tip} 항목과 모델은 연구 탭 PREFERENCE에서 고릅니다.</p>`);
+          addNote(host.lastElementChild, `<p class="mnote">${ser.map((m) => m.name).join("·")} 예보를 Open-Meteo에서 받아 겹쳤습니다. 선이 서로 가까울수록 예보가 믿을 만합니다.${tip} 항목과 모델은 연구 탭 PREFERENCE에서 고릅니다.</p>`);
         }
       }
     }
@@ -1454,6 +1454,22 @@
   const MODE_SHORT = { forecast: "예보", archive: "과거 재분석", climate: "평년값 참고" };
   // v2.0.10: words that say what to do (score 80+, 65-79, 50-64, under 50)
   const VERDICT = { good: "출조 추천", info: "출조 가능", warn: "짧게 출조", bad: "출조 보류" };
+  // v2.3.28 ⓘ: 부연 설명은 ⓘ를 누르면 보이고 다시 누르면 숨습니다. 펼친 것은 화면을 다시 그려도 그대로 둡니다.
+  const infoOpen = new Set();
+  const info = (key) => `<button type="button" class="ib ${infoOpen.has(key) ? "on" : ""}" data-info="${key}" aria-expanded="${infoOpen.has(key)}" aria-label="설명 ${infoOpen.has(key) ? "숨기기" : "보기"}">ⓘ</button>`;
+  const infoText = (key, html) => `<div class="ib-tx" data-info-tx="${key}" ${infoOpen.has(key) ? "" : "hidden"}>${html}</div>`;
+  function addNote(el, html) {   // 그래프 아래 부연 설명: 제목 옆 ⓘ로
+    el.querySelector(".chart-title h3")?.insertAdjacentHTML("beforeend", info("mnote"));
+    el.insertAdjacentHTML("beforeend", infoText("mnote", html));
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-info]");
+    if (!b) return;
+    const k = b.dataset.info, open = !infoOpen.has(k);
+    if (open) infoOpen.add(k); else infoOpen.delete(k);
+    $$(`[data-info="${k}"]`).forEach((x) => { x.classList.toggle("on", open); x.setAttribute("aria-expanded", String(open)); x.setAttribute("aria-label", `설명 ${open ? "숨기기" : "보기"}`); });
+    $$(`[data-info-tx="${k}"]`).forEach((x) => { x.hidden = !open; });
+  });
   const mono = (t) => `<span class="mono">${t}</span>`;
   // Wind colours: up to 2 m/s green, 2 to 5 m/s orange, 5 m/s and above red.
   const WIND_COL = ["#2ee68f", "#ff9f3a", "#ff4f4f"];
@@ -1591,31 +1607,32 @@
     const guide = guideFor(p);
     const tt = dayTiles(p, r);
     const lead = [`바람 ${num(r.wind)}m/s, ${READ.wind(r)}`, `기압 ${READ.press(r).split(",")[0]}`, READ.rain(r)].join(". ");
+    const leadHtml = `<p class="lead">${esc(lead)}. ${state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to) ? `${mono(hhmm(r.from))}부터 ${r.to - r.from}시간이 가장 좋았습니다` : state.date === TODAY && new Date().getHours() >= r.from ? `좋은 시간이 ${mono(hhmm(r.to))}까지 이어집니다` : `${r.to - r.from}시간의 좋은 시간이 ${mono(hhmm(r.from))}에 열립니다`}.</p><ul class="todo">${v.act.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;   // v2.3.28: 판단 설명과 할 일은 ⓘ 안에
     $("#ccLeft").innerHTML = `
       ${a ? `<div class="alert"><button class="alert-x" data-alert-close="${esc(a.key)}" aria-label="알림 닫기">${icon("x")}</button>
         <b class="mono">${esc(a.t)}${alerts.length > 1 ? ` · 외 ${alerts.length - 1}건` : ""}</b><p>${esc(a.body)}</p><small>출처: <span>${esc(a.src)}</span></small></div>` : ""}
-      <p class="eyebrow accent">판단 · ${dayLabel()} · ${state.date === TODAY ? `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}` : MODE_SHORT[state.weather.mode]}</p>
+      <section class="nbox"><p class="eyebrow accent">판단 · ${dayLabel()} · ${state.date === TODAY ? `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}` : MODE_SHORT[state.weather.mode]} ${info("lead")}</p>
       <div class="verdict-row">${signalLight(tone)}<div class="verdict-word tone-${tone}">${VERDICT[tone]}</div></div>
-      <p class="lead">${esc(lead)}. ${state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to) ? `${mono(hhmm(r.from))}부터 ${r.to - r.from}시간이 가장 좋았습니다` : state.date === TODAY && new Date().getHours() >= r.from ? `좋은 시간이 ${mono(hhmm(r.to))}까지 이어집니다` : `${r.to - r.from}시간의 좋은 시간이 ${mono(hhmm(r.from))}에 열립니다`}.</p>
+      ${infoText("lead", leadHtml)}</section>
       <div class="kpis">
         <div><span class="eyebrow">입질</span><strong>${sub.bite}</strong><small class="mono">하루 최고 · ${peakBite(r)}</small></div>
         <div><span class="eyebrow">편의</span><strong>${sub.access}</strong><small class="mono">바람 ${num(r.wind)}m/s ${r.dir != null ? compass(r.dir) : ""}</small></div>
       </div>
       <button class="cta" ${guide ? `data-open="${guide.id}"` : 'data-jump="docsSec"'}><span><small class="eyebrow">출조 준비</small><b>${guide ? "이 낚시터 공략법 보기" : "공략 자료 보기"}</b></span>${icon("play")}</button>
-      <p class="eyebrow">${tt.title}</p>
+      <section class="nbox"><p class="eyebrow">${tt.title}</p>
       <div class="tiles4">${(() => { const nowHm = `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}`; const nx = state.date === TODAY ? tt.tiles.findIndex((t) => /^\d\d:\d\d$/.test(t.top) && t.top >= nowHm) : -1; return tt.tiles.map((t, i) => `<div class="tile4 ${t.cls} ${i === nx ? "next" : ""}"><i>${t.mark}</i><b class="mono">${esc(t.top)}</b><small class="mono">${esc(t.sub)}</small></div>`).join(""); })()}</div>
       <div class="chips2"><span class="mono">${r.dir != null ? compass(r.dir) + "풍 " : ""}${num(r.wind)}m/s</span><span class="mono">${r.pressure != null ? `${Math.round(r.pressure)}hPa ${r.pTrend >= 0 ? "+" : "−"}${num(Math.abs(r.pTrend))}` : "기압 –"}</span></div>
-      <ul class="todo">${v.act.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+      </section>`;
 
     const temps = fin(w.temp), winds = fin(w.wind);
     const past = state.date < TODAY || (state.date === TODAY && new Date().getHours() >= r.to);
     $("#ccMid").innerHTML = `
-      <p class="eyebrow">하루 24시간 · 점수 · 기온 · 바람${p.type === "바다" ? ` · 물때 ${mulTae(state.date).name}(${mulTae(state.date).note}) · 유속` : ""}</p>
+      <section class="nbox"><p class="eyebrow">하루 24시간 · 점수 · 기온 · 바람${p.type === "바다" ? ` · 물때 ${mulTae(state.date).name}(${mulTae(state.date).note}) · 유속` : ""} ${info("mid")}</p>
       <h2 class="mid-title">가장 좋은 시간${past ? "은" : "은"} <em class="mono">${hhmm(r.from)}</em>${past ? "이었습니다" : "입니다"}.</h2>
-      <p class="mid-sub" id="midSub">16일 전망을 불러오는 중입니다.</p>
+      ${infoText("mid", `<p class="mid-sub" id="midSub">16일 전망을 불러오는 중입니다.</p><p class="bc-src">날씨 출처: ${esc(wxSrcNow().name)}<span id="bcConf">${confText(modelsFor(p, state.date))}</span> · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? ` · 조위·파고·유속은 Open-Meteo 해상 모델 값 · 물때는 음력 ${mulTae(state.date).lunar}일 기준 서해 7물때식` : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`)}
       <div class="bigchart" id="bigChart"><div class="bc-read mono" id="bcRead"></div></div>
       <p class="bc-legend mono">${legendFor(p, w)}</p>
-      <p class="bc-src">날씨 출처: ${esc(wxSrcNow().name)}<span id="bcConf">${confText(modelsFor(p, state.date))}</span> · ${esc(p.id)} 좌표 기준${state.wxAt ? ` · ${pad2(state.wxAt.getHours())}:${pad2(state.wxAt.getMinutes())} 갱신` : ""}${p.type === "바다" ? ` · 조위·파고·유속은 Open-Meteo 해상 모델 값 · 물때는 음력 ${mulTae(state.date).lunar}일 기준 서해 7물때식` : " · 수온은 지난 10일과 예보 기온으로 낸 추정값(약 3일 늦게 기온을 따라감)"}</p>`;
+      </section>`;
     bigChart = drawBigChart($("#bigChart"), r, w);
     renderMidSub();
 
@@ -1623,20 +1640,21 @@
     // each place is scored as its main kind of fishing, so it is ranked only among places of that kind
     const list = Object.values(state.scores).filter((x) => placeById[x.id].type === p.type).sort((x, y) => y.score - x.score);
     $("#ccRight").innerHTML = `
-      <p class="eyebrow accent">최고 · ${dayLabel()}</p>
+      <section class="nbox"><p class="eyebrow accent">최고 · ${dayLabel()} ${info("peak")}</p>
       <div class="peak mono">${hhmm(r.from)}<span>–</span>${hhmm(r.to)}</div>
-      <p class="peak-sub">${esc(r.water ? `표층 수온 ${num(r.water.surface)}℃` : `기온 ${num(r.temp)}℃`)}, 바람 ${num(r.wind)}m/s. ${esc(READ.rain(r))}.</p>
+      ${infoText("peak", `<p class="peak-sub">${esc(r.water ? `표층 수온 ${num(r.water.surface)}℃` : `기온 ${num(r.temp)}℃`)}, 바람 ${num(r.wind)}m/s. ${esc(READ.rain(r))}.</p>`)}
       <div class="boxes">
         <div class="box"><span class="eyebrow">시간대</span><b class="mono ${wcls}">${ws}</b></div>
         <div class="box"><span class="eyebrow">예보 신뢰도</span><b class="mono accent">${confidence(state.date, state.weather.mode)}%</b></div>
       </div>
-      <p class="eyebrow">갈 만한 곳 · ${esc(p.type)}낚시 ${list.length}곳</p>
+      </section><section class="nbox"><p class="eyebrow">갈 만한 곳 · ${esc(p.type)}낚시 ${list.length}곳 ${info("how")}</p>
+      ${infoText("how", `<b>점수 계산 방법</b> 시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꿔 가중 기하평균을 내고 제곱합니다. 하루 점수는 가장 좋은 연속 2~4시간(70%)과 해 있는 시간 전체(30%)의 평균입니다. 입질은 수온·시간대·기압만, 편의는 바람·강수${p.type === "바다" ? "·파고" : ""}만으로 같은 방식으로 낸 값입니다. 예보 신뢰도는 예보까지 남은 날수로 정한 어림값입니다. 가중치는 가정이며 실제 조과로 검증하지 않았습니다.`)}
       <ol class="rank-list">${list.slice(0, 7).map((x) => `<li><button data-place="${esc(x.id)}" class="${x.id === p.id ? "on" : ""}">
         <span class="ri">${icon("fish")}</span>
         <span class="rn"><b>${esc(x.id)}</b><small>${x.from}~${x.to}시 · ${esc(whyText(x))}</small></span>
         <span class="rs mono tone-${toneOf(x)}">${x.score}</span></button></li>`).join("")}</ol>
       ${p.id === "덕봉" ? `<a class="side-link" href="research/deokbong3d.html" target="_blank" rel="noopener">${icon("cube")}덕봉 3D 자리 분석</a>` : ""}${p.id === "한터" ? `<a class="side-link" href="research/hanteo3d.html" target="_blank" rel="noopener">${icon("cube")}한터 3D 자리 분석</a>` : ""}${p.id === "장광" ? `<a class="side-link" href="research/jangkwang3d.html" target="_blank" rel="noopener">${icon("cube")}장광 3D 자리 분석</a>` : ""}
-      <details class="v-how"><summary>점수 계산 방법</summary><p>시간마다 바람(25%), 기온 또는 송어터 수온(25%), 강수(20%), 시간대(20%, 조과 기록이 있으면 절반 반영), 3시간 기압 변화(10%)${p.type === "바다" ? ", 파고(15%)" : ""}를 0~1로 바꿔 가중 기하평균을 내고 제곱합니다. 하루 점수는 가장 좋은 연속 2~4시간(70%)과 해 있는 시간 전체(30%)의 평균입니다. 입질은 수온·시간대·기압만, 편의는 바람·강수${p.type === "바다" ? "·파고" : ""}만으로 같은 방식으로 낸 값입니다. 예보 신뢰도는 예보까지 남은 날수로 정한 어림값입니다. 가중치는 가정이며 실제 조과로 검증하지 않았습니다.</p></details>`;
+      </section>`;
   }
 
   function renderMidSub() {
@@ -1864,7 +1882,7 @@
         <span class="cd-v">${VERDICT[t]}</span>
         ${placeById[state.place].type === "바다" ? `<span class="cd-m">${mulTae(d.date).name}</span>` : ""}<span class="cd-w mono">${pad2(r.from)}–${pad2(r.to)}시</span></button>`;
     }).join("");
-    el.innerHTML = `<div class="cal-top"><span class="eyebrow">앞으로 16일</span><span class="cal-key mono"><i class="k-grad"></i>낮음 → 높음 <span>· 위 숫자 입질(바깥 원) · 아래 숫자 편의(안쪽 원) · 오른쪽 위 하루 점수</span></span></div>
+    el.innerHTML = `<div class="cal-top"><span class="eyebrow">앞으로 16일 ${info("cal")}</span></div>${infoText("cal", '<span class="cal-key mono"><i class="k-grad"></i>낮음 → 높음 <span>· 위 숫자 입질(바깥 원) · 아래 숫자 편의(안쪽 원) · 오른쪽 위 하루 점수 · 아래 글자는 내 출조 기준 판단</span></span>')}
       <div class="cal">${head}${pad(lead)}${cells}${pad(tail)}</div>`;
     renderMidSub();
   }
@@ -2148,7 +2166,7 @@
       : `<p class="notice">선택한 날짜 앞뒤 30일 안에 이곳에 간 기록이 없습니다.${p.trips.length ? " 전체 기록은 아래에 있습니다." : ""}</p>`;
     const restTrips = p.trips.filter((t) => !seasonal.includes(t));
 
-    $("#records").innerHTML = `${catchPanel(p)}<div class="panel" style="grid-column:span 12" id="similarPanel"><h2>비슷한 날씨의 지난 출조</h2><p class="sub">선택한 날의 기온, 바람, 강수와 가까운 순입니다. 과거 값은 재분석 자료입니다.</p><div id="similarBody"><div class="skeleton"></div></div></div>`;
+    $("#records").innerHTML = `${catchPanel(p)}<div class="panel" style="grid-column:span 12" id="similarPanel"><h2>비슷한 날씨의 지난 출조 ${info("sim")}</h2>${infoText("sim", '<p class="sub">선택한 날의 기온, 바람, 강수와 가까운 순입니다. 과거 값은 재분석 자료입니다.</p>')}<div id="similarBody"><div class="skeleton"></div></div></div>`;
     $("#dossier").innerHTML = `
       <div class="panel"><h2>${esc(p.id)} 공략법</h2><p class="sub">이 장소를 다루는 문서입니다. 언급 횟수가 많은 순으로 보여줍니다.</p>${guideHtml}</div>
       <div class="panel wide"><h2>이맘때의 조행기</h2><p class="sub">${fmtShort(state.date)} 앞뒤 30일 안에 ${esc(p.id)}에 다녀온 기록 ${seasonal.length}건</p>${seasonalHtml}</div>

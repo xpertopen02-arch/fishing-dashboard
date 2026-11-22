@@ -1494,3 +1494,26 @@ html.rot-frame .leaflet-container { touch-action: none; }
 /* v2.3.27 지도 종류 선택 (Mapbox 토큰이 있을 때) */
 .map-prov select { font: inherit; font-size: 12.5px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); min-height: 32px; }
 .map-prov .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* v2.3.28 지금 탭: 주요 항목은 상자로, 부연 설명은 ⓘ */
+.nbox { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; margin: 0 0 14px; min-width: 0; }
+.nbox > .eyebrow:first-child { margin-top: 0; }
+.nbox .verdict-row { margin-bottom: 0; }
+.nbox .tiles4 { margin-bottom: 8px; }
+.cc-mid .go-box, .cc-mid .days { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; margin: 0 0 14px; }
+.go-box .eyebrow { margin: 0 0 6px; }
+.go-box .go-why { margin: 2px 0 0; }
+.ib { display: inline-grid; place-items: center; min-width: 26px; min-height: 26px; padding: 0 3px; margin-left: 2px; border: 0; background: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; vertical-align: middle; letter-spacing: 0; text-transform: none; border-radius: 50%; }
+.ib:hover { color: var(--ink); }
+.ib.on { color: var(--accent); }
+.ib-tx { margin: 6px 0 10px; padding: 9px 11px; border-radius: 8px; background: color-mix(in srgb, var(--ink) 5%, transparent); font-size: 13px; line-height: 1.6; color: var(--ink-2); }
+.ib-tx[hidden] { display: none; }
+.ib-tx .lead { font-size: 14px; margin: 0; line-height: 1.6; }
+.ib-tx .todo { margin: 8px 0 0; font-size: 13px; }
+.ib-tx .mid-sub { margin: 0 0 4px; font-size: 13.5px; }
+.ib-tx .bc-src { margin: 0; letter-spacing: .04em; }
+.ib-tx .peak-sub { margin: 0; font-size: 13.5px; }
+.ib-tx .mnote, .ib-tx .sub { margin: 0; }
+.ib-tx .cal-key { flex-wrap: wrap; }
+.chart .ib-tx { margin: 4px 0 2px; }
+.chart-title h3 .ib { font-size: 13px; min-height: 22px; min-width: 22px; }
